@@ -5,6 +5,8 @@ import com.example.student.studentModule
 import io.ktor.server.application.*
 import com.example.config.DatabaseFactory
 import com.example.config.configureCors
+import com.example.fees.feeModule
+import com.example.fees.routes.feeStructureRoutes
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
@@ -16,5 +18,6 @@ fun Application.module() {
     accountModule()
     studentModule()
     configureCors()
+    feeModule()
     DatabaseFactory.init()
 }

@@ -14,10 +14,10 @@ data class StudentProfile(
     val isDiscountedStudent: Boolean,
     val isImmunized: Boolean,
     val hasAllergies: Boolean,
-    val hasPeculiarHealthIssues: Boolean,
+
 
     val allergicFoods: String?,
-    val healthIssues: String?,
+
     val otherRelatedInfo: String?,
 
     val nameOfFather: String?,

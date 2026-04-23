@@ -27,9 +27,10 @@ object StudentsTable : IntIdTable("student_profile") {
     val isDiscountedStudent = bool("is_discounted_student").default(false)
     val isImmunized = bool("is_immunized").default(false)
     val hasAllergies = bool("has_allergies").default(false)
-    val hasPeculiarHealthIssues = bool("has_peculiar_health_issues").default(false)
+
     val allergicFoods = varchar("allergic_foods", 300).nullable()
-    val healthIssues = varchar("health_issues", 150).nullable()
+    val classSeekingAdmissionTo = varchar("class_seeking_admission_to", 150).nullable()
+    val deactivationReason = varchar("deactivation_reason", 255).nullable()
     val otherRelatedInfo = text("other_related_info").nullable()
     val nameOfFather = varchar("name_of_father", 100).nullable()
     val nameOfMother = varchar("name_of_mother", 100).nullable()
@@ -41,3 +42,6 @@ object StudentsTable : IntIdTable("student_profile") {
     val contactOfMother = varchar("contact_of_mother", 100).nullable()
     val houseNumber = varchar("house_number", 100).nullable()
 }
+
+
+

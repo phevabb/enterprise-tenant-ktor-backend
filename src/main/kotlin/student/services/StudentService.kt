@@ -12,7 +12,7 @@ import kotlin.random.Random
 
 object StudentService {
 
-    fun createStudent(request: CreateStudentRequest): StudentProfile = transaction {
+    fun createStudent(request: CreateStudentRequest) = transaction {
 
         // 1️⃣ Generate unique user_id (same logic as Django)
         val userId = generateUniqueUserId()
@@ -44,9 +44,9 @@ object StudentService {
                 isDiscountedStudent = request.isDiscountedStudent,
                 isImmunized = request.isImmunized,
                 hasAllergies = request.hasAllergies,
-                hasPeculiarHealthIssues = request.hasPeculiarHealthIssues,
+
                 allergicFoods = request.allergicFoods,
-                healthIssues = request.healthIssues,
+
                 otherRelatedInfo = request.otherRelatedInfo,
                 nameOfFather = request.nameOfFather,
                 nameOfMother = request.nameOfMother,
@@ -56,7 +56,7 @@ object StudentService {
                 nationalityOfMother = request.nationalityOfMother,
                 contactOfFather = request.contactOfFather,
                 contactOfMother = request.contactOfMother,
-                houseNumber = request.houseNumber
+                houseNumber = request.houseNumber,
             )
         )
     }

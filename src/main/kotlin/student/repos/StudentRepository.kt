@@ -1,8 +1,8 @@
 package com.example.student.repos
 
-import com.example.account.AccountTable
+
 import com.example.student.StudentsTable
-import com.example.student.dtos.requests.PatchStudentRequest
+
 import com.example.student.dtos.requests.UpdateStudentRequest
 import com.example.student.dtos.response.GradeClassResponse
 import com.example.student.dtos.response.StudentProfileResponse
@@ -20,10 +20,22 @@ import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 
+
+import com.example.account.AccountTable
+import com.example.student.dtos.requests.PatchStudentRequest
+
+
+
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+
+
 object StudentRepository {
 
     /** ✅ Create student profile */
-    fun create(profile: StudentProfile): StudentProfile = transaction {
+    fun create(profile: StudentProfile) = transaction {
 
         val id = StudentsTable.insertAndGetId {
 
@@ -42,10 +54,10 @@ object StudentRepository {
             it[isDiscountedStudent] = profile.isDiscountedStudent
             it[isImmunized] = profile.isImmunized
             it[hasAllergies] = profile.hasAllergies
-            it[hasPeculiarHealthIssues] = profile.hasPeculiarHealthIssues
+
 
             it[allergicFoods] = profile.allergicFoods
-            it[healthIssues] = profile.healthIssues
+
             it[otherRelatedInfo] = profile.otherRelatedInfo
 
             it[nameOfFather] = profile.nameOfFather
@@ -60,7 +72,7 @@ object StudentRepository {
             it[houseNumber] = profile.houseNumber
         }.value
 
-        findById(id)!!
+        findByIdWithUserAndClass(id)!!
     }
 
     /** ✅ Get all students */
@@ -104,10 +116,10 @@ object StudentRepository {
             it[isDiscountedStudent] = profile.isDiscountedStudent
             it[isImmunized] = profile.isImmunized
             it[hasAllergies] = profile.hasAllergies
-            it[hasPeculiarHealthIssues] = profile.hasPeculiarHealthIssues
+
 
             it[allergicFoods] = profile.allergicFoods
-            it[healthIssues] = profile.healthIssues
+
             it[otherRelatedInfo] = profile.otherRelatedInfo
 
             it[nameOfFather] = profile.nameOfFather
@@ -126,7 +138,7 @@ object StudentRepository {
 
     fun findAllWithUserAndClass(): List<StudentProfileResponse> = transaction {
 
-            val query = StudentsTable
+            val query = StudentsTable // this table has two FKs
                 .join(AccountTable, JoinType.INNER, onColumn = StudentsTable.user, otherColumn = AccountTable.id)
                 .join(NewGradeClassTable, JoinType.LEFT, onColumn = StudentsTable.currentNewGradeClass, otherColumn = NewGradeClassTable.id)
 
@@ -141,10 +153,11 @@ object StudentRepository {
                         fullName = row[AccountTable.fullName],
                         gender = row[AccountTable.gender],
                         role = row[AccountTable.role],
-                        isActive = row[AccountTable.isActive]
+                        isActive = row[AccountTable.isActive],
+                        dateOfBirth = row[AccountTable.dateOfBirth]
                     )
 
-                    val gradeClass = row[NewGradeClassTable.id]?.value?.let { classId ->
+                    val gradeClass = row[NewGradeClassTable.id].value.let { classId ->
                         GradeClassResponse(
                             id = classId,
                             name = row[NewGradeClassTable.name]
@@ -161,11 +174,10 @@ object StudentRepository {
 
                         isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
                         isImmunized = row[StudentsTable.isImmunized],
-                        hasAllergies = row[StudentsTable.hasAllergies],
-                        hasPeculiarHealthIssues = row[StudentsTable.hasPeculiarHealthIssues],
+
 
                         allergicFoods = row[StudentsTable.allergicFoods],
-                        healthIssues = row[StudentsTable.healthIssues],
+
                         otherRelatedInfo = row[StudentsTable.otherRelatedInfo],
 
                         nameOfFather = row[StudentsTable.nameOfFather],
@@ -177,7 +189,8 @@ object StudentRepository {
                         contactOfFather = row[StudentsTable.contactOfFather],
                         contactOfMother = row[StudentsTable.contactOfMother],
 
-                        houseNumber = row[StudentsTable.houseNumber]
+                        houseNumber = row[StudentsTable.houseNumber],
+                        hasAllergies = row[StudentsTable.hasAllergies],
                     )
                 }
         }
@@ -202,10 +215,10 @@ object StudentRepository {
                 row[StudentsTable.isDiscountedStudent] = req.isDiscountedStudent
                 row[StudentsTable.isImmunized] = req.isImmunized
                 row[StudentsTable.hasAllergies] = req.hasAllergies
-                row[StudentsTable.hasPeculiarHealthIssues] = req.hasPeculiarHealthIssues
+
 
                 row[StudentsTable.allergicFoods] = req.allergicFoods
-                row[StudentsTable.healthIssues] = req.healthIssues
+
                 row[StudentsTable.otherRelatedInfo] = req.otherRelatedInfo
 
                 row[StudentsTable.nameOfFather] = req.nameOfFather
@@ -221,39 +234,76 @@ object StudentRepository {
             } > 0
         }
 
-    fun patch(id: Int, req: PatchStudentRequest): Boolean = transaction {
-            StudentsTable.update({ StudentsTable.id eq id }) { row ->
 
+
+
+        fun patch(id: Int, req: PatchStudentRequest): Boolean = transaction {
+
+            // 1) Get linked account id (needed for nested user update)
+            val existing = StudentsTable
+                .selectAll()
+                .where { StudentsTable.id eq id }
+                .singleOrNull()
+                ?: return@transaction false
+
+            val accountId = existing[StudentsTable.user].value
+
+            // 2) Update StudentProfile fields
+            val updated = StudentsTable.update({ StudentsTable.id eq id }) { row ->
+
+                // ✅ FK update:
+                // If frontend always sends currentNewGradeClassId (null or value), this is correct:
+                // - value -> set FK
+                // - null  -> clear FK
                 if (req.currentNewGradeClassId != null) {
-                    row[StudentsTable.currentNewGradeClass] = EntityID(req.currentNewGradeClassId, NewGradeClassTable)
+                    row[StudentsTable.currentNewGradeClass] =
+                        EntityID(req.currentNewGradeClassId, NewGradeClassTable)
+                } else {
+                    row[StudentsTable.currentNewGradeClass] = null
                 }
-                req.isGraduated?.let { row[StudentsTable.isGraduated] = it }
-                if (req.lastSchoolAttended != null) row[StudentsTable.lastSchoolAttended] = req.lastSchoolAttended
 
+                req.lastSchoolAttended?.let { row[StudentsTable.lastSchoolAttended] = it }
                 req.isDiscountedStudent?.let { row[StudentsTable.isDiscountedStudent] = it }
                 req.isImmunized?.let { row[StudentsTable.isImmunized] = it }
-                req.hasAllergies?.let { row[StudentsTable.hasAllergies] = it }
-                req.hasPeculiarHealthIssues?.let { row[StudentsTable.hasPeculiarHealthIssues] = it }
+                req.allergicFoods?.let { row[StudentsTable.allergicFoods] = it }
+                req.otherRelatedInfo?.let { row[StudentsTable.otherRelatedInfo] = it }
 
-                if (req.allergicFoods != null) row[StudentsTable.allergicFoods] = req.allergicFoods
-                if (req.healthIssues != null) row[StudentsTable.healthIssues] = req.healthIssues
-                if (req.otherRelatedInfo != null) row[StudentsTable.otherRelatedInfo] = req.otherRelatedInfo
+                req.nameOfFather?.let { row[StudentsTable.nameOfFather] = it }
+                req.occupationOfFather?.let { row[StudentsTable.occupationOfFather] = it }
+                req.nationalityOfFather?.let { row[StudentsTable.nationalityOfFather] = it }
 
-                if (req.nameOfFather != null) row[StudentsTable.nameOfFather] = req.nameOfFather
-                if (req.nameOfMother != null) row[StudentsTable.nameOfMother] = req.nameOfMother
+                req.nameOfMother?.let { row[StudentsTable.nameOfMother] = it }
+                req.occupationOfMother?.let { row[StudentsTable.occupationOfMother] = it }
+                req.nationalityOfMother?.let { row[StudentsTable.nationalityOfMother] = it }
 
-                if (req.occupationOfFather != null) row[StudentsTable.occupationOfFather] = req.occupationOfFather
-                if (req.occupationOfMother != null) row[StudentsTable.occupationOfMother] = req.occupationOfMother
+                req.contactOfFather?.let { row[StudentsTable.contactOfFather] = it }
+                req.contactOfMother?.let { row[StudentsTable.contactOfMother] = it }
+                req.houseNumber?.let { row[StudentsTable.houseNumber] = it }
 
-                if (req.nationalityOfFather != null) row[StudentsTable.nationalityOfFather] = req.nationalityOfFather
-                if (req.nationalityOfMother != null) row[StudentsTable.nationalityOfMother] = req.nationalityOfMother
+                // ✅ Only include these if the columns exist in StudentsTable:
+                // req.classSeekingAdmissionTo?.let { row[StudentsTable.classSeekingAdmissionTo] = it }
+                // req.deactivationReason?.let { row[StudentsTable.deactivationReason] = it }
+            }
 
-                if (req.contactOfFather != null) row[StudentsTable.contactOfFather] = req.contactOfFather
-                if (req.contactOfMother != null) row[StudentsTable.contactOfMother] = req.contactOfMother
+            if (updated == 0) return@transaction false
 
-                if (req.houseNumber != null) row[StudentsTable.houseNumber] = req.houseNumber
-            } > 0
+            // 3) Update nested Account fields (if user object exists)
+            req.user?.let { u ->
+                AccountTable.update({ AccountTable.id eq accountId }) { a ->
+                    u.fullName?.let { a[AccountTable.fullName] = it }
+                    u.gender?.let { a[AccountTable.gender] = it }
+                    u.nationality?.let { a[AccountTable.nationality] = it }
+                    u.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
+                    u.role?.let { a[AccountTable.role] = it.lowercase() }
+                    u.isActive?.let { a[AccountTable.isActive] = it }
+                    u.isStaff?.let { a[AccountTable.isStaff] = it }
+                    // u.id is intentionally ignored
+                }
+            }
+
+            true
         }
+
 
     fun delete(id: Int): Boolean = transaction {
             StudentsTable.deleteWhere { StudentsTable.id eq id } > 0
@@ -279,16 +329,16 @@ object StudentRepository {
                 u[StudentsTable.currentNewGradeClass] = EntityID(req.currentNewGradeClassId, NewGradeClassTable)
             }
 
-            req.isGraduated?.let { u[StudentsTable.isGraduated] = it }
+
             req.lastSchoolAttended?.let { u[StudentsTable.lastSchoolAttended] = it }
 
             req.isDiscountedStudent?.let { u[StudentsTable.isDiscountedStudent] = it }
             req.isImmunized?.let { u[StudentsTable.isImmunized] = it }
-            req.hasAllergies?.let { u[StudentsTable.hasAllergies] = it }
-            req.hasPeculiarHealthIssues?.let { u[StudentsTable.hasPeculiarHealthIssues] = it }
+
+
 
             req.allergicFoods?.let { u[StudentsTable.allergicFoods] = it }
-            req.healthIssues?.let { u[StudentsTable.healthIssues] = it }
+
             req.otherRelatedInfo?.let { u[StudentsTable.otherRelatedInfo] = it }
 
             req.nameOfFather?.let { u[StudentsTable.nameOfFather] = it }
@@ -356,7 +406,8 @@ object StudentRepository {
                     fullName = r[AccountTable.fullName],
                     gender = r[AccountTable.gender],
                     role = r[AccountTable.role],
-                    isActive = r[AccountTable.isActive]
+                    isActive = r[AccountTable.isActive],
+                    dateOfBirth = r[AccountTable.dateOfBirth ]
                 )
 
                 val classDto = r[NewGradeClassTable.id]?.value?.let { classId ->
@@ -377,10 +428,10 @@ object StudentRepository {
                     isDiscountedStudent = r[StudentsTable.isDiscountedStudent],
                     isImmunized = r[StudentsTable.isImmunized],
                     hasAllergies = r[StudentsTable.hasAllergies],
-                    hasPeculiarHealthIssues = r[StudentsTable.hasPeculiarHealthIssues],
+
 
                     allergicFoods = r[StudentsTable.allergicFoods],
-                    healthIssues = r[StudentsTable.healthIssues],
+
                     otherRelatedInfo = r[StudentsTable.otherRelatedInfo],
 
                     nameOfFather = r[StudentsTable.nameOfFather],

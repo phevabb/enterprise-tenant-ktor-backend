@@ -37,3 +37,30 @@ student/
   StudentService.kt        # business logic
   StudentRoutes.kt         # HTTP routes
   StudentModule.kt         # route mount (/students)
+
+
+
+error: Failed to convert request body to class com.example.student.dtos.requests.CreateTermRequest
+fix:
+1. first do this:
+    val rawbody =call.receiveText()
+    println("rawbody is $rawbody")
+
+   3. checke the rawbody and create something like this for it
+
+
+@Serializable
+data class CreateTermIncoming(
+    val name: String,
+    val academic_year_id: String
+)
+
+
+then use it
+
+ val incoming = call.receive<CreateTermIncoming>()
+
+ val req = CreateTermRequest(
+             name = incoming.name,
+             academic_year = incoming.academic_year_id.toInt()
+         )

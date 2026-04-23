@@ -20,8 +20,11 @@ fun Route.studentRoutes() {
     }
 
     post {
+
+
         // 1) Receive JSON body from frontend into your DTO
         val req = call.receive<CreateStudentRequest>()
+        println("the structure frontend is $req")
 
 
         // 2) Call service (your DRF serializer.create() equivalent)
@@ -57,7 +60,7 @@ fun Route.studentRoutes() {
             return@delete
         }
 
-        val ok = StudentService.deleteStudent(id)
+        val ok = StudentRepository.delete(id)
 
         if (!ok) {
             call.respond(HttpStatusCode.NotFound, "Student not found")
@@ -73,6 +76,8 @@ fun Route.studentRoutes() {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
             return@patch
         }
+
+
 
         val req = call.receive<PatchStudentRequest>()
         val updated = StudentRepository.patchNested(id, req)

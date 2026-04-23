@@ -15,10 +15,10 @@ fun ResultRow.toStudentProfile() = StudentProfile(
     isDiscountedStudent = this[StudentsTable.isDiscountedStudent],
     isImmunized = this[StudentsTable.isImmunized],
     hasAllergies = this[StudentsTable.hasAllergies],
-    hasPeculiarHealthIssues = this[StudentsTable.hasPeculiarHealthIssues],
+
 
     allergicFoods = this[StudentsTable.allergicFoods],
-    healthIssues = this[StudentsTable.healthIssues],
+
     otherRelatedInfo = this[StudentsTable.otherRelatedInfo],
 
     nameOfFather = this[StudentsTable.nameOfFather],

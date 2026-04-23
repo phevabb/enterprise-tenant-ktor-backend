@@ -3,6 +3,7 @@ package com.example.student
 import com.example.student.routes.academicYearRoutes
 import com.example.student.routes.gradeClassRoutes
 import com.example.student.routes.studentRoutes
+import com.example.student.routes.termRoutes
 
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
@@ -19,6 +20,10 @@ fun Application.studentModule() {
 
             route("/year"){
                 academicYearRoutes()
+            }
+
+            route("/term"){
+                termRoutes()
             }
         }
     }
