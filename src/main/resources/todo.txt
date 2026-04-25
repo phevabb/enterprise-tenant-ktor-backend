@@ -64,3 +64,6 @@ then use it
              name = incoming.name,
              academic_year = incoming.academic_year_id.toInt()
          )
+
+
+ to create datetime: it[dateCreated] = System.currentTimeMillis()

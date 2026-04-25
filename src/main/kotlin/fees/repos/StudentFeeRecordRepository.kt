@@ -3,12 +3,14 @@ package com.example.fees.repos
 
 
 
+import com.example.account.AccountTable
 import com.example.fees.mappers.toStudentFeeRecordModel
 import com.example.fees.models.StudentFeeRecordModel
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.StudentFeeRecordTable
 import com.example.student.tables.AcademicYearTable
 import com.example.student.StudentsTable
+import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -16,17 +18,92 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
 
+
 object StudentFeeRecordRepository {
 
     fun findAll(): List<StudentFeeRecordModel> = transaction {
+
         StudentFeeRecordTable
+            .join(
+                StudentsTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.student,
+                StudentsTable.id
+            )
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                StudentsTable.user,
+                AccountTable.id
+            )
+            .join(
+                FeeStructureTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.feeStructure,
+                FeeStructureTable.id
+            )
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FeeStructureTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FeeStructureTable.term,
+                TermTable.id
+            )
+            .join(
+                NewGradeClassTable,
+                JoinType.INNER,
+                FeeStructureTable.grade_class,
+                NewGradeClassTable.id
+            )
             .selectAll()
             .orderBy(StudentFeeRecordTable.id, SortOrder.DESC)
             .map { it.toStudentFeeRecordModel() }
     }
-
-    fun findById(id: Int): StudentFeeRecordModel? = transaction {
+    private fun baseStudentFeeRecordQuery() =
         StudentFeeRecordTable
+            .join(
+                StudentsTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.student,
+                StudentsTable.id
+            )
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                StudentsTable.user,
+                AccountTable.id
+            )
+            .join(
+                FeeStructureTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.feeStructure,
+                FeeStructureTable.id
+            )
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FeeStructureTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FeeStructureTable.term,
+                TermTable.id
+            )
+            .join(
+                NewGradeClassTable,
+                JoinType.INNER,
+                FeeStructureTable.grade_class,
+                NewGradeClassTable.id
+            )
+    fun findById(id: Int): StudentFeeRecordModel? = transaction {
+        baseStudentFeeRecordQuery()
             .selectAll()
             .where { StudentFeeRecordTable.id eq id }
             .singleOrNull()
@@ -59,12 +136,44 @@ object StudentFeeRecordRepository {
 
         // 2) Enforce: student has no other fee record in THIS term
         val existsForTerm = StudentFeeRecordTable
+
+            .join(
+                StudentsTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.student,
+                StudentsTable.id
+            )
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                StudentsTable.user,
+                AccountTable.id
+            )
             .join(
                 otherTable = FeeStructureTable,
                 joinType = JoinType.INNER,
                 onColumn = StudentFeeRecordTable.feeStructure,
                 otherColumn = FeeStructureTable.id
             )
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FeeStructureTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FeeStructureTable.term,
+                TermTable.id
+            )
+            .join(
+                NewGradeClassTable,
+                JoinType.INNER,
+                FeeStructureTable.grade_class,
+                NewGradeClassTable.id
+            )
+
             .selectAll()
             .where {
                 (StudentFeeRecordTable.student eq EntityID(studentId, StudentsTable)) and

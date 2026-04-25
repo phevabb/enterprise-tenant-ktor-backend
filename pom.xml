@@ -144,6 +144,11 @@
             <version>3.4.2</version>
             <scope>implementation</scope>
         </dependency>
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>ktor-sample-marvin</artifactId>
+            <version>0.0.1</version>
+        </dependency>
 
 
     </dependencies>

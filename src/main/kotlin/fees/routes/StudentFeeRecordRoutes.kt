@@ -47,6 +47,7 @@ fun Route.studentFeeRecordRoutes() {
                 feeStructureId = req.feeStructureId
             )
         } catch (e: Exception) {
+            println("bug is $e")
             return@post call.respond(
                 HttpStatusCode.BadRequest,
                 e.message ?: "Failed to create student fee record"

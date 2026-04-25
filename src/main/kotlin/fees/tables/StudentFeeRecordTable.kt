@@ -4,6 +4,7 @@ package com.example.fees.tables
 import com.example.student.StudentsTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
+import org.jetbrains.exposed.sql.javatime.datetime
 
 object StudentFeeRecordTable : IntIdTable("student_fee_record") {
 
@@ -27,7 +28,8 @@ object StudentFeeRecordTable : IntIdTable("student_fee_record") {
 
     // ✅ NO java.time: store as epoch millis
     val dateCreated = long("date_created")
-        .clientDefault { System.currentTimeMillis() }
+
+
 
     init {
         uniqueIndex("uq_sfr_student_feestructure", student, feeStructure)
