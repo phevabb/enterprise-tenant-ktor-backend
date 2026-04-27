@@ -29,7 +29,7 @@ data class StudentProfile(
     val occupationOfMother: String?,
     val nationalityOfFather: String?,
     val nationalityOfMother: String?,
-    val contactOfFather: String?,
+    val contactOfFather: String,
     val contactOfMother: String?,
 
     val houseNumber: String?

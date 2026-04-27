@@ -24,7 +24,7 @@ data class CreateStudentRequest(
     val nameOfFather: String? = null,
     val occupationOfFather: String? = null,
     val nationalityOfFather: String? = null,
-    val contactOfFather: String? = null,
+    val contactOfFather: String,
 
     val nameOfMother: String? = null,
     val occupationOfMother: String? = null,

@@ -24,7 +24,7 @@ data class UpdateStudentRequest(
     val occupationOfMother: String? = null,
     val nationalityOfFather: String? = null,
     val nationalityOfMother: String? = null,
-    val contactOfFather: String? = null,
+    val contactOfFather: String,
     val contactOfMother: String? = null,
 
     val houseNumber: String? = null

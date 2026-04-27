@@ -38,7 +38,7 @@ object StudentsTable : IntIdTable("student_profile") {
     val occupationOfMother = varchar("occupation_of_mother", 100).nullable()
     val nationalityOfFather = varchar("nationality_of_father", 100).nullable()
     val nationalityOfMother = varchar("nationality_of_mother", 100).nullable()
-    val contactOfFather = varchar("contact_of_father", 100).nullable()
+    val contactOfFather = varchar("contact_of_father", 100)
     val contactOfMother = varchar("contact_of_mother", 100).nullable()
     val houseNumber = varchar("house_number", 100).nullable()
 }
