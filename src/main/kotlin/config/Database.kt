@@ -18,40 +18,64 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 
+
+
 object DatabaseFactory {
 
     fun init() {
+
         val hikariConfig = HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
+
+            jdbcUrl =
+                "jdbc:postgresql://dpg-d7q5hmcm0tmc73cs6h30-a:5432/kog_ktor_database"
+
+            username = "kog_ktor_database_user"
+            password = "tcGOUiie0HB1tSuZ2Y7UYdtxxnriLeMn"
+
             driverClassName = "org.postgresql.Driver"
-            username = "postgres"
-            password = "postgres"
-            maximumPoolSize = 10
+
+            // Render Postgres requires SSL
+            addDataSourceProperty("sslmode", "require")
+
+            maximumPoolSize = 5
             isAutoCommit = false
             transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+
             validate()
         }
 
-        val ds = HikariDataSource(hikariConfig)
-        Database.connect(ds)
+        val dataSource = HikariDataSource(hikariConfig)
+        Database.connect(dataSource)
 
         transaction {
-            // 1) Create tables if missing
-            SchemaUtils.create(AccountTable, NewGradeClassTable, StudentsTable, AcademicYearTable,
-                TermTable, FeeStructureTable, StudentFeeRecordTable, PaymentTable, FamilyTable,
-                        FamilyFeeRecordTable, FamilyPaymentTable
+            SchemaUtils.create(
+                AccountTable,
+                NewGradeClassTable,
+                StudentsTable,
+                AcademicYearTable,
+                TermTable,
+                FeeStructureTable,
+                StudentFeeRecordTable,
+                PaymentTable,
+                FamilyTable,
+                FamilyFeeRecordTable,
+                FamilyPaymentTable
             )
 
-            // 2) Add missing columns (DEV convenience)
-            val statements = SchemaUtils.addMissingColumnsStatements(
-                AccountTable, NewGradeClassTable, StudentsTable,
-                AcademicYearTable,TermTable,FamilyPaymentTable,
-                FeeStructureTable, StudentFeeRecordTable, PaymentTable, FamilyTable, FamilyFeeRecordTable
-            )
-
-
-
-            statements.forEach { stmt -> exec(stmt) }
+            SchemaUtils.addMissingColumnsStatements(
+                AccountTable,
+                NewGradeClassTable,
+                StudentsTable,
+                AcademicYearTable,
+                TermTable,
+                FamilyPaymentTable,
+                FeeStructureTable,
+                StudentFeeRecordTable,
+                PaymentTable,
+                FamilyTable,
+                FamilyFeeRecordTable
+            ).forEach { exec(it) }
         }
     }
 }
+

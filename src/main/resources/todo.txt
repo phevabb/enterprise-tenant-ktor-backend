@@ -67,3 +67,5 @@ then use it
 
 
  to create datetime: it[dateCreated] = System.currentTimeMillis()
+
+ to run: mvn clean package
