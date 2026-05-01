@@ -19,13 +19,6 @@ fun Route.paymentRoutes() {
         call.respond(HttpStatusCode.OK, allPayments)
     }
 
-//    post {
-//
-//        val req = call.receive<CreatePaymentRequest>()
-//        val created = PaymentRepository.createPaymentAndUpdateSfr(req.student_fee_record_id, req.amount)
-//        println("the error $created")
-//        call.respond(HttpStatusCode.Created, created)
-//    }
 
 
     post {

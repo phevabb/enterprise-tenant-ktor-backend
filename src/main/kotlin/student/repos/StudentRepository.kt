@@ -22,6 +22,8 @@ import org.jetbrains.exposed.sql.update
 
 
 import com.example.account.AccountTable
+import com.example.familyfees.tables.FamilyTable
+import com.example.minimals.FamilyMinimal
 import com.example.student.dtos.requests.PatchStudentRequest
 
 
@@ -46,6 +48,11 @@ object StudentRepository {
             it[currentNewGradeClass] =
                 profile.currentNewGradeClassId?.let {
                     EntityID(it, NewGradeClassTable)
+                }
+
+            it[family] =
+                profile.family?.let {
+                    EntityID(it, FamilyTable)
                 }
 
             it[isGraduated] = profile.isGraduated
@@ -141,8 +148,9 @@ object StudentRepository {
             val query = StudentsTable // this table has two FKs
                 .join(AccountTable, JoinType.INNER, onColumn = StudentsTable.user, otherColumn = AccountTable.id)
                 .join(NewGradeClassTable, JoinType.LEFT, onColumn = StudentsTable.currentNewGradeClass, otherColumn = NewGradeClassTable.id)
+                .join(FamilyTable, JoinType.LEFT, onColumn = StudentsTable.family, otherColumn = FamilyTable.id)
 
-            query
+        query
                 .selectAll()
                 .orderBy(StudentsTable.id, SortOrder.DESC)
                 .map { row ->
@@ -157,10 +165,17 @@ object StudentRepository {
                         dateOfBirth = row[AccountTable.dateOfBirth]
                     )
 
-                    val gradeClass = row[NewGradeClassTable.id].value.let { classId ->
+                    val gradeClass = row[NewGradeClassTable.id]?.value?.let { classId ->
                         GradeClassResponse(
                             id = classId,
                             name = row[NewGradeClassTable.name]
+                        )
+                    }
+
+                    val fam = row[FamilyTable.id]?.value?.let { famId ->
+                        FamilyMinimal(
+                            id = famId,
+                            name = row[FamilyTable.name]
                         )
                     }
 
@@ -168,6 +183,7 @@ object StudentRepository {
                         id = row[StudentsTable.id].value,
                         user = user,
                         currentNewGradeClass = gradeClass,
+                        family = fam,
 
                         isGraduated = row[StudentsTable.isGraduated],
                         lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
@@ -329,6 +345,10 @@ object StudentRepository {
                 u[StudentsTable.currentNewGradeClass] = EntityID(req.currentNewGradeClassId, NewGradeClassTable)
             }
 
+            if (req.family != null) {
+                u[StudentsTable.family] = EntityID(req.family, FamilyTable)
+            }
+
 
             req.lastSchoolAttended?.let { u[StudentsTable.lastSchoolAttended] = it }
 
@@ -393,6 +413,8 @@ object StudentRepository {
                 onColumn = StudentsTable.currentNewGradeClass,
                 otherColumn = NewGradeClassTable.id
             )
+            .join(FamilyTable, JoinType.LEFT, onColumn = StudentsTable.family, otherColumn = FamilyTable.id)
+
 
         query
             .selectAll()
@@ -417,11 +439,18 @@ object StudentRepository {
                     )
                 }
 
+                val famdto = r[FamilyTable.id]?.value?.let { famId ->
+                    FamilyMinimal(
+                        id = famId,
+                        name = r[FamilyTable.name]
+                    )
+                }
+
                 StudentProfileResponse(
                     id = r[StudentsTable.id].value,
                     user = userDto,
                     currentNewGradeClass = classDto,
-
+                    family = famdto,
                     isGraduated = r[StudentsTable.isGraduated],
                     lastSchoolAttended = r[StudentsTable.lastSchoolAttended],
 

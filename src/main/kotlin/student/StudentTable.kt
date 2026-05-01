@@ -2,6 +2,7 @@ package com.example.student
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import com.example.account.AccountTable
+import com.example.familyfees.tables.FamilyTable
 import com.example.student.tables.NewGradeClassTable
 
 
@@ -21,6 +22,8 @@ object StudentsTable : IntIdTable("student_profile") {
         "current_new_grade_class_id",
         NewGradeClassTable
     ).nullable()
+
+    val family = reference("family", FamilyTable).nullable()
 
     val isGraduated = bool("is_graduated").default(false)
     val lastSchoolAttended = varchar("last_school_attended", 255).nullable()

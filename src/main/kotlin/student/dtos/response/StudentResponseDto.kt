@@ -1,6 +1,7 @@
 package com.example.student.dtos.response
 
 
+import com.example.minimals.FamilyMinimal
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -8,6 +9,7 @@ data class StudentProfileResponse(
     val id: Int,
     val user: StudentUserResponse,
     val currentNewGradeClass: GradeClassResponse?,
+    val family: FamilyMinimal?,
 
     val isGraduated: Boolean,
     val lastSchoolAttended: String?,

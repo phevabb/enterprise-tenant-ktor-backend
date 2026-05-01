@@ -10,6 +10,7 @@ data class StudentProfile(
     @Contextual
     val user: Int,
     val currentNewGradeClassId: Int?,
+    val family: Int?,
 
     val isGraduated: Boolean,
     val lastSchoolAttended: String?,

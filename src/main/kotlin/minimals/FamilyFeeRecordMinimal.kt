@@ -1,16 +1,20 @@
-package com.example.familyfees.models
+package com.example.minimals
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class FamilyFeeModel(
+data class FamilyFeeRecordMinimal(
     val id: Int,
-    val family : Int,
+    val family: FamilyMinimal?,
+    val term: TermMinimal?,
+    val academic_year: AcademicYearMinimal?,
     val amount_to_pay: Int,
     val amount_paid: Int,
     val balance: Int,
     val is_fully_paid: Boolean,
-    val term: Int,
-    val academic_year: Int,
     val date_created: Long,
-)
+
+
+
+
+    )

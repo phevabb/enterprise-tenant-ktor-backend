@@ -7,6 +7,8 @@ import org.jetbrains.exposed.sql.ResultRow
 fun ResultRow.toStudentProfile() = StudentProfile(
     id = this[StudentsTable.id].value,
     user = this[StudentsTable.user].value,
+    family = this[StudentsTable.family]?.value,
+
     currentNewGradeClassId = this[StudentsTable.currentNewGradeClass]?.value,
 
     isGraduated = this[StudentsTable.isGraduated],

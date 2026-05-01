@@ -1,7 +1,8 @@
 package com.example.config
 
-import com.example.account.AccountTable
+import com.example. account.AccountTable
 import com.example.familyfees.tables.FamilyFeeRecordTable
+import com.example.familyfees.tables.FamilyPaymentTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
@@ -38,13 +39,13 @@ object DatabaseFactory {
             // 1) Create tables if missing
             SchemaUtils.create(AccountTable, NewGradeClassTable, StudentsTable, AcademicYearTable,
                 TermTable, FeeStructureTable, StudentFeeRecordTable, PaymentTable, FamilyTable,
-                        FamilyFeeRecordTable
+                        FamilyFeeRecordTable, FamilyPaymentTable
             )
 
             // 2) Add missing columns (DEV convenience)
             val statements = SchemaUtils.addMissingColumnsStatements(
                 AccountTable, NewGradeClassTable, StudentsTable,
-                AcademicYearTable,TermTable,
+                AcademicYearTable,TermTable,FamilyPaymentTable,
                 FeeStructureTable, StudentFeeRecordTable, PaymentTable, FamilyTable, FamilyFeeRecordTable
             )
 

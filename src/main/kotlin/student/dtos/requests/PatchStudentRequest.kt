@@ -8,6 +8,7 @@ data class PatchStudentRequest(
     val user: PatchUserPart? = null,
 
     val currentNewGradeClassId: Int? = null,
+    val family: Int? = null,
     val classSeekingAdmissionTo: String? = null,
 
     val isDiscountedStudent: Boolean? = null,

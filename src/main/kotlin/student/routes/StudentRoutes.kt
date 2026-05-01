@@ -76,9 +76,6 @@ fun Route.studentRoutes() {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
             return@patch
         }
-
-
-
         val req = call.receive<PatchStudentRequest>()
         val updated = StudentRepository.patchNested(id, req)
 

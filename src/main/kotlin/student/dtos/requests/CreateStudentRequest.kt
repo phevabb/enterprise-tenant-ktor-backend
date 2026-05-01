@@ -11,6 +11,7 @@ data class CreateStudentRequest(
     val user: CreateUserPart,
 
     val currentNewGradeClassId: Int? = null,
+    val family: Int? = null,
     val classSeekingAdmissionTo: String? = null,
 
     val isDiscountedStudent: Boolean = false,
