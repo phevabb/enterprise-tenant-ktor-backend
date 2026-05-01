@@ -19,23 +19,24 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 
 
-
 object DatabaseFactory {
 
     fun init() {
 
         val hikariConfig = HikariConfig().apply {
 
+            // ✅ Neon PostgreSQL JDBC URL
             jdbcUrl =
-                "jdbc:postgresql://dpg-d7q5hmcm0tmc73cs6h30-a:5432/kog_ktor_database"
+                "jdbc:postgresql://ep-proud-sound-andkoqj6-pooler.c-6.us-east-1.aws.neon.tech/neondb"
 
-            username = "kog_ktor_database_user"
-            password = "tcGOUiie0HB1tSuZ2Y7UYdtxxnriLeMn"
+            username = "neondb_owner"
+            password = "npg_ETm9p5IrkyjY"
 
             driverClassName = "org.postgresql.Driver"
 
-            // Render Postgres requires SSL
+            // ✅ REQUIRED for Neon
             addDataSourceProperty("sslmode", "require")
+            addDataSourceProperty("channelBinding", "require")
 
             maximumPoolSize = 5
             isAutoCommit = false
@@ -78,4 +79,3 @@ object DatabaseFactory {
         }
     }
 }
-
