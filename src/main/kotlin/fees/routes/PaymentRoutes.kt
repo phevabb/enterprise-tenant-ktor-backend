@@ -32,7 +32,7 @@ fun Route.paymentRoutes() {
 
         println("results.sms is ${result.sms}")
         // ✅ send only after transaction succeeded
-//         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
+        result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
 
         call.respond(HttpStatusCode.Created, result)
     }
