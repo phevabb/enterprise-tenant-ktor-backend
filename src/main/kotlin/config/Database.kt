@@ -86,67 +86,67 @@ object DatabaseFactory {
 
     fun init() {
 
-//        val hikariConfig = HikariConfig().apply {
-//
-//            jdbcUrl =
-//                "jdbc:postgresql://ep-proud-sound-andkoqj6-pooler.c-6.us-east-1.aws.neon.tech/neondb"
-//
-//            username = "neondb_owner"
-//            password = "npg_ETm9p5IrkyjY"
-//
-//            driverClassName = "org.postgresql.Driver"
-//
-//            // Neon requires SSL
-//            addDataSourceProperty("sslmode", "require")
-//
-//            // Channel binding is optional — remove if you still see connection issues
-//            // addDataSourceProperty("channelBinding", "require")
-//
-//            maximumPoolSize = 5
-//            minimumIdle = 0
-//            isAutoCommit = false
-//
-//            // ✅ Important: DO NOT set transactionIsolation for Neon pooler
-//            // transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-//
-//            // Optional: avoid failing immediately if DB is warming up
-//            initializationFailTimeout = -1
-//
-//            validate()
-//        }
-//
-//        val dataSource = HikariDataSource(hikariConfig)
-//        Database.connect(dataSource)   later for neon
-
-
         val hikariConfig = HikariConfig().apply {
 
-            // ✅ Supabase PostgreSQL JDBC URL
-            jdbcUrl = "jdbc:postgresql://db.ezawszqcemmvmpcxtljm.supabase.co:5432/postgres"
+            jdbcUrl =
+                "jdbc:postgresql://ep-proud-sound-andkoqj6-pooler.c-6.us-east-1.aws.neon.tech/neondb"
 
-            username = "postgres"
-            password = "Uncleproton1.postgres"
+            username = "neondb_owner"
+            password = "npg_ETm9p5IrkyjY"
 
             driverClassName = "org.postgresql.Driver"
 
-            // ✅ Supabase requires SSL
+            // Neon requires SSL
             addDataSourceProperty("sslmode", "require")
+
+            // Channel binding is optional — remove if you still see connection issues
+            // addDataSourceProperty("channelBinding", "require")
 
             maximumPoolSize = 5
             minimumIdle = 0
             isAutoCommit = false
 
-            // ✅ Keep this: avoids failing immediately if DB is warming up
-            initializationFailTimeout = -1
-
-            // ❌ Do not set transaction isolation here (especially if you later use poolers)
+            // ✅ Important: DO NOT set transactionIsolation for Neon pooler
             // transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+
+            // Optional: avoid failing immediately if DB is warming up
+            initializationFailTimeout = -1
 
             validate()
         }
 
         val dataSource = HikariDataSource(hikariConfig)
-        Database.connect(dataSource)
+        Database.connect(dataSource)   // later for neon
+
+
+//        val hikariConfig = HikariConfig().apply {
+//
+//            // ✅ Supabase PostgreSQL JDBC URL
+//            jdbcUrl = "jdbc:postgresql://db.ezawszqcemmvmpcxtljm.supabase.co:5432/postgres"
+//
+//            username = "postgres"
+//            password = "Uncleproton1.postgres"
+//
+//            driverClassName = "org.postgresql.Driver"
+//
+//            // ✅ Supabase requires SSL
+//            addDataSourceProperty("sslmode", "require")
+//
+//            maximumPoolSize = 5
+//            minimumIdle = 0
+//            isAutoCommit = false
+//
+//            // ✅ Keep this: avoids failing immediately if DB is warming up
+//            initializationFailTimeout = -1
+//
+//            // ❌ Do not set transaction isolation here (especially if you later use poolers)
+//            // transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+//
+//            validate()
+//        }
+//
+//        val dataSource = HikariDataSource(hikariConfig)
+//        Database.connect(dataSource)  later for superbase
 
 
         transaction {

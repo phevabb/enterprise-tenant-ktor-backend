@@ -69,3 +69,5 @@ then use it
  to create datetime: it[dateCreated] = System.currentTimeMillis()
 
  to run: mvn clean package
+
+ export students: java -cp .\target\ktor-sample-marvin-0.0.1-jar-with-dependencies.jar com.example.ApplicationKt import-students
