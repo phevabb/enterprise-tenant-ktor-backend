@@ -34,6 +34,8 @@ fun Route.studentRoutes() {
         call.respond(HttpStatusCode.Created, createdProfile)
     }
 
+
+
     // PUT /student/{id}  (full update)
     put("{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
