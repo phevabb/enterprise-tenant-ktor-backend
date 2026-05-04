@@ -146,7 +146,38 @@ object DatabaseFactory {
 //        }
 //
 //        val dataSource = HikariDataSource(hikariConfig)
-//        Database.connect(dataSource)  later for superbase
+//        Database.connect(dataSource)   //  super base
+
+
+
+//            val hikariConfig = HikariConfig().apply {
+//
+//                // ✅ Local PostgreSQL JDBC URL
+//                jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
+//
+//                username = "postgres"          // your local DB user
+//                password = "postgres"     // your local DB password
+//
+//                driverClassName = "org.postgresql.Driver"
+//
+//                // ✅ Pool settings (good defaults)
+//                maximumPoolSize = 10
+//                minimumIdle = 2
+//                isAutoCommit = false
+//
+//                // ✅ Don’t fail fast on startup
+//                initializationFailTimeout = -1
+//
+//                // ❌ NO SSL for local
+//                // ❌ NO transactionIsolation override
+//
+//                validate()
+//            }
+//
+//            val dataSource = HikariDataSource(hikariConfig)
+//
+//            Database.connect(dataSource)  // LATER for local
+
 
 
         transaction {

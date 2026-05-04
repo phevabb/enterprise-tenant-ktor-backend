@@ -13,10 +13,14 @@ import com.example.fees.tables.PaymentTable
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import com.example.fees.tables.PaymentTable.date_created
 import com.example.fees.tables.StudentFeeRecordTable
+import com.example.notifications.SmsPayload
 import com.example.student.StudentsTable
+import com.example.student.mappers.toStudentProfile
 import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
+import io.ktor.server.plugins.BadRequestException
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SortOrder
@@ -100,24 +104,27 @@ object FamilyPaymentRepository {
             }
     }
 
+
     fun createPaymentAndUpdateFfr(
         familyFeeRecordId: Int,
         amount: Int,
         paymentMethod: String
-    ): FamilyPaymentResponseDto = transaction {
+    ): FamilyPaymentResult = transaction {
 
-        // 1️⃣ Fetch the family fee record
-        val feeRecord = FamilyFeeRecordTable
+        // 1️⃣ Fetch family fee record
+        val record = FamilyFeeRecordTable
             .selectAll()
             .where { FamilyFeeRecordTable.id eq familyFeeRecordId }
             .singleOrNull()
-            ?: throw IllegalArgumentException("Family fee record not found")
+            ?: throw BadRequestException("Family fee record not found")
 
-        val currentPaid = feeRecord[FamilyFeeRecordTable.amount_paid]
-        val amountToPay = feeRecord[FamilyFeeRecordTable.amount_to_pay]
+        if (amount <= 0)
+            throw BadRequestException("Payment amount must be greater than zero")
 
-        val newPaidAmount = currentPaid + amount
-        val newBalance = amountToPay - newPaidAmount
+        val amountToPay = record[FamilyFeeRecordTable.amount_to_pay]
+        val alreadyPaid = record[FamilyFeeRecordTable.amount_paid]
+        val newPaid = alreadyPaid + amount
+        val newBalance = amountToPay - newPaid
         val isFullyPaid = newBalance <= 0
 
         // 2️⃣ Insert payment
@@ -126,50 +133,107 @@ object FamilyPaymentRepository {
             it[FamilyPaymentTable.amount] = amount
             it[FamilyPaymentTable.payment_method] = paymentMethod
             it[FamilyPaymentTable.date_created] = System.currentTimeMillis()
-        }
+        }.value
 
         // 3️⃣ Update family fee record
         FamilyFeeRecordTable.update(
             { FamilyFeeRecordTable.id eq familyFeeRecordId }
         ) {
-            it[amount_paid] = newPaidAmount
+            it[amount_paid] = newPaid
             it[balance] = newBalance
             it[is_fully_paid] = isFullyPaid
         }
 
-        // 4️⃣ Re‑query everything for response
-        FamilyPaymentTable
+        // 4️⃣ Requery response DTO
+        val responseDto = FamilyPaymentTable
             .join(
                 FamilyFeeRecordTable,
                 JoinType.INNER,
-                onColumn = FamilyPaymentTable.family_fee_record,
-                otherColumn = FamilyFeeRecordTable.id
+                FamilyPaymentTable.family_fee_record,
+                FamilyFeeRecordTable.id
             )
             .join(
                 FamilyTable,
                 JoinType.LEFT,
-                onColumn = FamilyFeeRecordTable.family,
-                otherColumn = FamilyTable.id
+                FamilyFeeRecordTable.family,
+                FamilyTable.id
             )
             .join(
                 TermTable,
                 JoinType.LEFT,
-                onColumn = FamilyFeeRecordTable.term,
-                otherColumn = TermTable.id
+                FamilyFeeRecordTable.term,
+                TermTable.id
             )
             .join(
                 AcademicYearTable,
                 JoinType.LEFT,
-                onColumn = FamilyFeeRecordTable.academic_year,
-                otherColumn = AcademicYearTable.id
+                FamilyFeeRecordTable.academic_year,
+                AcademicYearTable.id
             )
             .selectAll()
             .where { FamilyPaymentTable.id eq paymentId }
             .single()
             .toFamilyPaymentResponseDto()
+
+        // ===========================
+        // ✅ BUILD SMS
+        // ===========================
+
+        val familyId = record[FamilyFeeRecordTable.family]
+
+        val studentRows = StudentsTable
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                additionalConstraint = {
+                    StudentsTable.user eq AccountTable.id
+                }
+            )
+            .selectAll()
+            .where {StudentsTable.family eq familyId
+            }
+            .toList()
+
+        val studentNames = studentRows
+            .map { it[AccountTable.fullName] }
+            .joinToString(", ")
+            .ifBlank { "your wards" }
+
+        val parentPhone = studentRows
+                .firstOrNull()?.toStudentProfile()?.contactOfFather
+
+        val smsPayload = parentPhone?.let { phone ->
+            val paymentStatus =
+                if (newBalance > 0) "part payment" else "full payment"
+
+            SmsPayload(
+                phone = phone,
+                message = """
+                Dear Parent/Guardian,
+                You made a $paymentStatus of GH₵ $amount for your wards: $studentNames.
+                Purpose: School Fees
+                Term/Year: ${responseDto.family_fee_record.term?.name} – ${responseDto.family_fee_record.academic_year?.name}.
+                Balance: GH₵ $newBalance.
+                Thank you.
+            """.trimIndent()
+            )
+        }
+
+        FamilyPaymentResult(
+            response = responseDto,
+            sms = smsPayload
+        )
     }
+
 
     fun delete(id: Int): Boolean = transaction {
         FamilyPaymentTable.deleteWhere { FamilyPaymentTable.id eq id } > 0
     }
 }
+
+
+@Serializable
+data class FamilyPaymentResult(
+    val response: FamilyPaymentResponseDto,
+    val sms: SmsPayload?
+)

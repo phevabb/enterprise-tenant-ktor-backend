@@ -3,6 +3,7 @@ package com.example.familyfees.routes
 import com.example.familyfees.dtos.requests.CreateFamilyPaymentRequest
 import com.example.familyfees.repos.FamilyFeeRecordsRepository
 import com.example.familyfees.repos.FamilyPaymentRepository
+import com.example.notifications.SmsService
 import io.ktor.server.routing.Route
 
 import io.ktor.http.*
@@ -29,11 +30,9 @@ fun Route.familyPaymentRoutes() {
             paymentMethod = "cash"
         )
 
-        // Optional side effects (SMS, logging, etc.)
-//        println("results.sms is ${result.sms}")
-        // result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
+        result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
 
-        call.respond(HttpStatusCode.Created, result)
+        call.respond(HttpStatusCode.Created, result.response)
     }
 
     delete("{id}") {

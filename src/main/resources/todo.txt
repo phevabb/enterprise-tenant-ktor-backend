@@ -71,3 +71,20 @@ then use it
  to run: mvn clean package
 
  export students: java -cp .\target\ktor-sample-marvin-0.0.1-jar-with-dependencies.jar com.example.ApplicationKt import-students
+
+
+ fix search and pagination
+
+ fix unable to deassign familiy to a student
+
+
+ to deploy.
+ 1. First Check DB
+ 2. RUN mvn clean package
+ 3. Push to github
+
+
+
+
+
+
