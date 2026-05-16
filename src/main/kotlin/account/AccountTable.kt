@@ -17,3 +17,4 @@ object AccountTable : IntIdTable("accounts") {
     val isStaff = bool("is_staff").default(false)
     val passwordHash = varchar("password_hash", 255)
 }
+

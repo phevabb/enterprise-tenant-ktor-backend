@@ -10,6 +10,7 @@ import com.example.fees.tables.StudentFeeRecordTable
 
 import com.example.student.StudentsTable
 import com.example.student.tables.AcademicYearTable
+import com.example.student.tables.NewClassPromotionTable
 import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
 import com.zaxxer.hikari.HikariConfig
@@ -85,6 +86,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 object DatabaseFactory {
 
     fun init() {
+
+
 
         val hikariConfig = HikariConfig().apply {
 
@@ -192,7 +195,8 @@ object DatabaseFactory {
                 PaymentTable,
                 FamilyTable,
                 FamilyFeeRecordTable,
-                FamilyPaymentTable
+                FamilyPaymentTable,
+                NewClassPromotionTable,
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -206,7 +210,10 @@ object DatabaseFactory {
                 StudentFeeRecordTable,
                 PaymentTable,
                 FamilyTable,
-                FamilyFeeRecordTable
+                FamilyFeeRecordTable,
+                NewClassPromotionTable,
+
+
             ).forEach { exec(it) }
         }
     }

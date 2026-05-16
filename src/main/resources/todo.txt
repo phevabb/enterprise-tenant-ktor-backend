@@ -4,6 +4,7 @@ com.example.staff
 ├── StaffService.kt
 ├── StaffModels.kt
 
+
 com.example.students
 ├── StudentModule.kt
 ├── StudentRoutes.kt
@@ -79,9 +80,11 @@ then use it
 
 
  to deploy.
- 1. First Check DB
+ (payment sms is always active in local and production mode)
+ 1. First Check DB in config
  2. RUN mvn clean package
  3. Push to github
+
 
 
 
