@@ -86,7 +86,7 @@ fixed search, and filters for payments, records and feeStructure
  2. uncomment sms in (paymentroute under fees and familypaymentroute under familypaymentroute)
  2. RUN mvn clean package
  3. Push to github
-
+ minor push
 
 
 
