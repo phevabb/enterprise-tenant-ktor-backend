@@ -3,6 +3,8 @@ package com.example.fees.routes
 import com.example.fees.dtos.requests.CreateFeeStructureRequest
 import com.example.fees.dtos.requests.PatchFeeStructureRequest
 import com.example.fees.repos.FeeStructureRepository
+import com.example.student.dtos.PaginatedResponse
+import com.example.student.dtos.PaginationMeta
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
@@ -18,6 +20,27 @@ fun Route.feeStructureRoutes(){
     get{
         val feeStructures = FeeStructureRepository.findAll()
         call.respond(HttpStatusCode.OK, feeStructures)
+    }
+
+    get("/paginated") {
+        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+        val limit = 10
+        val search = call.request.queryParameters["search"]
+
+        val (feeStructures, total) =
+            FeeStructureRepository.findAllPaginated(page, limit, search)
+
+        val response = PaginatedResponse(
+            data = feeStructures,
+            meta = PaginationMeta(
+                page = page,
+                limit = limit,
+                total = total,
+                totalPages = ((total + limit - 1) / limit).toInt()
+            )
+        )
+
+        call.respond(HttpStatusCode.OK, response)
     }
 
     post {

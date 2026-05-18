@@ -12,19 +12,18 @@ object ImportStudentsFromCsv {
 
     // ✅ Mapping from CSV text → DB ID
     private val classMap: Map<String, Int> = mapOf(
-        "nursery 2" to 11,
-        "nursery 1" to 10,
-        "kg 2" to 9,
-        "kg 1" to 8,
-        "creche" to 7,
-        "class 6" to 6,
-        "class 5" to 5,
-        "class 4" to 4,
-        "class 3" to 3,
-        "class 2" to 2,
-        "class 1" to 1
+        "kg 2" to 23,
+        "kg 1" to 22,
+        "nursery 2" to 21,
+        "nursery 1" to 20,
+        "creche" to 19,
+        "class 3" to 18,
+        "class 1" to 17,
+        "class 6" to 15,
+        "class 4" to 12,
+        "class 2" to 10,
+        "class 5" to 1
     )
-
     fun run() {
         DatabaseFactory.init()
 
@@ -70,4 +69,9 @@ object ImportStudentsFromCsv {
 
         println("✅ Students imported successfully from student.csv")
     }
+}
+
+
+fun main() {
+    ImportStudentsFromCsv.run()
 }

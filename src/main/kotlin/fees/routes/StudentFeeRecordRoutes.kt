@@ -6,6 +6,8 @@ import com.example.fees.dtos.requests.AddPaymentRequest
 import com.example.fees.dtos.requests.CreateStudentFeeRecordRequest
 import com.example.fees.dtos.responses.ArrearsResponse
 import com.example.fees.repos.StudentFeeRecordRepository
+import com.example.student.dtos.PaginatedResponse
+import com.example.student.dtos.PaginationMeta
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -21,6 +23,38 @@ fun Route.studentFeeRecordRoutes() {
         val result = StudentFeeRecordRepository.findAll()
         call.respond(HttpStatusCode.OK, result)
     }
+
+    get("/paginated") {
+        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+        val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+
+        val search = call.request.queryParameters["search"]?.trim()
+        val feeStructureId = call.request.queryParameters["fee_structure_id"]?.toIntOrNull()
+        val isFullyPaid = call.request.queryParameters["is_fully_paid"]?.trim()?.lowercase()?.toBooleanStrictOrNull()
+        // is_fully_paid=true|false (anything else becomes null = ignore)
+
+        val (records, total) = StudentFeeRecordRepository.findAllPaginated(
+            page = page,
+            limit = limit,
+            search = search,
+            feeStructureId = feeStructureId,
+            isFullyPaid = isFullyPaid
+        )
+
+        val response = PaginatedResponse(
+            data = records,
+            meta = PaginationMeta(
+                page = page,
+                limit = limit,
+                total = total,
+                totalPages = ((total + limit - 1) / limit).toInt()
+            )
+        )
+
+        call.respond(HttpStatusCode.OK, response)
+    }
+
+
 
 
 

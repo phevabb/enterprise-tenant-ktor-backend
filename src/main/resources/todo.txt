@@ -78,10 +78,12 @@ then use it
 
  fix unable to deassign familiy to a student
 
+fixed search, and filters for payments, records and feeStructure
 
  to deploy.
- (payment sms is always active in local and production mode)
+
  1. First Check DB in config
+ 2. uncomment sms in (paymentroute under fees and familypaymentroute under familypaymentroute)
  2. RUN mvn clean package
  3. Push to github
 

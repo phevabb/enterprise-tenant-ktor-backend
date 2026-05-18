@@ -1,20 +1,26 @@
 package com.example.fees.repos
 
 
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import com.example.fees.services.FeeRecordService
-import com.example.notifications.SmsTemplates
-import org.jetbrains.exposed.sql.*
 import com.example.account.AccountTable
 import com.example.account.toAccount
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.between
+import org.jetbrains.exposed.sql.transactions.transaction
+
+
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import com.example.fees.dtos.responses.PaymentResponseDto
 import com.example.fees.dtos.responses.toPaymentResponseDto
 import com.example.fees.mappers.toFeeStructureModel
-import com.example.notifications.SmsPayload
+import com.example.fees.services.FeeRecordService
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
 import com.example.fees.tables.StudentFeeRecordTable
+import com.example.notifications.SmsPayload
+import com.example.notifications.SmsTemplates
 import com.example.notifications.toStudentFeeRecordSnapshotDto
 import com.example.student.StudentsTable
 import com.example.student.mappers.toAcademicYearModel
@@ -24,15 +30,53 @@ import com.example.student.mappers.toTermModel
 import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
-import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.*
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.JoinType
-import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.insertAndGetId
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+
+import java.time.*
+import java.time.temporal.TemporalAdjusters
+
+private fun dateRangeForFilterMillis(
+    dateFilter: String?,
+    zoneId: ZoneId = ZoneId.systemDefault() // set ZoneId.of("UTC") if you store UTC
+): Pair<Long, Long>? {
+
+    val today = LocalDate.now(zoneId)
+
+    fun toMillis(dt: LocalDateTime): Long =
+        dt.atZone(zoneId).toInstant().toEpochMilli()
+
+    return when (dateFilter?.lowercase()) {
+        "today" -> {
+            val start = today.atStartOfDay()
+            val end = today.atTime(LocalTime.MAX)
+            toMillis(start) to toMillis(end)
+        }
+        "7days" -> {
+            val start = today.minusDays(6).atStartOfDay()  // inclusive last 7 days
+            val end = today.atTime(LocalTime.MAX)
+            toMillis(start) to toMillis(end)
+        }
+        "month" -> {
+            val start = today.withDayOfMonth(1).atStartOfDay()
+            val end = today.with(TemporalAdjusters.lastDayOfMonth()).atTime(LocalTime.MAX)
+            toMillis(start) to toMillis(end)
+        }
+        "year" -> {
+            val start = today.withDayOfYear(1).atStartOfDay()
+            val end = today.with(TemporalAdjusters.lastDayOfYear()).atTime(LocalTime.MAX)
+            toMillis(start) to toMillis(end)
+        }
+        else -> null
+    }
+}
 
 object PaymentRepository {
     fun create(
@@ -151,6 +195,98 @@ object PaymentRepository {
             .orderBy(PaymentTable.id, SortOrder.DESC)
             .map {it.toPaymentResponseDto()}
     }
+
+
+
+
+
+    fun findAllPaginated(
+        page: Int,
+        limit: Int,
+        search: String?,
+        dateFilter: String?
+    ): Pair<List<PaymentResponseDto>, Long> = transaction {
+
+        val safePage = if (page < 1) 1 else page
+        val safeLimit = if (limit < 1) 20 else limit
+        val offset = ((safePage - 1) * safeLimit).toLong()
+
+        val baseQuery = PaymentTable
+            .join(
+                otherTable = StudentFeeRecordTable,
+                joinType = JoinType.INNER,
+                onColumn = PaymentTable.student_fee_record,
+                otherColumn = StudentFeeRecordTable.id
+            )
+            .join(
+                otherTable = StudentsTable,
+                joinType = JoinType.INNER,
+                onColumn = StudentFeeRecordTable.student,
+                otherColumn = StudentsTable.id
+            )
+            .join(
+                otherTable = AccountTable,
+                joinType = JoinType.INNER,
+                onColumn = StudentsTable.user,
+                otherColumn = AccountTable.id
+            )
+            .join(
+                otherTable = FeeStructureTable,
+                joinType = JoinType.INNER,
+                onColumn = StudentFeeRecordTable.feeStructure,
+                otherColumn = FeeStructureTable.id
+            )
+            .join(
+                otherTable = NewGradeClassTable,
+                joinType = JoinType.INNER,
+                onColumn = FeeStructureTable.grade_class,
+                otherColumn = NewGradeClassTable.id
+            )
+            .join(
+                otherTable = AcademicYearTable,
+                joinType = JoinType.INNER,
+                onColumn = FeeStructureTable.academic_year,
+                otherColumn = AcademicYearTable.id
+            )
+            .join(
+                otherTable = TermTable,
+                joinType = JoinType.INNER,
+                onColumn = FeeStructureTable.term,
+                otherColumn = TermTable.id
+            )
+            .selectAll()
+
+        // ✅ Date filter (millis)
+        val range = dateRangeForFilterMillis(dateFilter /*, ZoneId.of("UTC") if needed */)
+        val withDateFilter = if (range != null) {
+            val (startMs, endMs) = range
+            baseQuery.andWhere { PaymentTable.date_created.between(startMs, endMs) }
+        } else baseQuery
+
+        // ✅ Case-insensitive search (DB-agnostic)
+        val finalQuery = if (!search.isNullOrBlank()) {
+            val pattern = "%${search.lowercase()}%"
+            withDateFilter.andWhere {
+                (AccountTable.fullName.lowerCase() like pattern) or
+                        (NewGradeClassTable.name.lowerCase() like pattern) or
+                        (AcademicYearTable.name.lowerCase() like pattern) or
+                        (TermTable.name.lowerCase() like pattern)
+                // Add more if you have columns:
+                // or (PaymentTable.payment_method.lowerCase() like pattern)
+            }
+        } else withDateFilter
+
+        val total = finalQuery.count()
+
+        val items = finalQuery
+            .orderBy(PaymentTable.id, SortOrder.DESC)
+            .limit(safeLimit)
+            .offset(offset)
+            .map { it.toPaymentResponseDto() }
+
+        Pair(items, total)
+    }
+
 
 
     fun delete(id: Int): Boolean = transaction{

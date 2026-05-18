@@ -122,34 +122,7 @@ object DatabaseFactory {
         Database.connect(dataSource)   // later for neon
 
 
-//        val hikariConfig = HikariConfig().apply {
-//
-//            // ✅ Supabase PostgreSQL JDBC URL
-//            jdbcUrl = "jdbc:postgresql://db.ezawszqcemmvmpcxtljm.supabase.co:5432/postgres"
-//
-//            username = "postgres"
-//            password = "Uncleproton1.postgres"
-//
-//            driverClassName = "org.postgresql.Driver"
-//
-//            // ✅ Supabase requires SSL
-//            addDataSourceProperty("sslmode", "require")
-//
-//            maximumPoolSize = 5
-//            minimumIdle = 0
-//            isAutoCommit = false
-//
-//            // ✅ Keep this: avoids failing immediately if DB is warming up
-//            initializationFailTimeout = -1
-//
-//            // ❌ Do not set transaction isolation here (especially if you later use poolers)
-//            // transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-//
-//            validate()
-//        }
-//
-//        val dataSource = HikariDataSource(hikariConfig)
-//        Database.connect(dataSource)   //  super base
+
 
 
 

@@ -1,6 +1,8 @@
 package com.example.fees.routes
 
 import com.example.fees.dtos.requests.CreatePaymentRequest
+import com.example.student.dtos.PaginatedResponse
+import com.example.student.dtos.PaginationMeta
 import com.example.notifications.SmsService
 import com.example.fees.repos.PaymentRepository
 import io.ktor.http.HttpStatusCode
@@ -20,6 +22,31 @@ fun Route.paymentRoutes() {
     }
 
 
+    get("/paginated") {
+        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+        val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+        val search = call.request.queryParameters["search"]?.trim()
+        val dateFilter = call.request.queryParameters["date_filter"]?.trim() // today|7days|month|year
+
+        val (payments, total) = PaymentRepository.findAllPaginated(
+            page = page,
+            limit = limit,
+            search = search,
+            dateFilter = dateFilter
+        )
+
+        val response = PaginatedResponse(
+            data = payments,
+            meta = PaginationMeta(
+                page = page,
+                limit = limit,
+                total = total,
+                totalPages = ((total + limit - 1) / limit).toInt()
+            )
+        )
+
+        call.respond(HttpStatusCode.OK, response)
+    }
 
     post {
         val req = call.receive<CreatePaymentRequest>()

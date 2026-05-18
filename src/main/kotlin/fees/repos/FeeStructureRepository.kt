@@ -62,6 +62,49 @@ object FeeStructureRepository {
             .map { it.toFeeStructureResponseDto() }
     }
 
+
+    fun findAllPaginated(
+        page: Int,
+        limit: Int,
+        search: String?
+    ): Pair<List<FeeStructureResponseDto>, Long> = transaction {
+
+        val offset = ((page - 1) * limit).toLong()
+
+        // Base query
+        val query = FeeStructureTable
+            .join(AcademicYearTable, JoinType.INNER, FeeStructureTable.academic_year, AcademicYearTable.id)
+            .join(NewGradeClassTable, JoinType.INNER, FeeStructureTable.grade_class, NewGradeClassTable.id)
+            .join(TermTable, JoinType.INNER, FeeStructureTable.term, TermTable.id)
+            .selectAll()
+
+        // Optional search (adjust fields as needed)
+        val filteredQuery = if (!search.isNullOrBlank()) {
+            query.andWhere {
+                (AcademicYearTable.name like "%$search%") or
+                        (NewGradeClassTable.name like "%$search%") or
+                        (TermTable.name like "%$search%")
+            }
+
+        } else {
+            query
+        }
+
+        val total = filteredQuery.count()
+
+        val result = filteredQuery
+            .orderBy(FeeStructureTable.id, SortOrder.DESC)
+            .limit(limit)
+            .offset(offset)
+            .map { it.toFeeStructureResponseDto() }
+
+        Pair(result, total)
+    }
+
+
+
+
+
     // ✅ PATCH (partial update)
     fun patch(
         id: Int,

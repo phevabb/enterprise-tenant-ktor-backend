@@ -142,74 +142,151 @@ object StudentRepository {
         } > 0
     }
 
+    fun findAllWithUserAndClassRaw(search: String?): List<StudentProfileResponse> = transaction {
 
-    fun findAllWithUserAndClass(): List<StudentProfileResponse> = transaction {
+        val query = StudentsTable
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .join(NewGradeClassTable, JoinType.LEFT, StudentsTable.currentNewGradeClass, NewGradeClassTable.id)
+            .join(FamilyTable, JoinType.LEFT, StudentsTable.family, FamilyTable.id)
+            .selectAll()
 
-            val query = StudentsTable // this table has two FKs
-                .join(AccountTable, JoinType.INNER, onColumn = StudentsTable.user, otherColumn = AccountTable.id)
-                .join(NewGradeClassTable, JoinType.LEFT, onColumn = StudentsTable.currentNewGradeClass, otherColumn = NewGradeClassTable.id)
-                .join(FamilyTable, JoinType.LEFT, onColumn = StudentsTable.family, otherColumn = FamilyTable.id)
+        if (!search.isNullOrBlank()) {
+            val q = "%${search.lowercase()}%"
+            query.andWhere {
+                (AccountTable.fullName.lowerCase() like q) or
+                        (NewGradeClassTable.name.lowerCase() like q) or
+                        (StudentsTable.contactOfFather.lowerCase() like q) or
+                        (StudentsTable.contactOfMother.lowerCase() like q)
+            }
+        }
 
         query
-                .selectAll()
-                .orderBy(StudentsTable.id, SortOrder.DESC)
-                .map { row ->
+            .orderBy(StudentsTable.id, SortOrder.DESC)
+            .map { row ->
+                val user = StudentUserResponse(
+                    id = row[AccountTable.id].value,
+                    userId = row[AccountTable.userId],
+                    fullName = row[AccountTable.fullName],
+                    gender = row[AccountTable.gender],
+                    role = row[AccountTable.role],
+                    isActive = row[AccountTable.isActive],
+                    dateOfBirth = row[AccountTable.dateOfBirth]
+                )
 
-                    val user = StudentUserResponse(
-                        id = row[AccountTable.id].value,
-                        userId = row[AccountTable.userId],
-                        fullName = row[AccountTable.fullName],
-                        gender = row[AccountTable.gender],
-                        role = row[AccountTable.role],
-                        isActive = row[AccountTable.isActive],
-                        dateOfBirth = row[AccountTable.dateOfBirth]
-                    )
-
-                    val gradeClass = row[NewGradeClassTable.id]?.value?.let { classId ->
-                        GradeClassResponse(
-                            id = classId,
-                            name = row[NewGradeClassTable.name]
-                        )
-                    }
-
-                    val fam = row[FamilyTable.id]?.value?.let { famId ->
-                        FamilyMinimal(
-                            id = famId,
-                            name = row[FamilyTable.name]
-                        )
-                    }
-
-                    StudentProfileResponse(
-                        id = row[StudentsTable.id].value,
-                        user = user,
-                        currentNewGradeClass = gradeClass,
-                        family = fam,
-
-                        isGraduated = row[StudentsTable.isGraduated],
-                        lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
-
-                        isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
-                        isImmunized = row[StudentsTable.isImmunized],
-
-
-                        allergicFoods = row[StudentsTable.allergicFoods],
-
-                        otherRelatedInfo = row[StudentsTable.otherRelatedInfo],
-
-                        nameOfFather = row[StudentsTable.nameOfFather],
-                        nameOfMother = row[StudentsTable.nameOfMother],
-                        occupationOfFather = row[StudentsTable.occupationOfFather],
-                        occupationOfMother = row[StudentsTable.occupationOfMother],
-                        nationalityOfFather = row[StudentsTable.nationalityOfFather],
-                        nationalityOfMother = row[StudentsTable.nationalityOfMother],
-                        contactOfFather = row[StudentsTable.contactOfFather],
-                        contactOfMother = row[StudentsTable.contactOfMother],
-
-                        houseNumber = row[StudentsTable.houseNumber],
-                        hasAllergies = row[StudentsTable.hasAllergies],
-                    )
+                val gradeClass = row[NewGradeClassTable.id]?.value?.let {
+                    GradeClassResponse(it, row[NewGradeClassTable.name])
                 }
+
+                val fam = row[FamilyTable.id]?.value?.let {
+                    FamilyMinimal(it, row[FamilyTable.name])
+                }
+
+                StudentProfileResponse(
+                    id = row[StudentsTable.id].value,
+                    user = user,
+                    currentNewGradeClass = gradeClass,
+                    family = fam,
+                    isGraduated = row[StudentsTable.isGraduated],
+                    lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
+                    isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
+                    isImmunized = row[StudentsTable.isImmunized],
+                    allergicFoods = row[StudentsTable.allergicFoods],
+                    otherRelatedInfo = row[StudentsTable.otherRelatedInfo],
+                    nameOfFather = row[StudentsTable.nameOfFather],
+                    nameOfMother = row[StudentsTable.nameOfMother],
+                    occupationOfFather = row[StudentsTable.occupationOfFather],
+                    occupationOfMother = row[StudentsTable.occupationOfMother],
+                    nationalityOfFather = row[StudentsTable.nationalityOfFather],
+                    nationalityOfMother = row[StudentsTable.nationalityOfMother],
+                    contactOfFather = row[StudentsTable.contactOfFather],
+                    contactOfMother = row[StudentsTable.contactOfMother],
+                    houseNumber = row[StudentsTable.houseNumber],
+                    hasAllergies = row[StudentsTable.hasAllergies],
+                )
+            }
+    }
+
+    fun findAllWithUserAndClass(
+        page: Int,
+        limit: Int,
+        search: String?
+    ): Pair<List<StudentProfileResponse>, Long> = transaction {
+
+        val offset = ((page - 1) * limit).toLong()
+
+        // ✅ base query
+        val query = StudentsTable
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .join(NewGradeClassTable, JoinType.LEFT, StudentsTable.currentNewGradeClass, NewGradeClassTable.id)
+            .join(FamilyTable, JoinType.LEFT, StudentsTable.family, FamilyTable.id)
+            .selectAll()
+
+        // ✅ APPLY SEARCH
+        if (!search.isNullOrBlank()) {
+            val q = "%${search.lowercase()}%"
+
+            query.andWhere {
+                (AccountTable.fullName.lowerCase() like q) or
+                        (NewGradeClassTable.name.lowerCase() like q) or
+                        (StudentsTable.contactOfFather.lowerCase() like q) or
+                        (StudentsTable.contactOfMother.lowerCase() like q)
+            }
         }
+
+        // ✅ COUNT AFTER FILTER
+        val total = query.count()
+
+        // ✅ FETCH DATA
+        val data = query
+            .orderBy(StudentsTable.id, SortOrder.DESC)
+            .limit(limit)
+            .offset(offset)
+            .map { row ->
+
+                val user = StudentUserResponse(
+                    id = row[AccountTable.id].value,
+                    userId = row[AccountTable.userId],
+                    fullName = row[AccountTable.fullName],
+                    gender = row[AccountTable.gender],
+                    role = row[AccountTable.role],
+                    isActive = row[AccountTable.isActive],
+                    dateOfBirth = row[AccountTable.dateOfBirth]
+                )
+
+                val gradeClass = row[NewGradeClassTable.id]?.value?.let {
+                    GradeClassResponse(it, row[NewGradeClassTable.name])
+                }
+
+                val fam = row[FamilyTable.id]?.value?.let {
+                    FamilyMinimal(it, row[FamilyTable.name])
+                }
+
+                StudentProfileResponse(
+                    id = row[StudentsTable.id].value,
+                    user = user,
+                    currentNewGradeClass = gradeClass,
+                    family = fam,
+                    isGraduated = row[StudentsTable.isGraduated],
+                    lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
+                    isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
+                    isImmunized = row[StudentsTable.isImmunized],
+                    allergicFoods = row[StudentsTable.allergicFoods],
+                    otherRelatedInfo = row[StudentsTable.otherRelatedInfo],
+                    nameOfFather = row[StudentsTable.nameOfFather],
+                    nameOfMother = row[StudentsTable.nameOfMother],
+                    occupationOfFather = row[StudentsTable.occupationOfFather],
+                    occupationOfMother = row[StudentsTable.occupationOfMother],
+                    nationalityOfFather = row[StudentsTable.nationalityOfFather],
+                    nationalityOfMother = row[StudentsTable.nationalityOfMother],
+                    contactOfFather = row[StudentsTable.contactOfFather],
+                    contactOfMother = row[StudentsTable.contactOfMother],
+                    houseNumber = row[StudentsTable.houseNumber],
+                    hasAllergies = row[StudentsTable.hasAllergies],
+                )
+            }
+
+        Pair(data, total)
+    }
 
 
     fun existsById(id: Int): Boolean = transaction {

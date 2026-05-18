@@ -1,5 +1,7 @@
 package com.example.student.routes
 
+import com.example.student.dtos.PaginatedResponse
+import com.example.student.dtos.PaginationMeta
 import com.example.student.dtos.requests.CreateStudentRequest
 import com.example.student.dtos.requests.PatchStudentRequest
 import com.example.student.dtos.requests.UpdateStudentRequest
@@ -12,12 +14,44 @@ import io.ktor.server.routing.*
 
 fun Route.studentRoutes() {
 
-    get {
 
-        val students = StudentRepository.findAllWithUserAndClass()
+
+// ✅ Raw endpoint (no pagination)
+
+
+    get ("/raw"){
+        val search = call.request.queryParameters["search"]
+        val students = StudentRepository.findAllWithUserAndClassRaw(search)
         call.respond(HttpStatusCode.OK, students)
-
     }
+
+
+
+
+
+    get("/paginated") {
+        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+        val limit = 10
+        val search = call.request.queryParameters["search"]
+
+        val (students, total) =
+            StudentRepository.findAllWithUserAndClass(page, limit, search)
+
+        val response = PaginatedResponse(
+            data = students,
+            meta = PaginationMeta(
+                page = page,
+                limit = limit,
+                total = total,
+                totalPages = ((total + limit - 1) / limit).toInt()
+            )
+        )
+
+        call.respond(HttpStatusCode.OK, response)
+    }
+
+
+
 
     post {
 
