@@ -83,10 +83,12 @@ fixed search, and filters for payments, records and feeStructure
  to deploy.
 
  1. First Check DB in config
- 2. uncomment sms in (paymentroute under fees and familypaymentroute under familypaymentroute)
- 2. RUN mvn clean package
- 3. Push to github
- minor push
+ 2. search result.sms?
+ 3. uncomment sms in (paymentroute under fees and familypaymentroute under familypaymentroute)
+ 4. remember to check db in config
+ 5. RUN mvn clean package
+ 6. Push to github
+
 
 
 

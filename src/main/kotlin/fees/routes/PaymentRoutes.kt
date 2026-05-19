@@ -57,7 +57,7 @@ fun Route.paymentRoutes() {
             paymentMethod = "cash"
         )
 
-        println("results.sms is ${result.sms}")
+
         // ✅ send only after transaction succeeded
         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
 

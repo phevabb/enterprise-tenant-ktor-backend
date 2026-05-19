@@ -118,8 +118,22 @@ object FamilyPaymentRepository {
             .singleOrNull()
             ?: throw BadRequestException("Family fee record not found")
 
-        if (amount <= 0)
+        val currentBalance = record[FamilyFeeRecordTable.balance]
+
+        if (amount <= 0) {
             throw BadRequestException("Payment amount must be greater than zero")
+        }
+
+        if (amount > currentBalance) {
+            throw BadRequestException(
+                "Payment cannot exceed remaining balance. Balance is $currentBalance"
+            )
+        }
+
+
+
+
+
 
         val amountToPay = record[FamilyFeeRecordTable.amount_to_pay]
         val alreadyPaid = record[FamilyFeeRecordTable.amount_paid]

@@ -1,5 +1,6 @@
 package com.example.familyfees.repos
 
+import com.example.account.AccountTable
 import com.example.familyfees.dtos.responses.FamilyFeeRecordsResponseDto
 import com.example.familyfees.dtos.responses.toFamilyFeeRecordsResponseDto
 import com.example.familyfees.tables.FamilyFeeRecordTable
@@ -62,4 +63,62 @@ object FamilyFeeRecordsRepository {
     fun delete(id: Int): Boolean = transaction {
         FamilyFeeRecordTable.deleteWhere { FamilyFeeRecordTable.id eq id } > 0
     }
+
+
+    fun findAllPaginated(
+        page: Int,
+        limit: Int,
+        search: String?
+    ): Pair<List<FamilyFeeRecordsResponseDto>, Long> = transaction {
+
+        val offset = ((page - 1) * limit).toLong()
+
+        // ✅ FETCH ALL (SAFE VERSION)
+        val rows = FamilyFeeRecordTable
+            .join(
+                FamilyTable,
+                JoinType.INNER,
+                additionalConstraint = { FamilyFeeRecordTable.family eq FamilyTable.id }
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                additionalConstraint = { FamilyFeeRecordTable.term eq TermTable.id }
+            )
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                additionalConstraint = { FamilyFeeRecordTable.academic_year eq AcademicYearTable.id }
+            )
+            .selectAll()
+            .orderBy(FamilyFeeRecordTable.id, SortOrder.DESC)
+            .toList()
+
+        // ✅ CASE-INSENSITIVE SEARCH (KOTLIN SIDE)
+        val filtered = if (!search.isNullOrBlank()) {
+            val q = search.lowercase()
+
+            rows.filter { r ->
+                val familyName = r.getOrNull(FamilyTable.name)?.lowercase() ?: ""
+                val studentName = r.getOrNull(AccountTable.fullName)?.lowercase() ?: ""
+
+                familyName.contains(q) || studentName.contains(q)
+            }
+        } else rows
+
+        val total = filtered.size.toLong()
+
+        val paginated = filtered
+            .drop(offset.toInt())
+            .take(limit)
+
+        val result = paginated.map { row ->
+            row.toFamilyFeeRecordsResponseDto()
+        }
+
+        return@transaction Pair(result, total)
+    }
+
+
+
 }

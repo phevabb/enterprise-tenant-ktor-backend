@@ -123,7 +123,19 @@ fun Route.studentRoutes() {
     }
 
 
-
+//    patch("{id}") {
+//        val id = call.parameters["id"]?.toIntOrNull()
+//        if (id == null) {
+//            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+//            return@patch
+//        }
+//
+//        val raw = call.receiveText()
+//        println("RAW BODY: $raw")
+//
+//        val req = call.receive<PatchStudentRequest>()
+//        println("PARSED OBJECT: $req")
+//    }
 }
 
 

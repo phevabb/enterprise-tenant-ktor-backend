@@ -3,6 +3,8 @@ package com.example.familyfees.routes
 import com.example.familyfees.dtos.requests.CreateFamilyFeeRecordsRequests
 import com.example.familyfees.repos.FamilyFeeRecordsRepository
 import com.example.familyfees.repos.FamilyRepository
+import com.example.student.dtos.PaginatedResponse
+import com.example.student.dtos.PaginationMeta
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.routing.Route
@@ -19,6 +21,29 @@ fun Route.familyFeeRecordsRoutes() {
         val allRecords = FamilyFeeRecordsRepository.findAll()
         call.respond(HttpStatusCode.OK, allRecords)
     }
+
+    get("/paginated") {
+
+        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+        val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+        val search = call.request.queryParameters["search"]?.trim()
+
+        val (records, total) =
+            FamilyFeeRecordsRepository.findAllPaginated(page, limit, search)
+
+        val response = PaginatedResponse(
+            data = records,
+            meta = PaginationMeta(
+                page = page,
+                limit = limit,
+                total = total,
+                totalPages = ((total + limit - 1) / limit).toInt()
+            )
+        )
+
+        call.respond(HttpStatusCode.OK, response)
+    }
+
 
     post{
         val req = call.receive<CreateFamilyFeeRecordsRequests>()

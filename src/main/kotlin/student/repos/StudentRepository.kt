@@ -422,9 +422,8 @@ object StudentRepository {
                 u[StudentsTable.currentNewGradeClass] = EntityID(req.currentNewGradeClassId, NewGradeClassTable)
             }
 
-            if (req.family != null) {
-                u[StudentsTable.family] = EntityID(req.family, FamilyTable)
-            }
+            u[StudentsTable.family] =
+                req.family?.let { EntityID(it, FamilyTable) }
 
 
             req.lastSchoolAttended?.let { u[StudentsTable.lastSchoolAttended] = it }

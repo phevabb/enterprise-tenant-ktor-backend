@@ -4,6 +4,7 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import com.example.account.AccountTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.student.tables.NewGradeClassTable
+import org.jetbrains.exposed.sql.ReferenceOption
 
 
 object StudentsTable : IntIdTable("student_profile") {
@@ -23,7 +24,9 @@ object StudentsTable : IntIdTable("student_profile") {
         NewGradeClassTable
     ).nullable()
 
-    val family = reference("family", FamilyTable).nullable()
+    val family = reference("family", FamilyTable, onDelete = ReferenceOption.SET_NULL).nullable()
+
+
 
     val isGraduated = bool("is_graduated").default(false)
     val lastSchoolAttended = varchar("last_school_attended", 255).nullable()

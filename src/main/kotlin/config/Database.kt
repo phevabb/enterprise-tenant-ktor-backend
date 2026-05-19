@@ -29,36 +29,21 @@ object DatabaseFactory {
 
 
         val hikariConfig = HikariConfig().apply {
-
             jdbcUrl =
                 "jdbc:postgresql://ep-proud-sound-andkoqj6-pooler.c-6.us-east-1.aws.neon.tech/neondb"
-
             username = "neondb_owner"
             password = "npg_ETm9p5IrkyjY"
-
             driverClassName = "org.postgresql.Driver"
-
             // Neon requires SSL
             addDataSourceProperty("sslmode", "require")
-
-            // Channel binding is optional — remove if you still see connection issues
-            // addDataSourceProperty("channelBinding", "require")
-
             maximumPoolSize = 5
             minimumIdle = 0
             isAutoCommit = false
-
-            // ✅ Important: DO NOT set transactionIsolation for Neon pooler
-            // transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-
-            // Optional: avoid failing immediately if DB is warming up
             initializationFailTimeout = -1
-
             validate()
         }
-
         val dataSource = HikariDataSource(hikariConfig)
-        Database.connect(dataSource)   // later for neon
+        Database.connect(dataSource)   // later for neon NEON
 
 
 
@@ -66,32 +51,21 @@ object DatabaseFactory {
 
 
 //            val hikariConfig = HikariConfig().apply {
-//
 //                // ✅ Local PostgreSQL JDBC URL
 //                jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
-//
 //                username = "postgres"          // your local DB user
 //                password = "postgres"     // your local DB password
-//
 //                driverClassName = "org.postgresql.Driver"
-//
 //                // ✅ Pool settings (good defaults)
 //                maximumPoolSize = 10
 //                minimumIdle = 2
 //                isAutoCommit = false
-//
 //                // ✅ Don’t fail fast on startup
 //                initializationFailTimeout = -1
-//
-//                // ❌ NO SSL for local
-//                // ❌ NO transactionIsolation override
-//
-//                validate()
+//                    validate()
 //            }
-//
 //            val dataSource = HikariDataSource(hikariConfig)
-//
-//            Database.connect(dataSource)  // LATER for local
+//            Database.connect(dataSource)  // LATER for localhost
 
 
 
