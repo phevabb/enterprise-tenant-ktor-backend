@@ -24,6 +24,7 @@ import org.jetbrains.exposed.sql.update
 import com.example.account.AccountTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.minimals.FamilyMinimal
+import com.example.staff.dtos.response.StudentLiteResponse
 import com.example.student.dtos.requests.PatchStudentRequest
 
 
@@ -170,6 +171,7 @@ object StudentRepository {
                     gender = row[AccountTable.gender],
                     role = row[AccountTable.role],
                     isActive = row[AccountTable.isActive],
+                    pin = row[AccountTable.pin],
                     dateOfBirth = row[AccountTable.dateOfBirth]
                 )
 
@@ -250,6 +252,7 @@ object StudentRepository {
                     gender = row[AccountTable.gender],
                     role = row[AccountTable.role],
                     isActive = row[AccountTable.isActive],
+                    pin = row[AccountTable.pin],
                     dateOfBirth = row[AccountTable.dateOfBirth]
                 )
 
@@ -469,9 +472,29 @@ object StudentRepository {
     }
 
 
-}
+    fun findStudentsByClass(classId: Int): List<StudentLiteResponse> = transaction {
 
+        StudentsTable
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                StudentsTable.user,
+                AccountTable.id
+            )
+            .selectAll()
+            .where {
+                StudentsTable.currentNewGradeClass eq classId
+            }
+            .orderBy(AccountTable.fullName to SortOrder.ASC)
+            .map { row ->
 
+                StudentLiteResponse(
+                    id = row[StudentsTable.id].value,
+                    full_name = row[AccountTable.fullName],
+                    indexNo = row[AccountTable.userId]
+                )
+            }
+    }
 
 
     fun findByIdWithUserAndClass(studentProfileId: Int): StudentProfileResponse? = transaction {
@@ -505,6 +528,7 @@ object StudentRepository {
                     gender = r[AccountTable.gender],
                     role = r[AccountTable.role],
                     isActive = r[AccountTable.isActive],
+                    pin = r[AccountTable.pin],
                     dateOfBirth = r[AccountTable.dateOfBirth ]
                 )
 
@@ -552,6 +576,18 @@ object StudentRepository {
                 )
             }
     }
+
+
+}
+
+
+
+
+
+
+
+
+
 
 
 

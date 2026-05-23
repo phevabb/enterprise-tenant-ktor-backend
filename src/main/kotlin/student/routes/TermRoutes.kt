@@ -7,6 +7,7 @@ import com.example.student.models.TermModel
 import com.example.student.repos.TermRepository
 import com.example.student.tables.TermTable
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
 import io.ktor.server.routing.Route
@@ -17,9 +18,10 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 
-fun Route.termRoutes(){
+fun Route.termRoutes() {
 
-    get{
+    authenticate("auth-jwt") {
+    get {
         val terms = TermRepository.findAllWithYearName()
         call.respond(HttpStatusCode.OK, terms)
     }
@@ -51,15 +53,15 @@ fun Route.termRoutes(){
     delete("{id}") {
         val id = call.parameters["id"]!!.toIntOrNull()
 
-        if(id == null) {
+        if (id == null) {
             call.respond(HttpStatusCode.BadRequest, "id is required")
             return@delete
         }
 
         val ok = TermRepository.delete(id)
-        if(!ok){
+        if (!ok) {
             call.respond(HttpStatusCode.NotFound, "couldn't delete term")
-        }else{
+        } else {
             call.respond(HttpStatusCode.NoContent)
         }
     }
@@ -76,5 +78,7 @@ fun Route.termRoutes(){
 
         call.respond(HttpStatusCode.OK, updated)
     }
+
+}
 
 }

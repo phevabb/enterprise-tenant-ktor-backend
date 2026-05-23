@@ -8,5 +8,6 @@ fun ResultRow.toNewGradeClassModel() = NewGradeClassModel(
     id = this[NewGradeClassTable.id].value,
     name = this[NewGradeClassTable.name],
     is_active = this[NewGradeClassTable.isActive],
+    categoryId = this[NewGradeClassTable.category]?.value
 
 )

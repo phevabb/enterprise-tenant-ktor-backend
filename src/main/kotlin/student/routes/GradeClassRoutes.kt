@@ -7,61 +7,69 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import com.example.student.dtos.requests.CreateNewGradeClassRequest
 import com.example.student.dtos.requests.PatchNewGradeClassRequest
+import io.ktor.server.auth.authenticate
 
 fun Route.gradeClassRoutes() {
-    get{
-        val gradeclasses = NewGradeClassRepository.findAll()
 
-        call.respond(HttpStatusCode.OK, gradeclasses)
-    }
+    authenticate("auth-jwt") {
+        get {
+            val gradeclasses = NewGradeClassRepository.findAll()
 
-    post {
-        val req = call.receive<CreateNewGradeClassRequest>()
-
-        val created = NewGradeClassRepository.create(
-            name = req.name.trim(),
-            isActive = true
-        )
-
-        call.respond(HttpStatusCode.Created, created)
-    }
-
-    delete("{id}") {
-        val id = call.parameters["id"]?.toIntOrNull()
-
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, "invalid id")
-            return@delete
-        }
-        val ok = NewGradeClassRepository.delete(id)
-        if (!ok) {
-            call.respond(HttpStatusCode.NotFound, "Class not found")
-
-        } else{
-            call.respond(HttpStatusCode.NoContent)
+            call.respond(HttpStatusCode.OK, gradeclasses)
         }
 
-    }
 
-    patch("{id}") {
-        val id = call.parameters["id"]?.toIntOrNull()
-        println("id is $id")
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, "invalid id")
-            return@patch
+
+        post {
+
+            val req = call.receive<CreateNewGradeClassRequest>()
+
+            val created = NewGradeClassRepository.create(
+                name = req.name.trim(),
+                categoryId = req.categoryId,
+                isActive = true
+
+            )
+
+            call.respond(HttpStatusCode.Created, created)
         }
 
-        val req = call.receive<PatchNewGradeClassRequest>()
+        delete("{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
 
-        val updated = NewGradeClassRepository.patch(id,req)
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "invalid id")
+                return@delete
+            }
+            val ok = NewGradeClassRepository.delete(id)
+            if (!ok) {
+                call.respond(HttpStatusCode.NotFound, "Class not found")
 
-        if(updated == null) {
-            call.respond(HttpStatusCode.NotFound, "invalid id")
-            return@patch
+            } else {
+                call.respond(HttpStatusCode.NoContent)
+            }
 
         }
-        else {
-            call.respond(HttpStatusCode.OK, updated)
+
+        patch("{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            println("id is $id")
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "invalid id")
+                return@patch
+            }
+
+            val req = call.receive<PatchNewGradeClassRequest>()
+
+            val updated = NewGradeClassRepository.patch(id, req)
+
+            if (updated == null) {
+                call.respond(HttpStatusCode.NotFound, "invalid id")
+                return@patch
+
+            } else {
+                call.respond(HttpStatusCode.OK, updated)
+            }
         }
     }
 }

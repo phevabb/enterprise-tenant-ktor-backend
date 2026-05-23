@@ -8,6 +8,7 @@ import com.example.student.dtos.requests.UpdateStudentRequest
 import com.example.student.repos.StudentRepository
 import com.example.student.services.StudentService
 import io.ktor.http.*
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -17,6 +18,8 @@ fun Route.studentRoutes() {
 
 
 // ✅ Raw endpoint (no pagination)
+    authenticate("auth-jwt") {
+
 
 
     get ("/raw"){
@@ -24,9 +27,6 @@ fun Route.studentRoutes() {
         val students = StudentRepository.findAllWithUserAndClassRaw(search)
         call.respond(HttpStatusCode.OK, students)
     }
-
-
-
 
 
     get("/paginated") {
@@ -50,9 +50,6 @@ fun Route.studentRoutes() {
         call.respond(HttpStatusCode.OK, response)
     }
 
-
-
-
     post {
 
 
@@ -67,8 +64,6 @@ fun Route.studentRoutes() {
         // 3) Respond with Created + the created profile (as JSON)
         call.respond(HttpStatusCode.Created, createdProfile)
     }
-
-
 
     // PUT /student/{id}  (full update)
     put("{id}") {
@@ -105,7 +100,6 @@ fun Route.studentRoutes() {
         }
     }
 
-
     patch("{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
         if (id == null) {
@@ -122,20 +116,8 @@ fun Route.studentRoutes() {
         }
     }
 
+    }
 
-//    patch("{id}") {
-//        val id = call.parameters["id"]?.toIntOrNull()
-//        if (id == null) {
-//            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
-//            return@patch
-//        }
-//
-//        val raw = call.receiveText()
-//        println("RAW BODY: $raw")
-//
-//        val req = call.receive<PatchStudentRequest>()
-//        println("PARSED OBJECT: $req")
-//    }
 }
 
 

@@ -1,13 +1,21 @@
 package com.example.config
 
+import com.example.academics.tables.AcademicRecordsTable
+import com.example.academics.tables.CategoriesTable
+import com.example.academics.tables.GradesTable
+import com.example.academics.tables.SubjectCategoriesTable
+import com.example.academics.tables.SubjectCategorySubjectsTable
+import com.example.academics.tables.SubjectScoresTable
+import com.example.academics.tables.SubjectsTable
 import com.example. account.AccountTable
+import com.example.admin.tables.AdminTable
 import com.example.familyfees.tables.FamilyFeeRecordTable
 import com.example.familyfees.tables.FamilyPaymentTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
 import com.example.fees.tables.StudentFeeRecordTable
-
+import com.example.staff.tables.StaffTable
 import com.example.student.StudentsTable
 import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.NewClassPromotionTable
@@ -83,6 +91,15 @@ object DatabaseFactory {
                 FamilyFeeRecordTable,
                 FamilyPaymentTable,
                 NewClassPromotionTable,
+                StaffTable,
+                AdminTable,
+                SubjectsTable,
+                AcademicRecordsTable,
+                GradesTable,
+                SubjectScoresTable,
+                CategoriesTable,
+                SubjectCategorySubjectsTable,
+                SubjectCategoriesTable
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -98,6 +115,15 @@ object DatabaseFactory {
                 FamilyTable,
                 FamilyFeeRecordTable,
                 NewClassPromotionTable,
+                StaffTable,
+                AdminTable,
+                SubjectsTable,
+                AcademicRecordsTable,
+                GradesTable,
+                SubjectScoresTable,
+                CategoriesTable,
+                SubjectCategorySubjectsTable,
+                SubjectCategoriesTable
 
 
             ).forEach { exec(it) }

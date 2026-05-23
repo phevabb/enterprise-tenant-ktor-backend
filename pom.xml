@@ -32,6 +32,27 @@
         <!-- ========================= -->
         <!-- KTOR SERVER (Netty) 3.4.2 -->
         <!-- ========================= -->
+        <!-- Ktor Auth -->
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-auth-jvm</artifactId>
+            <version>3.4.2</version>
+        </dependency>
+
+        <!-- JWT Support -->
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-auth-jwt-jvm</artifactId>
+            <version>3.4.2</version>
+        </dependency>
+
+        <!-- JWT Engine -->
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+
 
         <dependency>
             <groupId>io.ktor</groupId>

@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 data class CreateNewGradeClassRequest(
 
     val name: String,
+    val categoryId: Int,
     val is_active: Boolean = true
 
 )

@@ -35,6 +35,7 @@ data class StudentProfileResponse(
 @Serializable
 data class StudentUserResponse(
     val id: Int,
+    val pin: String,
     val userId: String,
     val fullName: String,
     val gender: String?,
