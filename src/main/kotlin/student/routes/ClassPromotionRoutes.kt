@@ -26,7 +26,7 @@ fun Route.classPromotionRoutes(){
             call.respond(HttpStatusCode.OK, proms)
         }
 
-        get("/class-promotions/{id}") {
+        get("{id}") {
             val id = call.parameters["id"]!!.toInt()
 
             val item = repo.findById(id) ?: return@get call.respond(HttpStatusCode.NotFound)
@@ -34,12 +34,12 @@ fun Route.classPromotionRoutes(){
 
         }
 
-        post("/class-promotions") {
+        post("") {
             val req = call.receive<CreateClassPromotionRequest>()
             call.respond(HttpStatusCode.Created, repo.create(req))
         }
 
-        patch("/class-promotions/{id}") {
+        patch("{id}") {
             val id = call.parameters["id"]!!.toInt()
             val req = call.receive<PatchClassPromotionRequest>()
             val updated = repo.patch(id, req) ?: return@patch call.respond(HttpStatusCode.NotFound)
@@ -47,7 +47,7 @@ fun Route.classPromotionRoutes(){
 
         }
 
-        delete("/class-promotions/{id}") {
+        delete("{id}") {
             val id = call.parameters["id"]!!.toInt()
             val ok = repo.delete(id)
             if (!ok) return@delete call.respond(HttpStatusCode.NotFound)

@@ -94,7 +94,7 @@ fixed search, and filters for payments, records and feeStructure
 ///////////////////////////////////////////////////////////////
 
 GET http://127.0.0.1:8080/api/admin/raw
-
+locals:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjcsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzc5NjYzMDIzfQ.6SZddUKFSbvh0lcVAUw91Fn_TAT9UjyAgVVvUqoakgc
 
 for staff use:

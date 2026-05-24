@@ -1,84 +1,79 @@
 package com.example.academics.routes
 
+
+
 import com.example.academics.repos.CategoryRepository
-
-
-
-import com.example.student.repos.NewGradeClassRepository
 import io.ktor.http.*
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CreateCategoryRequest(
-    val name: String
-)
-
-@Serializable
-data class AssignClassesRequest(
-    val classIds: List<Int>
-)
+data class CategoryNameRequest(val name: String)
 
 fun Route.categoryRoutes() {
 
-    // ✅ GET ALL CATEGORIES (with classes inside)
-    get {
-        val categories = CategoryRepository.findAll()
-        call.respond(HttpStatusCode.OK, categories)
-    }
+    authenticate("auth-jwt") {
 
-    // ✅ CREATE CATEGORY
-    post {
-        val req = call.receive<CreateCategoryRequest>()
-
-        if (req.name.isBlank()) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Name is required"))
-            return@post
+        // ✅ GET /api/categories  (returns category + children)
+        get {
+            val data = CategoryRepository.findAll()
+            call.respond(HttpStatusCode.OK, data)
         }
 
-        val created = CategoryRepository.create(req.name)
-        call.respond(HttpStatusCode.Created, created)
-    }
+        // ✅ POST /api/categories  (create category name only)
+        post {
+            val req = call.receive<CategoryNameRequest>()
+            if (req.name.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Name is required"))
+                return@post
+            }
 
-    // ✅ ASSIGN MULTIPLE CLASSES TO CATEGORY
-    put("{id}/classes") {
-
-        val categoryId = call.parameters["id"]?.toIntOrNull()
-        if (categoryId == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid category id"))
-            return@put
+            val created = CategoryRepository.create(req.name.trim())
+            call.respond(HttpStatusCode.Created, created)
         }
 
-        val req = call.receive<AssignClassesRequest>()
+        // ✅ PUT /api/categories/{id}  (rename category only)
+        put("{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                return@put
+            }
 
-        if (req.classIds.isEmpty()) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "classIds required"))
-            return@put
+            val req = call.receive<CategoryNameRequest>()
+            if (req.name.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Name is required"))
+                return@put
+            }
+
+            val updated = CategoryRepository.updateName(id, req.name.trim())
+            if (updated == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Category not found"))
+            } else {
+                call.respond(HttpStatusCode.OK, updated)
+            }
         }
 
-        // ✅ assign many classes
-        NewGradeClassRepository.assignManyToCategory(req.classIds, categoryId)
+        // ✅ DELETE /api/categories/{id}
+        delete("{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                return@delete
+            }
 
-        call.respond(HttpStatusCode.OK, mapOf("message" to "Classes assigned"))
-    }
-
-    // ✅ DELETE CATEGORY
-    delete("{id}") {
-
-        val id = call.parameters["id"]?.toIntOrNull()
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
-            return@delete
-        }
-
-        val ok = CategoryRepository.delete(id)
-
-        if (!ok) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
-        } else {
-            call.respond(HttpStatusCode.NoContent)
+            val ok = CategoryRepository.deleteIfUnused(id)
+            if (!ok) {
+                call.respond(
+                    HttpStatusCode.Conflict,
+                    mapOf("error" to "Cannot delete category: it is used by classes or subjects")
+                )
+            } else {
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }

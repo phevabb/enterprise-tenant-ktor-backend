@@ -1,68 +1,111 @@
 package com.example.academics.routes
 
 
+
 import com.example.academics.dtos.requests.CreateSubjectRequest
 import com.example.academics.repos.SubjectRepository
+
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.auth.*
+
 
 fun Route.subjectRoutes() {
 
-    // GET /api/subjects
-//    get {
-//        val subjects = SubjectRepository.findAll()
-//        call.respond(HttpStatusCode.OK, subjects)
-//    }
+    authenticate("auth-jwt") {
 
-    // POST /api/subjects
-    post {
-        val req = call.receive<CreateSubjectRequest>()
-        val name = req.name.trim()
-
-        if (name.isBlank()) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Name is required"))
-            return@post
+        // ✅ GET ALL SUBJECTS
+        get {
+            val subjects = SubjectRepository.findAll()
+            call.respond(HttpStatusCode.OK, subjects)
         }
 
-        // Optional: prevent duplicate nicely instead of DB exception
-        val existing = SubjectRepository.findByName(name)
-        if (existing != null) {
-            call.respond(HttpStatusCode.Conflict, mapOf("error" to "Subject already exists"))
-            return@post
+        // ✅ GET SUBJECT BY ID
+        get("{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid ID"))
+                return@get
+            }
+
+            val subject = SubjectRepository.findById(id)
+
+            if (subject == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Subject not found"))
+            } else {
+                call.respond(HttpStatusCode.OK, subject)
+            }
         }
 
-        val created = SubjectRepository.create(name)
-        call.respond(HttpStatusCode.Created, created)
-    }
+        // ✅ CREATE SUBJECT
+        post {
+            val req = call.receive<CreateSubjectRequest>()
 
-    // GET /api/subjects/{id}
-    get("{id}") {
-        val id = call.parameters["id"]?.toIntOrNull()
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
-            return@get
+            if (req.name.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Name is required"))
+                return@post
+            }
+
+            val created = SubjectRepository.create(req)
+            call.respond(HttpStatusCode.Created, created)
         }
 
-        val subject = SubjectRepository.findById(id)
-        if (subject == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
-        } else {
-            call.respond(HttpStatusCode.OK, subject)
-        }
-    }
+        // ✅ UPDATE SUBJECT
+        patch("{id}") {
 
-    // DELETE /api/subjects/{id}
-    delete("{id}") {
-        val id = call.parameters["id"]?.toIntOrNull()
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
-            return@delete
+            val id = call.parameters["id"]?.toIntOrNull()
+
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid ID"))
+                return@patch
+            }
+
+            val req = call.receive<CreateSubjectRequest>()
+
+            val updated = SubjectRepository.update(id, req)
+
+            if (updated == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Subject not found"))
+            } else {
+                call.respond(HttpStatusCode.OK, updated)
+            }
         }
 
-        val ok = SubjectRepository.delete(id)
-        if (!ok) call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
-        else call.respond(HttpStatusCode.NoContent)
+        // ✅ DELETE SUBJECT
+        delete("{id}") {
+
+            val id = call.parameters["id"]?.toIntOrNull()
+
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid ID"))
+                return@delete
+            }
+
+            val deleted = SubjectRepository.delete(id)
+
+            if (!deleted) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Subject not found"))
+            } else {
+                call.respond(HttpStatusCode.NoContent)
+            }
+        }
+
+        // ✅ GET SUBJECTS BY CATEGORY
+        get("/category/{categoryId}") {
+
+            val categoryId = call.parameters["categoryId"]?.toIntOrNull()
+
+            if (categoryId == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid categoryId"))
+                return@get
+            }
+
+            val subjects = SubjectRepository.findByCategory(categoryId)
+
+            call.respond(HttpStatusCode.OK, subjects)
+        }
     }
 }

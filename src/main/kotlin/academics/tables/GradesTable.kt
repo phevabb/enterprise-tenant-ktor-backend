@@ -1,6 +1,9 @@
 package com.example.academics.tables
 
 
+
+
+
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object GradesTable : IntIdTable("grades") {

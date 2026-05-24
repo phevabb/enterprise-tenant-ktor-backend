@@ -6,8 +6,8 @@ data class NewGradeClassModel(
     val id: Int,
     val name: String,
     val is_active: Boolean,
-    val categoryId: Int?
-
+    val categoryId: Int?,
+    val categoryName: String?
 )
 
 

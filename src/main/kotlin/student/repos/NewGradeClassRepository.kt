@@ -26,17 +26,12 @@ object NewGradeClassRepository {
             it[NewGradeClassTable.name] = name.trim()
             it[NewGradeClassTable.isActive] = isActive
 
-            // ✅ FIX FK
             it[NewGradeClassTable.category] =
                 EntityID(categoryId, CategoriesTable)
         }.value
 
-        NewGradeClassModel(
-            id = id,
-            name = name,
-            is_active = isActive,
-            categoryId = categoryId
-        )
+        // ✅ RETURN FULL JOINED DATA
+        findByIdWithCategory(id)!!
     }
 
     // ✅ FIND BY ID
@@ -50,7 +45,14 @@ object NewGradeClassRepository {
 
     // ✅ FIND ALL
     fun findAll(): List<NewGradeClassModel> = transaction {
+
         NewGradeClassTable
+            .join(
+                CategoriesTable,
+                JoinType.LEFT,   // ✅ important (allows null category)
+                NewGradeClassTable.category,
+                CategoriesTable.id
+            )
             .selectAll()
             .orderBy(NewGradeClassTable.id, SortOrder.DESC)
             .map { it.toNewGradeClassModel() }
@@ -100,6 +102,22 @@ object NewGradeClassRepository {
             it[NewGradeClassTable.category] =
                 EntityID(categoryId, CategoriesTable)
         }
+    }
+
+
+    fun findByIdWithCategory(id: Int): NewGradeClassModel? = transaction {
+
+        NewGradeClassTable
+            .join(
+                CategoriesTable,
+                JoinType.LEFT,
+                NewGradeClassTable.category,
+                CategoriesTable.id
+            )
+            .selectAll()
+            .where { NewGradeClassTable.id eq id }
+            .singleOrNull()
+            ?.toNewGradeClassModel()
     }
 
     // ✅ ASSIGN MANY CLASSES → CATEGORY (VERY USEFUL)
