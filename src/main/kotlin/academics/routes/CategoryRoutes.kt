@@ -24,10 +24,10 @@ data class AssignClassesRequest(
 fun Route.categoryRoutes() {
 
     // ✅ GET ALL CATEGORIES (with classes inside)
-//    get {
-//        val categories = CategoryRepository.findAll()
-//        call.respond(HttpStatusCode.OK, categories)
-//    }
+    get {
+        val categories = CategoryRepository.findAll()
+        call.respond(HttpStatusCode.OK, categories)
+    }
 
     // ✅ CREATE CATEGORY
     post {

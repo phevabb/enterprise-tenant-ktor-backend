@@ -7,5 +7,5 @@ data class CategoryResponse(
     val id: Int,
     val name: String,
     val specific_classes: List<GradeClassResponse>,
-    val subject_groups: List<SubjectCategoryResponse>
+
 )

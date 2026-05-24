@@ -94,8 +94,8 @@ fixed search, and filters for payments, records and feeStructure
 ///////////////////////////////////////////////////////////////
 
 GET http://127.0.0.1:8080/api/admin/raw
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjQzNiwicm9sZSI6ImFkbWluaXN0cmF0b3IiLCJleHAiOjE3Nzk1Mzk4MzN9.MHbqaCyGPRP5xlg6bgN-2eoNQ_WOVn0AKBSVsdCV73w
 
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjcsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzc5NjYzMDIzfQ.6SZddUKFSbvh0lcVAUw91Fn_TAT9UjyAgVVvUqoakgc
 
 for staff use:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjQzNywicm9sZSI6InN0YWZmIiwiZXhwIjoxNzc5NjQwMTI0fQ.ZLfAB1ZTj-A6KLXWeFkaIuQkS5f6caF2hG7wtuueo3k
@@ -124,5 +124,8 @@ class 1: 43227969   3551
 
 
 Admins:
-85940393  4248
+local admin: 85940393  4248
+
+official admin:
+6709    91538726
 
