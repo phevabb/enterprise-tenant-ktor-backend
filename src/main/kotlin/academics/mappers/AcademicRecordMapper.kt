@@ -4,11 +4,11 @@ package com.example.academics.mappers
 
 
 
-import com.example.academics.dtos.response.AcademicRecordResponse
+import com.example.academics.dtos.response.AcademicRecordWithScoresResponse
 import com.example.academics.tables.AcademicRecordsTable
 import org.jetbrains.exposed.sql.ResultRow
 
-fun ResultRow.toAcademicRecord() = AcademicRecordResponse(
+fun ResultRow.toAcademicRecord() = AcademicRecordWithScoresResponse(
     id = this[AcademicRecordsTable.id].value,
     studentId = this[AcademicRecordsTable.student].value,
     termId = this[AcademicRecordsTable.term].value,

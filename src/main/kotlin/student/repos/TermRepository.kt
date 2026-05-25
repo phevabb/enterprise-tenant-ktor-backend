@@ -19,6 +19,31 @@ import org.jetbrains.exposed.sql.update
 
 object TermRepository {
 
+    fun getCurrent(): Pair<Int, Int>? = transaction {
+
+        val row = TermTable
+            .selectAll()
+            .orderBy(TermTable.id, SortOrder.DESC)
+            .limit(1)
+            .singleOrNull()
+            ?: return@transaction null
+
+        val termId = row[TermTable.id].value
+        val yearId = row[TermTable.academic_year].value
+
+        termId to yearId
+    }
+
+
+
+fun setCurrentTerm(id: Int) = transaction {
+        TermTable.update({ TermTable.isCurrent eq true }) {
+            it[isCurrent] = false
+        }
+        TermTable.update({ TermTable.id eq id }) {
+            it[isCurrent] = true
+        }
+    }
     fun findAll(): List<TermModel> = transaction {
         TermTable
             .selectAll()
@@ -97,6 +122,8 @@ object TermRepository {
     fun delete(id: Int) = transaction {
         TermTable.deleteWhere { TermTable.id eq id }
     } > 0
+
+
 
 
 

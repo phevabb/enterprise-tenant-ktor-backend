@@ -45,6 +45,13 @@ object AcademicYearRepository {
     }
 
 
+    fun getCurrentId(): Int? = transaction {
+        AcademicYearTable.selectAll()
+            .where { AcademicYearTable.isCurrent eq true }
+            .singleOrNull()
+            ?.get(AcademicYearTable.id)?.value
+    }
+
     fun delete(id: Int): Boolean = transaction {
 
             // Reverse promotion map
@@ -135,5 +142,16 @@ object AcademicYearRepository {
             findById(id)!!
         }
         }
+
+
+    fun setCurrentAcademicYear(id: Int) = transaction {
+        AcademicYearTable.update({ AcademicYearTable.isCurrent eq true }) {
+            it[isCurrent] = false
+        }
+        AcademicYearTable.update({ AcademicYearTable.id eq id }) {
+            it[isCurrent] = true
+        }
     }
+
+}
 

@@ -13,4 +13,4 @@ fun ResultRow.toNewGradeClassModel() = NewGradeClassModel(
 
     categoryId = this[NewGradeClassTable.category]?.value,
 
-    categoryName = this[CategoriesTable.name])
+    categoryName = this.getOrNull(CategoriesTable.name))

@@ -1,12 +1,10 @@
 package com.example.academics.dtos.response
 
-
-
-
+// trying to combine two tables for one person
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AcademicRecordWithScoresResponse(
+data class AcademicRecordDetailResponse(
     val id: Int,
     val studentId: Int,
     val termId: Int,
@@ -27,5 +25,24 @@ data class AcademicRecordWithScoresResponse(
 
     val rawScoreTotal: Int? = null,
 
+    // ✅ "inline" part
     val subjectScores: List<SubjectScoreInlineResponse> = emptyList()
+)
+
+@Serializable
+data class SubjectScoreInlineResponse(
+    val id: Int,
+    val subjectId: Int,
+    val subjectName: String,
+
+    val classScore: Int? = null,
+    val examScore: Int? = null,
+    val totalScore: Int? = null,
+
+    val gradeId: Int? = null,
+    val gradeCode: String? = null,
+    val gradeLabel: String? = null,
+
+    val interpretation: String? = null,
+    val position: Int? = null
 )

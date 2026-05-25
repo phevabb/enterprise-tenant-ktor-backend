@@ -3,6 +3,7 @@ package com.example.staff.routes
 
 import com.example.staff.dtos.requests.CreateStaffRequest
 import com.example.staff.dtos.requests.PatchStaffRequest
+import com.example.staff.repos.StaffAssignedClassRepository
 import com.example.staff.repos.StaffRepository
 import com.example.staff.services.StaffService
 import com.example.student.repos.StudentRepository
@@ -132,6 +133,23 @@ fun Route.staffRoutes() {
             }
         }
 
+        get("assigned-class/{userId}") {
+            val userId = call.parameters["userId"]?.trim()
+            if (userId.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "userId is required"))
+                return@get
+            }
+
+            val result = StaffAssignedClassRepository.findAssignedClassByUserId(userId)
+
+            if (result == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff profile not found for userId"))
+            } else {
+                call.respond(HttpStatusCode.OK, result)
+            }
+        }
+
+
 
 
 
@@ -139,10 +157,6 @@ fun Route.staffRoutes() {
     }
 
 }
-
-
-
-
 
 
 
