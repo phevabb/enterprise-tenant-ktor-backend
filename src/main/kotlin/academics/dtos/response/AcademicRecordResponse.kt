@@ -3,15 +3,22 @@ package com.example.academics.dtos.response
 
 
 
+import com.example.minimals.AcademicYearMinimal
+import com.example.minimals.ComplexStudentMinimalDto
+import com.example.minimals.GradeClassMinimal
+
+import com.example.minimals.TermMinimal
+import com.example.student.models.NewGradeClassModel
+
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class AcademicRecordWithScoresResponse(
     val id: Int,
-    val studentId: Int,
-    val termId: Int,
-    val academicYearId: Int,
-    val classLevelId: Int,
+    val student: ComplexStudentMinimalDto,
+    val term: TermMinimal,
+    val academicYear: AcademicYearMinimal,
+    val gradeClass: GradeClassMinimal,
 
     val overallPosition: Int? = null,
     val attendance: String? = null,

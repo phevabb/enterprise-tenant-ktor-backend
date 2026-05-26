@@ -74,5 +74,7 @@ object AcademicRecordRepoLite {
             it[AcademicRecordsTable.rawScoreTotal] = sumTotal
         }
     }
+
+
 }
 

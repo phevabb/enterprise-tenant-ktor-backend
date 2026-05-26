@@ -3,6 +3,7 @@ package com.example.academics.routes
 import com.example.academics.dtos.requests.CreateOrUpdateSubjectScoreRequest
 import com.example.academics.dtos.requests.CreateSubjectScoreByStudentRequest
 import com.example.academics.dtos.requests.PatchSubjectScoreRequest
+import com.example.academics.repos.SubjectRepoLite
 import com.example.academics.repos.SubjectScoreRepository
 import com.example.academics.services.SubjectScoreService
 import io.ktor.http.*
@@ -142,28 +143,16 @@ fun Route.subjectScoreRoutes() {
             }
         }
 
-//        post("by-staff") {
-//            try {
-//                val req = call.receive<CreateSubjectScoreByStudentRequest>()
-//                val result = SubjectScoreService.createOrUpdateByStudent(req)
-//                call.respond(HttpStatusCode.OK, result)
-//            } catch (e: IllegalArgumentException) {
-//                call.respond(HttpStatusCode.BadRequest, mapOf("detail" to (e.message ?: "Invalid request")))
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//                call.respond(HttpStatusCode.InternalServerError, mapOf("detail" to "Server error"))
-//            }
-//        }
 
 
 
         post("by-staff") {
             try {
-                println("====== REQUEST START ======")
+//                println("====== REQUEST START ======")
 
                 // ✅ 1. Read raw JSON body
                 val raw = call.receiveText()
-                println("🔥 RAW REQUEST BODY: $raw")
+//                println("🔥 RAW REQUEST BODY: $raw")
 
                 // ✅ 2. Deserialize manually
                 val req = kotlinx.serialization.json.Json.decodeFromString(
@@ -171,13 +160,12 @@ fun Route.subjectScoreRoutes() {
                     raw
                 )
 
-                println("✅ Parsed request: $req")
+//                println("✅ Parsed request: $req")
 
                 // ✅ 3. Process request
                 val result = SubjectScoreService.createOrUpdateByStudent(req)
 
-                println("✅ Success response: $result")
-                println("====== REQUEST END ======")
+
 
                 call.respond(HttpStatusCode.OK, result)
 
@@ -199,6 +187,47 @@ fun Route.subjectScoreRoutes() {
                 )
             }
         }
+
+
+
+
+
+        // GET /api/subject-scores/context?classId=17&termId=15&yearId=15&subject=Mathematics
+        get("context") {
+
+            val classId = call.request.queryParameters["classId"]?.toIntOrNull()
+            val termId = call.request.queryParameters["termId"]?.toIntOrNull()
+            val yearId = call.request.queryParameters["yearId"]?.toIntOrNull()
+
+            if (classId == null || termId == null || yearId == null) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to "classId, termId and yearId are required")
+                )
+                return@get
+            }
+
+            val subjectParam = call.request.queryParameters["subject"]?.trim()
+
+            // subject can be:
+            // - null (fetch all subjects)
+            // - "6" (id)
+            // - "English Language" (name)
+            val subjectId = subjectParam?.let {
+                SubjectRepoLite.findIdByIdOrName(it)
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid subject"))
+            }
+
+            val scores = SubjectScoreRepository.findByContext(
+                classLevelId = classId,
+                termId = termId,
+                academicYearId = yearId,
+                subjectId = subjectId
+            )
+
+            call.respond(HttpStatusCode.OK, scores)
+        }
+
 
     }
 }

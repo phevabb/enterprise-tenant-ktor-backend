@@ -34,6 +34,7 @@ object SubjectScoreService {
         val saved = SubjectScoreRepository.createOrUpdate(req)
 
         AcademicRecordRepoLite.recomputeRawTotal(req.academicRecordId)
+        RankingService.recomputeAll(req.academicRecordId)
 
         SubjectScoreRepository.findByIdExpanded(saved.id)
             ?: throw IllegalStateException("Score saved but not found")
@@ -73,6 +74,7 @@ object SubjectScoreService {
         )
 
         AcademicRecordRepoLite.recomputeRawTotal(recordId)
+        RankingService.recomputeAll(recordId)
 
         SubjectScoreRepository.findByIdExpanded(saved.id)
             ?: throw IllegalStateException("Score saved but not found")
@@ -120,5 +122,6 @@ object SubjectScoreService {
         if (!ok) throw IllegalArgumentException("Subject score not found")
 
         AcademicRecordRepoLite.recomputeRawTotal(recordId)
+        RankingService.recomputeAll(recordId)
     }
 }

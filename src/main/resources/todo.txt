@@ -109,8 +109,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZ
 users: students/staff/admins
 
 students:
-pin": "4493",
-"userId": "64282922",
+64282922 4493
 
 "pin": "3505",
 "userId": "20808837",
@@ -135,3 +134,14 @@ official admin:
 
 import and: import org.jetbrains.exposed.sql.and
 
+the error: com.example.student.tables.NewGradeClassTable.name is not in record set
+
+ the solution:
+the error means:
+You are trying to read:
+
+[NewGradeClassTable.name]
+…but you NEVER joined NewGradeClassTable in your query ❌
+
+so just join:
+.join(NewGradeClassTable, JoinType.INNER, AcademicRecordsTable.classLevel, NewGradeClassTable.id)

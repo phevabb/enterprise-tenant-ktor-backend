@@ -7,3 +7,16 @@ data class StudentMinimalDto(
     val id: Int,
     val name: String
 )
+
+
+
+
+
+@Serializable
+data class ComplexStudentMinimalDto(
+    val id: Int,
+    val name: String,
+    val userId: String,
+
+
+)

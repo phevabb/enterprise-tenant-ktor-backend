@@ -79,6 +79,26 @@ fun Route.termRoutes() {
         call.respond(HttpStatusCode.OK, updated)
     }
 
+
+        get("current") {
+            val result = TermRepository.getCurrent_()
+
+            if (result == null) {
+                call.respond(
+                    HttpStatusCode.NotFound,
+                    mapOf("error" to "No term found")
+                )
+                return@get
+            }
+
+            call.respond(HttpStatusCode.OK, result)
+        }
+
 }
 
 }
+
+
+
+
+

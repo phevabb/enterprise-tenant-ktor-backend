@@ -2,28 +2,23 @@ package com.example.academics.routes
 
 import com.example.academics.repos.AcademicRecordRepository
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
+import io.ktor.server.routing.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import com.example.academics.dtos.requests.PatchAcademicRecordRemarksRequest
 
 fun Route.academicRecordRoutes() {
 
     authenticate("auth-jwt") {
 
-        /**
-         * ✅ GET ALL academic records WITH inline subject scores
-         * GET /api/academic-records
-         */
+        // ✅ GET ALL
         get {
             val records = AcademicRecordRepository.findAllWithScores()
             call.respond(HttpStatusCode.OK, records)
         }
 
-        /**
-         * ✅ GET single academic record WITH inline subject scores
-         * GET /api/academic-records/{id}/detail
-         */
+        // ✅ GET ONE
         get("{id}/detail") {
             val id = call.parameters["id"]?.toIntOrNull()
             if (id == null) {
@@ -33,12 +28,37 @@ fun Route.academicRecordRoutes() {
 
             val record = AcademicRecordRepository.findByIdWithScores(id)
             if (record == null) {
-                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Academic record not found"))
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
             } else {
                 call.respond(HttpStatusCode.OK, record)
             }
         }
+
+        // ✅ PATCH (update remarks)
+        patch("{id}/remarks") {
+            val id = call.parameters["id"]?.toIntOrNull()
+                ?: return@patch call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+
+            val payload = call.receive<PatchAcademicRecordRemarksRequest>()
+
+            val updated = AcademicRecordRepository.updateRemarks(id, payload)
+
+            call.respond(HttpStatusCode.OK, updated)
+        }
+
+        get("class/{classId}") {
+            val classId = call.parameters["classId"]?.toIntOrNull()
+
+            if (classId == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid classId"))
+                return@get
+            }
+
+            val records = AcademicRecordRepository.findByClass(classId)
+
+            call.respond(HttpStatusCode.OK, records)
+        }
+
+
     }
 }
-
-

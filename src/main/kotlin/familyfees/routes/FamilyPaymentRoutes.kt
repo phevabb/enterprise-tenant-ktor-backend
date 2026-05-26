@@ -29,7 +29,7 @@ fun Route.familyPaymentRoutes() {
             amount = req.amount,
             paymentMethod = "cash"
         )
-
+//
         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
 
         call.respond(HttpStatusCode.Created, result.response)

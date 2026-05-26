@@ -18,6 +18,7 @@ import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import com.example.academics.dtos.response.SubjectScoreContextResponse
 
 object SubjectScoreRepository {
 
@@ -237,5 +238,59 @@ object SubjectScoreRepository {
             position = this[SubjectScoresTable.position]
         )
     }
+
+    fun findByContext(
+        classLevelId: Int,
+        termId: Int,
+        academicYearId: Int,
+        subjectId: Int? = null
+    ): List<SubjectScoreContextResponse> = transaction {
+
+        val classEid = EntityID(classLevelId, NewGradeClassTable)
+        val termEid = EntityID(termId, TermTable)
+        val yearEid = EntityID(academicYearId, AcademicYearTable)
+
+        val base = SubjectScoresTable
+            .join(AcademicRecordsTable, JoinType.INNER, SubjectScoresTable.academicRecord, AcademicRecordsTable.id)
+            .join(StudentsTable, JoinType.INNER, AcademicRecordsTable.student, StudentsTable.id)
+            .join(SubjectsTable, JoinType.INNER, SubjectScoresTable.subject, SubjectsTable.id)
+            .join(GradesTable, JoinType.LEFT, SubjectScoresTable.grade, GradesTable.id)
+            .selectAll()
+            .where {
+                (AcademicRecordsTable.classLevel eq classEid) and
+                        (AcademicRecordsTable.term eq termEid) and
+                        (AcademicRecordsTable.academicYear eq yearEid)
+            }
+
+        val filtered = if (subjectId != null) {
+            base.andWhere { SubjectScoresTable.subject eq EntityID(subjectId, SubjectsTable) }
+        } else base
+
+        filtered.orderBy(StudentsTable.id, SortOrder.ASC).map { row ->
+            SubjectScoreContextResponse(
+                id = row[SubjectScoresTable.id].value,
+                academicRecordId = row[SubjectScoresTable.academicRecord].value,
+                studentId = row[StudentsTable.id].value,
+                subjectId = row[SubjectsTable.id].value,
+                subjectName = row[SubjectsTable.name],
+                classScore = row[SubjectScoresTable.classScore],
+                examScore = row[SubjectScoresTable.examScore],
+                totalScore = row[SubjectScoresTable.totalScore],
+                gradeCode = row.getOrNull(GradesTable.code),
+                position = row[SubjectScoresTable.position]
+            )
+        }
+    }
+
+
 }
+
+
+
+
+
+
+
+
+
 

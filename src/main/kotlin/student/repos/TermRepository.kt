@@ -157,6 +157,33 @@ fun setCurrentTerm(id: Int) = transaction {
         }
     }
 
+    fun getCurrent_(): TermResponseDto? = transaction {
+
+        val row = TermTable
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                additionalConstraint = { TermTable.academic_year eq AcademicYearTable.id }
+            )
+            .selectAll()
+            .orderBy(TermTable.id, SortOrder.DESC)
+            .limit(1)
+            .singleOrNull()
+            ?: return@transaction null
+
+        TermResponseDto(
+            id = row[TermTable.id].value,
+            name = row[TermTable.name],
+            academic_year = AcademicYearResponse(
+                id = row[AcademicYearTable.id].value,
+                name = row[AcademicYearTable.name]
+            )
+        )
+    }
 
 
 }
+
+
+
+
