@@ -129,7 +129,15 @@ local admin: 85940393  4248
 official admin:
 6709    91538726
 
+local student:  Mirabel Arhin
+1624 34481562
 
+"id": 575,
+      "pin": "1624",
+      "userId": "34481562",
+      "fullName": "Mirabel Arhin",
+
+///////////////////////////////////////////////////
 
 
 import and: import org.jetbrains.exposed.sql.and
@@ -145,3 +153,8 @@ You are trying to read:
 
 so just join:
 .join(NewGradeClassTable, JoinType.INNER, AcademicRecordsTable.classLevel, NewGradeClassTable.id)
+
+
+////////////////////////////////////////
+
+

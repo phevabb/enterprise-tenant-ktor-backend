@@ -1,5 +1,6 @@
 package com.example.student.routes
 
+import com.example.academics.repos.NewAcademicYearRepository
 import com.example.student.dtos.requests.CreateAcademicYearRequest
 import com.example.student.dtos.requests.PatchAcademicYearRequest
 import com.example.student.repos.AcademicYearRepository
@@ -82,5 +83,12 @@ fun Route.academicYearRoutes() {
 
 
         }
+
+
+        get("all-years") {
+            val years = NewAcademicYearRepository.findAll()
+            call.respond(HttpStatusCode.OK, years)
+        }
+
     }
 }

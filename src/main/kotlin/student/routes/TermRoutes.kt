@@ -1,5 +1,6 @@
 package com.example.student.routes
 
+import com.example.academics.repos.NewTermRepository
 import com.example.student.dtos.requests.CreateTermIncoming
 import com.example.student.dtos.requests.CreateTermRequest
 import com.example.student.dtos.requests.PatchTermRequest
@@ -94,7 +95,14 @@ fun Route.termRoutes() {
             call.respond(HttpStatusCode.OK, result)
         }
 
-}
+
+        get("all-terms") {
+            val terms = NewTermRepository.findAll()
+            call.respond(HttpStatusCode.OK, terms)
+        }
+
+
+    }
 
 }
 

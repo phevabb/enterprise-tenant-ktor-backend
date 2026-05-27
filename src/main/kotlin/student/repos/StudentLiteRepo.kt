@@ -1,6 +1,8 @@
 package com.example.student.repos
 
+import com.example.account.AccountTable
 import com.example.student.StudentsTable
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -18,4 +20,17 @@ object StudentLiteRepo {
             ?.get(StudentsTable.currentNewGradeClass)
             ?.value
     }
+
+
+    fun getStudentProfileIdByAccountId(accountId: Int): Int? = transaction {
+        StudentsTable
+            .selectAll()
+            .where { StudentsTable.user eq EntityID(accountId, AccountTable) }
+            .singleOrNull()
+            ?.get(StudentsTable.id)
+            ?.value
+    }
 }
+
+
+

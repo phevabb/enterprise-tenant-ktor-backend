@@ -3,7 +3,7 @@ package com.example.academics.dtos.requests
 
 
 import kotlinx.serialization.Serializable
-
+// teachers creat via this (automatic)
 @Serializable
 data class CreateAcademicRecordRequest(
     val studentId: Int,
