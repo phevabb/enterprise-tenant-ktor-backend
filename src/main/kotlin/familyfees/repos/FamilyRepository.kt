@@ -1,7 +1,9 @@
 package com.example.familyfees.repos
 
 import com.example.account.AccountTable
+import com.example.familyfees.dtos.responses.FamilyReceiptDto
 import com.example.familyfees.dtos.responses.FamilyResponseDto
+import com.example.familyfees.tables.FamilyReceiptsTable
 
 import com.example.familyfees.tables.FamilyTable
 import com.example.fees.tables.FeeStructureTable
@@ -18,6 +20,9 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.random.Random
 
 object FamilyRepository {
 
@@ -178,29 +183,6 @@ object FamilyRepository {
         return@transaction Pair(paginated, total)
     }
 
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     fun delete(id: Int): Boolean = transaction {
         FamilyTable.deleteWhere { FamilyTable.id eq id } > 0
     }
@@ -221,4 +203,16 @@ object FamilyRepository {
     }
 
 
+
+
 }
+
+
+
+
+
+
+
+
+
+

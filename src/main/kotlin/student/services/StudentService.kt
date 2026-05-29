@@ -39,7 +39,7 @@ object StudentService {
                 id = 0, // ignored, DB generates it
                 user = user.id,
                 currentNewGradeClassId = request.currentNewGradeClassId,
-                family = request.family,
+                family = request.family?.takeIf { it > 0 },
                 isGraduated = false,
                 lastSchoolAttended = request.lastSchoolAttended,
                 isDiscountedStudent = request.isDiscountedStudent,

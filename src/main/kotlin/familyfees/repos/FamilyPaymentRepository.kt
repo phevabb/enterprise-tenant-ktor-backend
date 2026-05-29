@@ -4,6 +4,7 @@ import com.example.account.AccountTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.familyfees.dtos.responses.FamilyPaymentResponseDto
 import com.example.familyfees.dtos.responses.toFamilyPaymentResponseDto
+import com.example.familyfees.mappers.toFamilyFeeRecordMinimalAfterUpdate
 import com.example.familyfees.tables.FamilyFeeRecordTable
 import com.example.familyfees.tables.FamilyPaymentTable
 import com.example.fees.dtos.responses.PaymentResponseDto
@@ -31,19 +32,77 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 object FamilyPaymentRepository {
+
+
     fun create(
         family_fee_record: Int,
         amount: Int,
-    ) = transaction {
+    ): FamilyPaymentResponseDto = transaction {
 
-        val id = FamilyPaymentTable.insertAndGetId {
-            it[FamilyPaymentTable.family_fee_record] = EntityID(family_fee_record, FamilyPaymentTable)
+        // 1) Fetch the family fee record (so we can validate + get family id)
+        val recordRow = FamilyFeeRecordTable
+            .selectAll()
+            .where { FamilyFeeRecordTable.id eq family_fee_record }
+            .singleOrNull()
+            ?: throw BadRequestException("Family fee record not found")
+
+        val familyId = recordRow[FamilyFeeRecordTable.family]
+        val currentBalance = recordRow[FamilyFeeRecordTable.balance]
+        val amountToPay = recordRow[FamilyFeeRecordTable.amount_to_pay]
+        val alreadyPaid = recordRow[FamilyFeeRecordTable.amount_paid]
+
+        if (amount <= 0) throw BadRequestException("Payment amount must be greater than zero")
+        if (amount > currentBalance) {
+            throw BadRequestException("Payment cannot exceed remaining balance. Balance is $currentBalance")
+        }
+
+        // 2) Insert payment
+        val paymentId = FamilyPaymentTable.insertAndGetId {
+
+            it[FamilyPaymentTable.family_fee_record] = EntityID(family_fee_record, FamilyFeeRecordTable)
+
             it[FamilyPaymentTable.amount] = amount
-            it[date_created] = System.currentTimeMillis()
-
+            it[FamilyPaymentTable.date_created] = System.currentTimeMillis()
         }.value
 
+        // 3) Update balances on family fee record
+        val newPaid = alreadyPaid + amount
+        val newBalance = amountToPay - newPaid
+        val isFullyPaid = newBalance <= 0
 
+        FamilyFeeRecordTable.update({ FamilyFeeRecordTable.id eq family_fee_record }) {
+            it[amount_paid] = newPaid
+            it[balance] = newBalance
+            it[is_fully_paid] = isFullyPaid
+        }
+
+        // ✅ 4) NOW fetch wards (THIS is where your wards code goes)
+        val wards = StudentsTable
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                additionalConstraint = { StudentsTable.user eq AccountTable.id }
+            )
+            .selectAll()
+            .where { StudentsTable.family eq familyId }
+            .map { it[AccountTable.fullName] }
+            .filter { it.isNotBlank() }
+
+        // 5) Build response DTO
+        // You already have FamilyFeeRecordMinimal; build it the same way you do elsewhere
+        val ffrMinimal = recordRow.toFamilyFeeRecordMinimalAfterUpdate(
+            amountPaid = newPaid,
+            newBalance = newBalance,
+            isFullyPaid = isFullyPaid)
+
+        return@transaction FamilyPaymentResponseDto(
+            id = paymentId,
+            family_fee_record = ffrMinimal,
+            amount = amount,
+            date_created = System.currentTimeMillis(), // or read from inserted row if you store it
+            balance = newBalance,
+            wards = wards
+        )
     }
 
     fun findById(id: Int): FamilyPaymentResponseDto? = transaction {
@@ -130,11 +189,6 @@ object FamilyPaymentRepository {
             )
         }
 
-
-
-
-
-
         val amountToPay = record[FamilyFeeRecordTable.amount_to_pay]
         val alreadyPaid = record[FamilyFeeRecordTable.amount_paid]
         val newPaid = alreadyPaid + amount
@@ -190,7 +244,7 @@ object FamilyPaymentRepository {
             .toFamilyPaymentResponseDto()
 
         // ===========================
-        // ✅ BUILD SMS
+        // ✅ BUILD SMS + WARDS LIST
         // ===========================
 
         val familyId = record[FamilyFeeRecordTable.family]
@@ -204,17 +258,22 @@ object FamilyPaymentRepository {
                 }
             )
             .selectAll()
-            .where {StudentsTable.family eq familyId
-            }
+            .where { StudentsTable.family eq familyId }
             .toList()
 
-        val studentNames = studentRows
+        // ✅ Build wards list (FOR RECEIPT + RESPONSE)
+        val wards = studentRows
             .map { it[AccountTable.fullName] }
+            .filter { it.isNotBlank() }
+
+        val studentNames = wards
             .joinToString(", ")
             .ifBlank { "your wards" }
 
         val parentPhone = studentRows
-                .firstOrNull()?.toStudentProfile()?.contactOfFather
+            .firstOrNull()
+            ?.toStudentProfile()
+            ?.contactOfFather
 
         val smsPayload = parentPhone?.let { phone ->
             val paymentStatus =
@@ -233,8 +292,35 @@ object FamilyPaymentRepository {
             )
         }
 
+        // ✅ Attach wards to response
+        val responseWithWards = responseDto.copy(wards = wards)
+
+// ==========================================================
+// ✅ ✅ CREATE FAMILY RECEIPT (PDF/Receipt record)
+// Place this RIGHT HERE (before returning)
+// ==========================================================
+        val receipt = FamilyReceiptRepository.createReceipt(
+            familyPaymentId = paymentId,
+            familyFeeRecordId = familyFeeRecordId,
+
+            // family name (already inside the responseDto’s family_fee_record.family)
+            familyName = responseDto.family_fee_record.family?.name ?: "Family",
+
+            wards = wards,
+            amountPaid = amount,
+            balanceAfter = newBalance,
+            paymentMethod = paymentMethod,
+
+            termName = responseDto.family_fee_record.term?.name,
+            academicYearName = responseDto.family_fee_record.academic_year?.name
+        )
+
+// ✅ Attach receipt to the response (ensure your DTO has `receipt: FamilyReceiptDto? = null`)
+        val responseWithReceipt = responseWithWards.copy(receipt = receipt)
+
+// ✅ Return with receipt included
         FamilyPaymentResult(
-            response = responseDto,
+            response = responseWithReceipt,
             sms = smsPayload
         )
     }
@@ -244,6 +330,15 @@ object FamilyPaymentRepository {
         FamilyPaymentTable.deleteWhere { FamilyPaymentTable.id eq id } > 0
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 @Serializable

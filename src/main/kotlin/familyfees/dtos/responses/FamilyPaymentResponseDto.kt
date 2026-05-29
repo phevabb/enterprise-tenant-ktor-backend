@@ -14,4 +14,6 @@ data class FamilyPaymentResponseDto(
     val amount: Int,
     val date_created: Long,
     val balance: Int,
+    val wards: List<String> = emptyList(),
+    val receipt: FamilyReceiptDto? = null
 )

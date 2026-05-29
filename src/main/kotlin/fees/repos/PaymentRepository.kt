@@ -79,6 +79,8 @@ private fun dateRangeForFilterMillis(
 }
 
 object PaymentRepository {
+
+
     fun create(
         student_fee_record: Int,
         amount: Int,
@@ -325,53 +327,43 @@ object PaymentRepository {
 
         FeeRecordService.applyPaymentDelta(studentFeeRecordId, amount)
 
-
-
         val updated = StudentFeeRecordTable
             .selectAll()
             .where { StudentFeeRecordTable.id eq studentFeeRecordId }
             .single()
+
         val dto = updated.toStudentFeeRecordSnapshotDto()
-
         val true_balance = dto.balance
-
 
         val studentId = dto.studentId
         val feeId = dto.feeStructureId
-
-
 
         val studentObject = StudentsTable
             .selectAll()
             .where { StudentsTable.id eq studentId }
             .singleOrNull()
-            ?: throw BadRequestException("Student  not found")
-        val student_json_dto = studentObject.toStudentProfile()
+            ?: throw BadRequestException("Student not found")
 
+        val student_json_dto = studentObject.toStudentProfile()
 
         val user_id = student_json_dto.user
         val con_of_dad = student_json_dto.contactOfFather
-
 
         val user_object = AccountTable
             .selectAll()
             .where { AccountTable.id eq user_id }
             .singleOrNull()
-            ?: throw BadRequestException("Student  not found")
-
+            ?: throw BadRequestException("Student user not found")
 
         val final_user = user_object.toAccount()
         val full_name = final_user.fullName
-
-
-
-
 
         val feeStructureObject = FeeStructureTable
             .selectAll()
             .where { FeeStructureTable.id eq feeId }
             .singleOrNull()
             ?: throw BadRequestException("Fee structure not found")
+
         val seeStructure_dto = feeStructureObject.toFeeStructureModel()
 
         val academic = seeStructure_dto.academicYearId
@@ -380,21 +372,19 @@ object PaymentRepository {
             .where { AcademicYearTable.id eq academic }
             .singleOrNull()
             ?: throw BadRequestException("Year not found")
+
         val year_dto = year.toAcademicYearModel()
         val year_name = year_dto.name
-        println("yearrrrrrrrrrrrrr is $year_name")
 
-
-
-        val term    = seeStructure_dto.termId
+        val term = seeStructure_dto.termId
         val trueTerm = TermTable
             .selectAll()
             .where { TermTable.id eq term }
             .singleOrNull()
             ?: throw BadRequestException("Term not found")
+
         val term_dto = trueTerm.toTermModel()
         val term_name = term_dto.name
-
 
         val gradeclass = seeStructure_dto.gradeClassId
         val Geade_class = NewGradeClassTable
@@ -402,35 +392,54 @@ object PaymentRepository {
             .where { NewGradeClassTable.id eq gradeclass }
             .singleOrNull()
             ?: throw BadRequestException("Class not found")
+
         val class_dto = Geade_class.toNewGradeClassModel()
         val class_name = class_dto.name
 
-
-
-
-
         // ✅ Father only
-        // ====== TEST SMS (hardcoded) ======
         val fatherPhone = con_of_dad
-
 
         val smsPayload = SmsPayload(
             phone = fatherPhone,
             message = SmsTemplates.paymentReceived(
                 studentName = full_name,
                 amountPaid = amount,
-                balance = true_balance,              // <-- fake balance for testing
-                className = class_name,       // <-- fake class
-                term = term_name,            // <-- fake term
-                academicYear = year_name  // <-- fake year
+                balance = true_balance,
+                className = class_name,
+                term = term_name,
+                academicYear = year_name
             )
         )
 
+        // ==========================================================
+        // ✅ ✅ INSERT RECEIPT CODE HERE (RIGHT BEFORE RETURN)
+        // ==========================================================
+        val receiptDto = ReceiptRepository.createReceipt(
+            paymentId = paymentId,
+            studentFeeRecordId = studentFeeRecordId,
+            studentId = studentId,
+            studentName = full_name,
+            className = class_name,
+            termName = term_name,
+            academicYearName = year_name,
+            amountPaid = amount,
+            balanceAfter = true_balance,
+            paymentMethod = paymentMethod
+        )
+
+        // ✅ existing payment response
+        val paymentResponse = findById(paymentId)!!
+
+        // ✅ attach receipt into the response dto
+        val paymentWithReceipt = paymentResponse.copy(receipt = receiptDto)
+
+        // ✅ return wrapper (if you still want sms too)
         CreatePaymentResult(
-            response = findById(paymentId)!!,
+            response = paymentWithReceipt,
             sms = smsPayload
         )
     }
+
 
 
     fun applyPaymentDelta(sfrId: Int, delta: Int) {

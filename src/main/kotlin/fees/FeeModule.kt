@@ -2,6 +2,7 @@ package com.example.fees
 
 import com.example.fees.routes.feeStructureRoutes
 import com.example.fees.routes.paymentRoutes
+import com.example.fees.routes.receiptRoutes
 import com.example.fees.routes.studentFeeRecordRoutes
 import com.example.student.routes.academicYearRoutes
 import com.example.student.routes.gradeClassRoutes
@@ -26,6 +27,12 @@ fun Application.feeModule() {
             route("/payment") {
                 paymentRoutes()
             }
+
+
+                route("/receipts") {
+                    receiptRoutes()
+                }
+
         }
     }
 

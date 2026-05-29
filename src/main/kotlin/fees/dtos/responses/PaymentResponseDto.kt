@@ -10,6 +10,7 @@ data class PaymentResponseDto(
     val amount: Int,
     val date_created: Long,
     val balance: Int,
+    val receipt: ReceiptResponse?=null
 
 
     )

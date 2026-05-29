@@ -24,11 +24,16 @@ fun Route.familyPaymentRoutes() {
     post {
         val req = call.receive<CreateFamilyPaymentRequest>()
 
+
         val result = FamilyPaymentRepository.createPaymentAndUpdateFfr(
             familyFeeRecordId = req.family_fee_record,
             amount = req.amount,
             paymentMethod = "cash"
         )
+
+        println("results is $result")
+        println("Server Instant now: " + java.time.Instant.now())
+        println("Server millis now: " + System.currentTimeMillis())
 //
         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
 

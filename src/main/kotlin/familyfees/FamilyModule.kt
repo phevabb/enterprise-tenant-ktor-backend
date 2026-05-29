@@ -2,6 +2,7 @@ package com.example.familyfees
 
 import com.example.familyfees.routes.familyFeeRecordsRoutes
 import com.example.familyfees.routes.familyPaymentRoutes
+import com.example.familyfees.routes.familyReceiptRoutes
 import com.example.familyfees.routes.familyRoutes
 import io.ktor.server.application.Application
 import io.ktor.server.routing.route
@@ -20,6 +21,14 @@ fun Application.familyModule() {
             route("/family-payment") {
                 familyPaymentRoutes()
             }
+
+            route("/family-receipt") {
+                familyReceiptRoutes()
+            }
+
+
+
+
 
 
         }

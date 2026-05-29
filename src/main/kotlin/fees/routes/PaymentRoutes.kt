@@ -60,6 +60,8 @@ fun Route.paymentRoutes() {
                 paymentMethod = "cash"
             )
 
+            println("Server indivi pay Instant now: " + java.time.Instant.now())
+            println("Server millis now: " + System.currentTimeMillis())
 
             // ✅ send only after transaction succeeded
         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }

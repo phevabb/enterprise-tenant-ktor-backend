@@ -83,6 +83,10 @@ fixed search, and filters for payments, records and feeStructure
  to deploy.
 
  1. First Check DB in config
+
+ //  result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
+
+
  2.search result.sms? uncomment sms in (paymentroute )
  3. search result.sms? uncomment sms in (familypaymentroute)
 

@@ -11,9 +11,11 @@ import com.example. account.AccountTable
 import com.example.admin.tables.AdminTable
 import com.example.familyfees.tables.FamilyFeeRecordTable
 import com.example.familyfees.tables.FamilyPaymentTable
+import com.example.familyfees.tables.FamilyReceiptsTable
 import com.example.familyfees.tables.FamilyTable
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
+import com.example.fees.tables.ReceiptsTable
 import com.example.fees.tables.StudentFeeRecordTable
 import com.example.staff.tables.StaffTable
 import com.example.student.StudentsTable
@@ -99,7 +101,9 @@ object DatabaseFactory {
                 SubjectScoresTable,
                 CategoriesTable,
                 SubjectCategorySubjectsTable,
-                SubjectCategoriesTable
+                SubjectCategoriesTable,
+                ReceiptsTable,
+                FamilyReceiptsTable
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -123,7 +127,9 @@ object DatabaseFactory {
                 SubjectScoresTable,
                 CategoriesTable,
                 SubjectCategorySubjectsTable,
-                SubjectCategoriesTable
+                SubjectCategoriesTable,
+                ReceiptsTable,
+                FamilyReceiptsTable
 
 
             ).forEach { exec(it) }
