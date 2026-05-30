@@ -16,5 +16,7 @@ object AccountTable : IntIdTable("accounts") {
     val isActive = bool("is_active").default(true)
     val isStaff = bool("is_staff").default(false)
     val passwordHash = varchar("password_hash", 255)
+    val profilePictureUrl = varchar("profile_picture_url", 500).nullable()
+    val profilePicturePublicId = varchar("profile_picture_public_id", 255).nullable()
 }
 

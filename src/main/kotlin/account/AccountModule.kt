@@ -1,13 +1,23 @@
 package com.example.account
-//this file adds account-related routes to the main app
+
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
+import io.ktor.server.routing.route
 
 
 fun Application.accountModule() {
     routing {
-        route("/account") {
-            accountRoutes()
+        route("/api") {
+
+            route("/account") {
+                accountRoutes()
+            }
+
+
         }
     }
 }
+
+
+
+

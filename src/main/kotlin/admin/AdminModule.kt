@@ -2,6 +2,7 @@ package com.example.admin
 
 
 
+import com.example.account.accountProfilePictureRoutes
 import com.example.admin.routes.adminRoutes
 
 import io.ktor.server.application.*
@@ -13,6 +14,10 @@ fun Application.adminModule() {
 
             route("/admin") {
                 adminRoutes()
+            }
+
+            route("/profile-picture") {
+                accountProfilePictureRoutes()
             }
 
         }

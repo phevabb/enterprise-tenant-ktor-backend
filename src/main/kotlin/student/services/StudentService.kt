@@ -90,8 +90,6 @@ object StudentService {
             return StudentRepository.delete(id)
         }
 
-
-
     fun patchStudentNested(id: Int, req: PatchStudentRequest): StudentProfileResponse? {
         return StudentRepository.patchNested(id, req)
     }

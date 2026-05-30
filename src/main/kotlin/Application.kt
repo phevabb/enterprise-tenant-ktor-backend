@@ -25,9 +25,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 
 import com.auth0.jwt.algorithms.Algorithm
-
-
-
+import com.example.principal.principalModule
 
 
 fun main(args: Array<String>) {
@@ -116,4 +114,5 @@ fun Application.module() {
     subjectScoreModule()
     categoryModule()
     subjectCategoryModule()
+    principalModule()
 }

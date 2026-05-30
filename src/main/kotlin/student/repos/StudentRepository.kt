@@ -26,7 +26,7 @@ import com.example.familyfees.tables.FamilyTable
 import com.example.minimals.FamilyMinimal
 import com.example.staff.dtos.response.StudentLiteResponse
 import com.example.student.dtos.requests.PatchStudentRequest
-
+import com.example.student.dtos.response.PerClassResponse
 
 
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -172,7 +172,10 @@ object StudentRepository {
                     role = row[AccountTable.role],
                     isActive = row[AccountTable.isActive],
                     pin = row[AccountTable.pin],
-                    dateOfBirth = row[AccountTable.dateOfBirth]
+                    dateOfBirth = row[AccountTable.dateOfBirth],
+                    profilePictureUrl = row[AccountTable.profilePictureUrl],
+                    profilePicturePublicId = row[AccountTable.profilePicturePublicId]
+
                 )
 
                 val gradeClass = row[NewGradeClassTable.id]?.value?.let {
@@ -253,7 +256,10 @@ object StudentRepository {
                     role = row[AccountTable.role],
                     isActive = row[AccountTable.isActive],
                     pin = row[AccountTable.pin],
-                    dateOfBirth = row[AccountTable.dateOfBirth]
+                    dateOfBirth = row[AccountTable.dateOfBirth],
+                    profilePictureUrl = row[AccountTable.profilePictureUrl],
+                    profilePicturePublicId = row[AccountTable.profilePicturePublicId]
+
                 )
 
                 val gradeClass = row[NewGradeClassTable.id]?.value?.let {
@@ -529,7 +535,10 @@ object StudentRepository {
                     role = r[AccountTable.role],
                     isActive = r[AccountTable.isActive],
                     pin = r[AccountTable.pin],
-                    dateOfBirth = r[AccountTable.dateOfBirth ]
+                    dateOfBirth = r[AccountTable.dateOfBirth ],
+                    profilePictureUrl = r[AccountTable.profilePictureUrl],
+                    profilePicturePublicId = r[AccountTable.profilePicturePublicId]
+
                 )
 
                 val classDto = r[NewGradeClassTable.id]?.value?.let { classId ->
@@ -576,6 +585,31 @@ object StudentRepository {
                 )
             }
     }
+
+    fun countPerClass(): List<PerClassResponse> = transaction {
+
+        val countExpr = StudentsTable.id.count()
+
+        StudentsTable
+            .leftJoin(
+                NewGradeClassTable,
+                { StudentsTable.currentNewGradeClass },
+                { NewGradeClassTable.id }
+            )
+            .select(NewGradeClassTable.name, countExpr)
+            .groupBy(NewGradeClassTable.name)
+            .orderBy(NewGradeClassTable.name to SortOrder.ASC)
+            .map { row ->   // ✅ THIS is where it goes
+
+                PerClassResponse(
+                    `class` = row[NewGradeClassTable.name] ?: "No Class Assigned",
+                    count = row[countExpr]
+                )
+            }
+    }
+
+
+
 
 
 }

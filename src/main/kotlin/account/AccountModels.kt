@@ -24,4 +24,5 @@ data class Account(
     val email: String? = null,
     val profilePictureUrl: String? = null,
 
+
     )

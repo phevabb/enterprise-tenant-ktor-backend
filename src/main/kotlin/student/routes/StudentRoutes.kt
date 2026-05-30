@@ -116,6 +116,12 @@ fun Route.studentRoutes() {
         }
     }
 
+        get("/per-class") {
+            val data = StudentRepository.countPerClass()
+            call.respond(HttpStatusCode.OK, data)
+        }
+
+
     }
 
 }

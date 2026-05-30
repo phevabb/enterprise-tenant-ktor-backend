@@ -1,43 +1,5 @@
-com.example.staff
-├── StaffModule.kt
-├── StaffRoutes.kt
-├── StaffService.kt
-├── StaffModels.kt
 
 
-com.example.students
-├── StudentModule.kt
-├── StudentRoutes.kt
-├── StudentService.kt
-├── StudentModels.kt
-
-
-com.example.staff
-├── StaffModule.kt      ✅ package entry point
-├── StaffRoutes.kt      ✅ controllers / routs
-├── StaffService.kt     ✅ business / view logic
-├── StaffRepository.kt  ✅ database access
-├── StaffModels.kt      ✅ domain models
-├── StaffDto.kt         ✅ request/response DTOs
-
-
-account/
-  AccountModule.kt       (sends routs to main app)
-  AccountTable.kt        (DB)
-  AccountModels.kt       (Domain)
-  AccountDto.kt          (Request/Response DTOs)... serializers
-  AccountRepository.kt   (DB access)
-  AccountService.kt      (Logic)
-  AccountRoutes.kt       (HTTP)
-
-student/
-  StudentsTable.kt         # DB schema
-  StudentModels.kt         # domain objects
-  StudentMappers.kt        # ResultRow -> domain model
-  StudentRepository.kt     # database queries
-  StudentService.kt        # business logic
-  StudentRoutes.kt         # HTTP routes
-  StudentModule.kt         # route mount (/students)
 
 
 
@@ -112,34 +74,25 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZ
 
 users: students/staff/admins
 
-students:
-64282922 4493
-
-"pin": "3505",
-"userId": "20808837",
-
-"pin": "3964",
-"userId": "79114607",
 
 
-staff:
-local staff:
-class 1: 43227969   3551
+
+
 
 //////////////////////////////////////////////////
 Admins:
 local admin: 85940393  4248
+official admin: 6709    91538726
 
-official admin:
-6709    91538726
+students:
+local student:  1624 34481562
 
-local student:  Mirabel Arhin
-1624 34481562
+principal:
+principal local: 7163 82929083
+official principal: 4269 19368894
 
-"id": 575,
-      "pin": "1624",
-      "userId": "34481562",
-      "fullName": "Mirabel Arhin",
+staff:
+local staff: class 1: 43227969   3551
 
 ///////////////////////////////////////////////////
 

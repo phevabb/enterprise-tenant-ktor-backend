@@ -46,11 +46,7 @@
             <version>2.0.31</version>
         </dependency>
 
-        <dependency>
-            <groupId>io.ktor</groupId>
-            <artifactId>ktor-server-auth-jvm</artifactId>
-            <version>3.4.2</version>
-        </dependency>
+
 
         <!-- JWT Support -->
         <dependency>
@@ -197,6 +193,13 @@
         </dependency>
 
 
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http44</artifactId>
+            <version>1.38.0</version>
+        </dependency>
+
+
 
 
     </dependencies>
@@ -237,6 +240,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -277,6 +281,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>

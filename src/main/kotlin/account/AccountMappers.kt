@@ -28,5 +28,5 @@ fun ResultRow.toAccount(): Account = Account(
 
     nationality = this[AccountTable.nationality],
     email = null,
-    profilePictureUrl = null
+    profilePictureUrl = this[AccountTable.profilePictureUrl]
 )

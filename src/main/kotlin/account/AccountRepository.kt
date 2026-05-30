@@ -80,4 +80,34 @@ object AccountRepository {
     private fun hashPassword(raw: String): String {
         return raw.reversed() // placeholder
     }
+
+    fun updateProfilePicture(
+        accountId: Int,
+        profilePictureUrl: String?,
+        profilePicturePublicId: String?
+    ): Boolean = transaction {
+        AccountTable.update({ AccountTable.id eq accountId }) {
+            it[AccountTable.profilePictureUrl] = profilePictureUrl
+            it[AccountTable.profilePicturePublicId] = profilePicturePublicId
+        } > 0
+    }
+
+
+
+
+    fun getProfilePicturePublicId(accountId: Int): String? = transaction {
+        AccountTable
+            .selectAll()
+            .where { AccountTable.id eq accountId }
+            .singleOrNull()
+            ?.get(AccountTable.profilePicturePublicId)
+    }
+
+    fun clearProfilePicture(accountId: Int): Boolean = transaction {
+        AccountTable.update({ AccountTable.id eq accountId }) {
+            it[profilePictureUrl] = null
+            it[profilePicturePublicId] = null
+        } > 0
+    }
+
 }

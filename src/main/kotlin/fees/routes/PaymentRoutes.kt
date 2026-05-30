@@ -3,8 +3,9 @@ package com.example.fees.routes
 import com.example.fees.dtos.requests.CreatePaymentRequest
 import com.example.student.dtos.PaginatedResponse
 import com.example.student.dtos.PaginationMeta
-import com.example.notifications.SmsService
+
 import com.example.fees.repos.PaymentRepository
+import com.example.notifications.SmsService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -60,8 +61,6 @@ fun Route.paymentRoutes() {
                 paymentMethod = "cash"
             )
 
-            println("Server indivi pay Instant now: " + java.time.Instant.now())
-            println("Server millis now: " + System.currentTimeMillis())
 
             // ✅ send only after transaction succeeded
         result.sms?.let { SmsService.sendAsync(it.phone, it.message) }

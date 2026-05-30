@@ -41,7 +41,11 @@ data class StudentUserResponse(
     val gender: String?,
     val role: String,
     val isActive: Boolean,
-    val dateOfBirth: String?
+    val dateOfBirth: String?,
+
+    val profilePictureUrl: String? = null,
+    val profilePicturePublicId: String? = null
+
 )
 
 @Serializable

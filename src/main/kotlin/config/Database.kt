@@ -17,6 +17,7 @@ import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
 import com.example.fees.tables.ReceiptsTable
 import com.example.fees.tables.StudentFeeRecordTable
+import com.example.principal.tables.PrincipalTable
 import com.example.staff.tables.StaffTable
 import com.example.student.StudentsTable
 import com.example.student.tables.AcademicYearTable
@@ -59,7 +60,7 @@ object DatabaseFactory {
 
 
 
-
+//
 //            val hikariConfig = HikariConfig().apply {
 //                // ✅ Local PostgreSQL JDBC URL
 //                jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
@@ -103,7 +104,8 @@ object DatabaseFactory {
                 SubjectCategorySubjectsTable,
                 SubjectCategoriesTable,
                 ReceiptsTable,
-                FamilyReceiptsTable
+                FamilyReceiptsTable,
+                PrincipalTable
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -129,7 +131,8 @@ object DatabaseFactory {
                 SubjectCategorySubjectsTable,
                 SubjectCategoriesTable,
                 ReceiptsTable,
-                FamilyReceiptsTable
+                FamilyReceiptsTable,
+                PrincipalTable
 
 
             ).forEach { exec(it) }
