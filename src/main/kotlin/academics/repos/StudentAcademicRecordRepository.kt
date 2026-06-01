@@ -113,7 +113,9 @@ object StudentAcademicRecordRepository {
                 student = ComplexStudentMinimalDto(
                     id = first[StudentsTable.id].value,
                     name = first[AccountTable.fullName],
-                    userId = first[AccountTable.userId]
+                    userId = first[AccountTable.userId],
+                    profilePictureUrl = first[AccountTable.profilePictureUrl],
+                    profilePicturePublicId = first[AccountTable.profilePicturePublicId]
                 ),
 
                 term = TermMinimal(
@@ -148,4 +150,13 @@ object StudentAcademicRecordRepository {
             )
         }
     }
+
+
+
+
+
+
+
 }
+
+

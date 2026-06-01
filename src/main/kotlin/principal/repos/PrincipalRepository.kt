@@ -2,10 +2,12 @@ package com.example.principal.repos
 
 
 import com.example.account.AccountTable
+import com.example.admin.tables.AdminTable
 import com.example.principal.dtos.requests.PatchPrincipalRequest
 import com.example.principal.dtos.responses.PrincipalProfileResponse
 
 import com.example.principal.tables.PrincipalTable
+import com.example.staff.tables.StaffTable
 import com.example.student.dtos.response.StudentUserResponse
 
 import org.jetbrains.exposed.dao.id.EntityID
@@ -120,4 +122,16 @@ object PrincipalRepository {
     fun delete(id: Int): Boolean = transaction {
         PrincipalTable.deleteWhere { PrincipalTable.id eq id } > 0
     }
+
+
+    fun countStaff(): Int = transaction {
+        StaffTable.selectAll().count().toInt()
+    }
+
+
+    fun countAdmins(): Int = transaction {
+        AdminTable.selectAll().count().toInt()
+    }
+
+
 }

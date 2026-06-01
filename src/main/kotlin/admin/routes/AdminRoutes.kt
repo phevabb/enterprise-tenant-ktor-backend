@@ -34,23 +34,45 @@ fun Route.adminRoutes() {
     }
 
     // ✅ PATCH (✅ THIS IS WHAT YOU WANTED)
-    patch("{id}") {
-        val id = call.parameters["id"]?.toIntOrNull()
+        patch("{id}") {
+            println("PATCH /admin/{id} called")
 
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
-            return@patch
+            val rawId = call.parameters["id"]
+            println("Raw id from path: $rawId")
+
+            val id = rawId?.toIntOrNull()
+            println("Parsed id: $id")
+
+            if (id == null) {
+                println("Invalid id received: $rawId")
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
+                return@patch
+            }
+
+            try {
+                val req = call.receive<PatchAdminRequest>()
+                println("Received PatchAdminRequest: $req")
+
+                val updated = AdminRepository.patchNested(id, req)
+                println("Repository result for id=$id: $updated")
+
+                if (updated == null) {
+                    println("Admin not found for id=$id")
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Admin not found"))
+                } else {
+                    println("Admin updated successfully for id=$id")
+                    call.respond(HttpStatusCode.OK, updated)
+                }
+            } catch (e: Exception) {
+                println("Error while patching admin id=$id: ${e.message}")
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to ("Failed to patch admin: ${e.message}"))
+                )
+            }
         }
-
-        val req = call.receive<PatchAdminRequest>()
-        val updated = AdminRepository.patchNested(id, req)
-
-        if (updated == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Admin not found"))
-        } else {
-            call.respond(HttpStatusCode.OK, updated)
-        }
-    }
 
     // ✅ DELETE
     delete("{id}") {

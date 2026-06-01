@@ -7,13 +7,14 @@ package com.example.fees.tables
 
 import com.example.student.StudentsTable
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.sql.ReferenceOption
 
 object ReceiptsTable : IntIdTable("receipts") {
 
     val receiptNo = varchar("receipt_no", 40).uniqueIndex()
 
-    val payment = reference("payment_id", PaymentTable)
-    val studentFeeRecord = reference("student_fee_record_id", StudentFeeRecordTable)
+    val payment = reference("payment_id", PaymentTable, onDelete = ReferenceOption.CASCADE)
+    val studentFeeRecord = reference("student_fee_record_id", StudentFeeRecordTable, onDelete = ReferenceOption.CASCADE)
     val student = reference("student_id", StudentsTable)
 
     val amountPaid = integer("amount_paid")

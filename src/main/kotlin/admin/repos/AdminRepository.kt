@@ -162,25 +162,38 @@ object AdminRepository {
 
         val accountId = row[AdminTable.user]?.value
 
-        // ✅ update Admin fields
-        AdminTable.update({ AdminTable.id eq id }) { u ->
+        // ✅ update Admin fields only if at least one admin field exists
+        val hasAdminFieldsToUpdate = req.tel != null
 
-
-            req.tel?.let { u[AdminTable.tel] = it }
+        if (hasAdminFieldsToUpdate) {
+            AdminTable.update({ AdminTable.id eq id }) { u ->
+                req.tel?.let { u[AdminTable.tel] = it }
+            }
         }
 
-        // ✅ update user (if present)
+        // ✅ update user only if present and has at least one field
         if (accountId != null) {
             req.user?.let { userPatch ->
-                AccountTable.update({ AccountTable.id eq accountId }) { a ->
 
-                    userPatch.fullName?.let { a[AccountTable.fullName] = it }
-                    userPatch.gender?.let { a[AccountTable.gender] = it }
-                    userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
-                    userPatch.nationality?.let { a[AccountTable.nationality] = it }
-                    userPatch.role?.let { a[AccountTable.role] = it.lowercase() }
-                    userPatch.isActive?.let { a[AccountTable.isActive] = it }
-                    userPatch.isStaff?.let { a[AccountTable.isStaff] = it }
+                val hasUserFieldsToUpdate =
+                    userPatch.fullName != null ||
+                            userPatch.gender != null ||
+                            userPatch.dateOfBirth != null ||
+                            userPatch.nationality != null ||
+                            userPatch.role != null ||
+                            userPatch.isActive != null ||
+                            userPatch.isStaff != null
+
+                if (hasUserFieldsToUpdate) {
+                    AccountTable.update({ AccountTable.id eq accountId }) { a ->
+                        userPatch.fullName?.let { a[AccountTable.fullName] = it }
+                        userPatch.gender?.let { a[AccountTable.gender] = it }
+                        userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
+                        userPatch.nationality?.let { a[AccountTable.nationality] = it }
+                        userPatch.role?.let { a[AccountTable.role] = it.lowercase() }
+                        userPatch.isActive?.let { a[AccountTable.isActive] = it }
+                        userPatch.isStaff?.let { a[AccountTable.isStaff] = it }
+                    }
                 }
             }
         }
@@ -188,4 +201,6 @@ object AdminRepository {
         // ✅ return updated data
         findByIdWithUserAndClass(id)
     }
+
+
 }

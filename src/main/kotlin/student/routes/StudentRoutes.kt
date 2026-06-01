@@ -28,6 +28,11 @@ fun Route.studentRoutes() {
         call.respond(HttpStatusCode.OK, students)
     }
 
+        get("/number") {
+            val count = StudentRepository.countStudents()
+            call.respond(HttpStatusCode.OK, mapOf("count" to count))
+        }
+
 
     get("/paginated") {
         val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1

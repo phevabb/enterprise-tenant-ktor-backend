@@ -211,6 +211,11 @@ object StudentRepository {
             }
     }
 
+
+    fun countStudents(): Int = transaction {
+        StudentsTable.selectAll().count().toInt()
+    }
+
     fun findAllWithUserAndClass(
         page: Int,
         limit: Int,
