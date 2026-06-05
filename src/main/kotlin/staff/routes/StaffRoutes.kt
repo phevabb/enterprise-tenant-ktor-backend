@@ -7,8 +7,10 @@ import com.example.staff.repos.StaffAssignedClassRepository
 import com.example.staff.repos.StaffRepository
 import com.example.staff.services.StaffService
 import com.example.student.repos.StudentRepository
+import com.example.tenant.currentTenant
 
 import io.ktor.http.*
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 
 import io.ktor.server.auth.jwt.JWTPrincipal
@@ -18,13 +20,59 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlin.text.get
 
+
+private fun Routing.getTenantSchema(call: ApplicationCall): String {
+    return call.currentTenant().tenantSchema
+}
+
 fun Route.staffRoutes() {
+
+
     authenticate("auth-jwt") {
+
+
         // ✅ RAW list
         get("/raw") {
+
+            println("========== STAFF RAW REQUEST START ==========")
+
             val search = call.request.queryParameters["search"]
-            val staff = StaffRepository.findAllWithUserAndClass(search)
-            call.respond(HttpStatusCode.OK, staff)
+            println("Query param search = $search")
+
+            val tenant = call.currentTenant()
+
+            println("Tenant object = $tenant")
+
+            if (tenant == null) {
+                println("❌ Tenant is NULL - request rejected before DB access")
+                call.respond(HttpStatusCode.NotFound, "Tenant not found")
+                return@get
+            }
+
+            val tenantSchema = tenant.tenantSchema
+            println("Resolved tenantSchema = $tenantSchema")
+
+            try {
+                val staff = StaffRepository.findAllWithUserAndClass(
+                    tenantSchema = tenantSchema,
+                    search = search
+                )
+
+                println("Staff result size = ${staff.size}")
+                println("========== STAFF RAW REQUEST SUCCESS ==========")
+
+                call.respond(HttpStatusCode.OK, staff)
+
+            } catch (e: Exception) {
+                println("❌ ERROR IN STAFF RAW ENDPOINT")
+                println("Message: ${e.message}")
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf("error" to (e.message ?: "unknown error"))
+                )
+            }
         }
 
 
@@ -33,7 +81,8 @@ fun Route.staffRoutes() {
             val req = call.receive<CreateStaffRequest>()
             println("staff request => $req")
 
-            val created = StaffService.createStaff(req)
+            val tenantSchema = call.currentTenant().tenantSchema
+            val created = StaffService.createStaff(tenantSchema, req)
 
             call.respond(HttpStatusCode.Created, created)
         }
@@ -48,7 +97,14 @@ fun Route.staffRoutes() {
             }
 
             val req = call.receive<PatchStaffRequest>()
-            val updated = StaffRepository.patchNested(id, req)
+
+            val tenantSchema = call.currentTenant().tenantSchema
+
+            val updated = StaffRepository.patchNested(
+                tenantSchema = tenantSchema,
+                id = id,
+                req = req
+            )
 
             if (updated == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff not found"))
@@ -66,7 +122,8 @@ fun Route.staffRoutes() {
                 return@delete
             }
 
-            val ok = StaffService.deleteStaff(id)
+            val tenantSchema = call.currentTenant().tenantSchema
+            val ok = StaffService.deleteStaff(tenantSchema, id)
 
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "Staff not found")
@@ -76,52 +133,44 @@ fun Route.staffRoutes() {
         }
 
         get("/teacher-students") {
-
             try {
                 val principal = call.principal<JWTPrincipal>()
-                if (principal == null) {
-                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid token"))
-                    return@get
-                }
+                    ?: return@get call.respond(
+                        HttpStatusCode.Unauthorized,
+                        mapOf("error" to "Invalid token")
+                    )
 
                 val userId = principal.payload.getClaim("userId").asInt()
                 val role = principal.payload.getClaim("role").asString()
 
-                // ✅ ONLY allow staff
                 if (role != "staff") {
-                    call.respond(
+                    return@get call.respond(
                         HttpStatusCode.Forbidden,
                         mapOf("error" to "Only staff can access this endpoint")
                     )
-                    return@get
                 }
 
-                // ✅ 1. Get staff profile
-                val staff = StaffRepository.findByUserId(userId)
+                val tenantSchema = call.currentTenant().tenantSchema
 
-                if (staff == null) {
-                    call.respond(
-                        HttpStatusCode.Forbidden,
-                        mapOf("error" to "Staff profile not found")
-                    )
-                    return@get
-                }
+                val staff = StaffRepository.findByUserId(
+                    tenantSchema = tenantSchema,
+                    userId = userId
+                ) ?: return@get call.respond(
+                    HttpStatusCode.Forbidden,
+                    mapOf("error" to "Staff profile not found")
+                )
 
-                // ✅ 2. Get assigned class
                 val classId = staff.assignedClassId
-
-                if (classId == null) {
-                    call.respond(
+                    ?: return@get call.respond(
                         HttpStatusCode.Forbidden,
                         mapOf("error" to "Teacher has no assigned class")
                     )
-                    return@get
-                }
 
-                // ✅ 3. Get students in that class
-                val students = StudentRepository.findStudentsByClass(classId)
+                val students = StudentRepository.findStudentsByClass(
+                    tenantSchema = tenantSchema,
+                    classId = classId
+                )
 
-                // ✅ 4. Return result
                 call.respond(HttpStatusCode.OK, students)
 
             } catch (e: Exception) {
@@ -134,13 +183,22 @@ fun Route.staffRoutes() {
         }
 
         get("assigned-class/{userId}") {
+
+            val tenant = call.currentTenant()
             val userId = call.parameters["userId"]?.trim()
+
             if (userId.isNullOrBlank()) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "userId is required"))
                 return@get
             }
 
-            val result = StaffAssignedClassRepository.findAssignedClassByUserId(userId)
+
+
+            val result = StaffAssignedClassRepository.findAssignedClassByUserId(
+                tenantSchema = tenant.tenantSchema,
+
+                userId = userId
+            )
 
             if (result == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Staff profile not found for userId"))

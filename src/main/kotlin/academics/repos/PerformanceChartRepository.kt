@@ -35,8 +35,8 @@ object PerformanceChartRepository {
      * termId    = TermTable.id
      * yearId    = AcademicYearTable.id
      */
-    fun getStudentChart(studentId: Int, termId: Int, yearId: Int): ChartRecordResponse? = transaction {
-
+    fun getStudentChart(tenantSchema: String,  studentId: Int, termId: Int, yearId: Int): ChartRecordResponse? = transaction {
+        setTenantSchema(tenantSchema)
         val studentEid = EntityID(studentId, StudentsTable)
         val termEid = EntityID(termId, TermTable)
         val yearEid = EntityID(yearId, AcademicYearTable)

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateTermRequest(
     val name: String,
-    val academic_year: Int? = null,
+    val academic_year: Int
 )
 
 

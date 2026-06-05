@@ -15,6 +15,7 @@ import io.ktor.server.routing.routing
 fun Application.feeModule() {
 
     routing {
+
         route("/api") {
             route("/fee-structure") {
                 feeStructureRoutes()

@@ -2,6 +2,7 @@ package com.example.auth
 
 import com.example.account.AccountRepository
 import com.example.account.Role
+import com.example.tenant.currentTenant
 import io.ktor.http.*
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.*
@@ -46,8 +47,9 @@ fun Route.authRoutes() {
     post("/login") {
 
         val req = call.receive<LoginRequest>()
-
-        val user = AccountRepository.findByUserId(req.userId)
+        val tenant = call.currentTenant()
+        println("tenantSluggggggg $tenant", )
+        val user = AccountRepository.findByUserId(tenant.tenantSchema,req.userId)
 
         if (user == null) {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))

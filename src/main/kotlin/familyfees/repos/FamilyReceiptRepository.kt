@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Transaction
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
@@ -18,7 +19,12 @@ object FamilyReceiptRepository {
         return "FAM-$date-$rand"
     }
 
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        setTenantSchema(tenantSchema)
+    }
+
     fun createReceipt(
+        tenantSchema: String,
         familyPaymentId: Int,
         familyFeeRecordId: Int,
         familyName: String,
@@ -29,6 +35,8 @@ object FamilyReceiptRepository {
         termName: String?,
         academicYearName: String?
     ): FamilyReceiptDto = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val receiptNo = generateReceiptNo()
         val wardsCsv = wards.joinToString(", ")
@@ -46,7 +54,15 @@ object FamilyReceiptRepository {
             it[FamilyReceiptsTable.academicYearName] = academicYearName
             it[FamilyReceiptsTable.createdAt] = System.currentTimeMillis()
         }.value
-        println("✅ FAMILY RECEIPT CREATED: id=$id no=$receiptNo pdfUrl=/api/family-receipts/$id/pdf")
+
+        println(
+            "✅ FAMILY RECEIPT CREATED: " +
+                    "tenant=$tenantSchema " +
+                    "id=$id " +
+                    "no=$receiptNo " +
+                    "pdfUrl=/api/family-receipts/$id/pdf"
+        )
+
         FamilyReceiptDto(
             id = id,
             receiptNo = receiptNo,
@@ -64,11 +80,19 @@ object FamilyReceiptRepository {
         )
     }
 
-    fun findById(id: Int): FamilyReceiptDto? = transaction {
-        FamilyReceiptsTable.selectAll()
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): FamilyReceiptDto? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        FamilyReceiptsTable
+            .selectAll()
             .where { FamilyReceiptsTable.id eq id }
             .singleOrNull()
             ?.let { row ->
+
                 val wards = row[FamilyReceiptsTable.wardsCsv]
                     .split(",")
                     .map { it.trim() }

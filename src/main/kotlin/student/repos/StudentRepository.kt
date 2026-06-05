@@ -1,73 +1,59 @@
 package com.example.student.repos
 
-
-import com.example.student.StudentsTable
-
-import com.example.student.dtos.requests.UpdateStudentRequest
-import com.example.student.dtos.response.GradeClassResponse
-import com.example.student.dtos.response.StudentProfileResponse
-import com.example.student.dtos.response.StudentUserResponse
-import com.example.student.models.StudentProfile
-import com.example.student.mappers.toStudentProfile
-import com.example.student.tables.NewGradeClassTable
-import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertAndGetId
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
-
-
 import com.example.account.AccountTable
-import com.example.familyfees.tables.FamilyTable
 import com.example.minimals.FamilyMinimal
 import com.example.staff.dtos.response.StudentLiteResponse
+import com.example.student.StudentsTable
 import com.example.student.dtos.requests.PatchStudentRequest
+import com.example.familyfees.tables.FamilyTable
+import org.jetbrains.exposed.sql.leftJoin
+import com.example.student.dtos.requests.UpdateStudentRequest
+import com.example.student.dtos.response.GradeClassResponse
 import com.example.student.dtos.response.PerClassResponse
-
-
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import com.example.student.dtos.response.StudentProfileResponse
+import com.example.student.dtos.response.StudentUserResponse
+import com.example.student.mappers.toStudentProfile
+import com.example.student.models.StudentProfile
+import com.example.student.tables.NewGradeClassTable
+import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.JoinType
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.count
 
 object StudentRepository {
 
-    /** ✅ Create student profile */
-    fun create(profile: StudentProfile) = transaction {
-
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun createInCurrentTransaction(profile: StudentProfile): StudentProfileResponse {
         val id = StudentsTable.insertAndGetId {
-
-            // ✅ FK → EntityID<Int>
             it[user] = EntityID(profile.user, AccountTable)
 
-            // ✅ Nullable FK
-            it[currentNewGradeClass] =
-                profile.currentNewGradeClassId?.let {
-                    EntityID(it, NewGradeClassTable)
-                }
+            it[currentNewGradeClass] = profile.currentNewGradeClassId?.let { classId ->
+                EntityID(classId, NewGradeClassTable)
+            }
 
-            it[family] =
-                profile.family?.let {
-                    EntityID(it, FamilyTable)
-                }
+            it[family] = profile.family?.let { familyId ->
+                EntityID(familyId, FamilyTable)
+            }
 
             it[isGraduated] = profile.isGraduated
             it[lastSchoolAttended] = profile.lastSchoolAttended
-
             it[isDiscountedStudent] = profile.isDiscountedStudent
             it[isImmunized] = profile.isImmunized
             it[hasAllergies] = profile.hasAllergies
-
-
             it[allergicFoods] = profile.allergicFoods
-
             it[otherRelatedInfo] = profile.otherRelatedInfo
-
             it[nameOfFather] = profile.nameOfFather
             it[nameOfMother] = profile.nameOfMother
             it[occupationOfFather] = profile.occupationOfFather
@@ -76,60 +62,115 @@ object StudentRepository {
             it[nationalityOfMother] = profile.nationalityOfMother
             it[contactOfFather] = profile.contactOfFather
             it[contactOfMother] = profile.contactOfMother
-
             it[houseNumber] = profile.houseNumber
         }.value
 
-        findByIdWithUserAndClass(id)!!
+        return findByIdWithUserAndClassInCurrentTransaction(id)
+            ?: throw IllegalStateException("Student profile was created but could not be retrieved.")
     }
 
-    /** ✅ Get all students */
-    fun findAll(): List<StudentProfile> = transaction {
-        StudentsTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun create(
+        tenantSchema: String,
+        profile: StudentProfile
+    ): StudentProfileResponse = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        createInCurrentTransaction(profile)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllInCurrentTransaction(): List<StudentProfile> {
+        return StudentsTable
             .selectAll()
             .orderBy(StudentsTable.id, SortOrder.DESC)
             .map { it.toStudentProfile() }
     }
 
-    /** ✅ Get student by profile ID */
-    fun findById(id: Int): StudentProfile? = transaction {
-        StudentsTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findAll(tenantSchema: String): List<StudentProfile> = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        findAllInCurrentTransaction()
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByIdInCurrentTransaction(id: Int): StudentProfile? {
+        return StudentsTable
             .selectAll()
             .where { StudentsTable.id eq id }
             .singleOrNull()
             ?.toStudentProfile()
     }
 
-    /** ✅ Get student by account ID (OneToOne lookup) */
-    fun findByUserId(userId: Int): StudentProfile? = transaction {
-        StudentsTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): StudentProfile? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        findByIdInCurrentTransaction(id)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByUserIdInCurrentTransaction(userId: Int): StudentProfile? {
+        return StudentsTable
             .selectAll()
             .where { StudentsTable.user eq EntityID(userId, AccountTable) }
             .singleOrNull()
             ?.toStudentProfile()
     }
 
-    /** ✅ Update student profile */
-    fun update(id: Int, profile: StudentProfile): Boolean = transaction {
-        StudentsTable.update({ StudentsTable.id eq id }) {
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findByUserId(
+        tenantSchema: String,
+        userId: Int
+    ): StudentProfile? = transaction {
 
-            it[currentNewGradeClass] =
-                profile.currentNewGradeClassId?.let {
-                    EntityID(it, NewGradeClassTable)
-                }
+        setTenantSchema(tenantSchema)
+
+        findByUserIdInCurrentTransaction(userId)
+    }
+
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun updateInCurrentTransaction(id: Int, profile: StudentProfile): Boolean {
+        return StudentsTable.update({ StudentsTable.id eq id }) {
+            it[currentNewGradeClass] = profile.currentNewGradeClassId?.let { classId ->
+                EntityID(classId, NewGradeClassTable)
+            }
+
+            it[family] = profile.family?.let { familyId ->
+                EntityID(familyId, FamilyTable)
+            }
 
             it[isGraduated] = profile.isGraduated
             it[lastSchoolAttended] = profile.lastSchoolAttended
-
             it[isDiscountedStudent] = profile.isDiscountedStudent
             it[isImmunized] = profile.isImmunized
             it[hasAllergies] = profile.hasAllergies
-
-
             it[allergicFoods] = profile.allergicFoods
-
             it[otherRelatedInfo] = profile.otherRelatedInfo
-
             it[nameOfFather] = profile.nameOfFather
             it[nameOfMother] = profile.nameOfMother
             it[occupationOfFather] = profile.occupationOfFather
@@ -138,13 +179,31 @@ object StudentRepository {
             it[nationalityOfMother] = profile.nationalityOfMother
             it[contactOfFather] = profile.contactOfFather
             it[contactOfMother] = profile.contactOfMother
-
             it[houseNumber] = profile.houseNumber
         } > 0
     }
 
-    fun findAllWithUserAndClassRaw(search: String?): List<StudentProfileResponse> = transaction {
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun update(
+        tenantSchema: String,
+        id: Int,
+        profile: StudentProfile
+    ): Boolean = transaction {
 
+        setTenantSchema(tenantSchema)
+
+        updateInCurrentTransaction(id, profile)
+    }
+
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllWithUserAndClassRawInCurrentTransaction(
+        search: String?
+    ): List<StudentProfileResponse> {
         val query = StudentsTable
             .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
             .join(NewGradeClassTable, JoinType.LEFT, StudentsTable.currentNewGradeClass, NewGradeClassTable.id)
@@ -161,7 +220,7 @@ object StudentRepository {
             }
         }
 
-        query
+        return query
             .orderBy(StudentsTable.id, SortOrder.DESC)
             .map { row ->
                 val user = StudentUserResponse(
@@ -175,14 +234,13 @@ object StudentRepository {
                     dateOfBirth = row[AccountTable.dateOfBirth],
                     profilePictureUrl = row[AccountTable.profilePictureUrl],
                     profilePicturePublicId = row[AccountTable.profilePicturePublicId]
-
                 )
 
                 val gradeClass = row[NewGradeClassTable.id]?.value?.let {
                     GradeClassResponse(it, row[NewGradeClassTable.name])
                 }
 
-                val fam = row[FamilyTable.id]?.value?.let {
+                val family = row[FamilyTable.id]?.value?.let {
                     FamilyMinimal(it, row[FamilyTable.name])
                 }
 
@@ -190,7 +248,7 @@ object StudentRepository {
                     id = row[StudentsTable.id].value,
                     user = user,
                     currentNewGradeClass = gradeClass,
-                    family = fam,
+                    family = family,
                     isGraduated = row[StudentsTable.isGraduated],
                     lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
                     isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
@@ -206,35 +264,61 @@ object StudentRepository {
                     contactOfFather = row[StudentsTable.contactOfFather],
                     contactOfMother = row[StudentsTable.contactOfMother],
                     houseNumber = row[StudentsTable.houseNumber],
-                    hasAllergies = row[StudentsTable.hasAllergies],
+                    hasAllergies = row[StudentsTable.hasAllergies]
                 )
             }
     }
 
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findAllWithUserAndClassRaw(
+        tenantSchema: String,
+        search: String?
+    ): List<StudentProfileResponse> = transaction {
 
-    fun countStudents(): Int = transaction {
-        StudentsTable.selectAll().count().toInt()
+        setTenantSchema(tenantSchema)
+
+        findAllWithUserAndClassRawInCurrentTransaction(search)
     }
 
-    fun findAllWithUserAndClass(
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun countStudentsInCurrentTransaction(): Int {
+        return StudentsTable.selectAll().count().toInt()
+    }
+
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun countStudents(
+        tenantSchema: String
+    ): Int = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        countStudentsInCurrentTransaction()
+    }
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllWithUserAndClassInCurrentTransaction(
         page: Int,
         limit: Int,
         search: String?
-    ): Pair<List<StudentProfileResponse>, Long> = transaction {
-
+    ): Pair<List<StudentProfileResponse>, Long> {
         val offset = ((page - 1) * limit).toLong()
 
-        // ✅ base query
         val query = StudentsTable
             .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
             .join(NewGradeClassTable, JoinType.LEFT, StudentsTable.currentNewGradeClass, NewGradeClassTable.id)
             .join(FamilyTable, JoinType.LEFT, StudentsTable.family, FamilyTable.id)
             .selectAll()
 
-        // ✅ APPLY SEARCH
         if (!search.isNullOrBlank()) {
             val q = "%${search.lowercase()}%"
-
             query.andWhere {
                 (AccountTable.fullName.lowerCase() like q) or
                         (NewGradeClassTable.name.lowerCase() like q) or
@@ -243,16 +327,13 @@ object StudentRepository {
             }
         }
 
-        // ✅ COUNT AFTER FILTER
         val total = query.count()
 
-        // ✅ FETCH DATA
         val data = query
             .orderBy(StudentsTable.id, SortOrder.DESC)
             .limit(limit)
             .offset(offset)
             .map { row ->
-
                 val user = StudentUserResponse(
                     id = row[AccountTable.id].value,
                     userId = row[AccountTable.userId],
@@ -264,14 +345,13 @@ object StudentRepository {
                     dateOfBirth = row[AccountTable.dateOfBirth],
                     profilePictureUrl = row[AccountTable.profilePictureUrl],
                     profilePicturePublicId = row[AccountTable.profilePicturePublicId]
-
                 )
 
                 val gradeClass = row[NewGradeClassTable.id]?.value?.let {
                     GradeClassResponse(it, row[NewGradeClassTable.name])
                 }
 
-                val fam = row[FamilyTable.id]?.value?.let {
+                val family = row[FamilyTable.id]?.value?.let {
                     FamilyMinimal(it, row[FamilyTable.name])
                 }
 
@@ -279,7 +359,7 @@ object StudentRepository {
                     id = row[StudentsTable.id].value,
                     user = user,
                     currentNewGradeClass = gradeClass,
-                    family = fam,
+                    family = family,
                     isGraduated = row[StudentsTable.isGraduated],
                     lastSchoolAttended = row[StudentsTable.lastSchoolAttended],
                     isDiscountedStudent = row[StudentsTable.isDiscountedStudent],
@@ -295,178 +375,217 @@ object StudentRepository {
                     contactOfFather = row[StudentsTable.contactOfFather],
                     contactOfMother = row[StudentsTable.contactOfMother],
                     houseNumber = row[StudentsTable.houseNumber],
-                    hasAllergies = row[StudentsTable.hasAllergies],
+                    hasAllergies = row[StudentsTable.hasAllergies]
                 )
             }
 
-        Pair(data, total)
+        return Pair(data, total)
+    }
+
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findAllWithUserAndClass(
+        tenantSchema: String,
+        page: Int,
+        limit: Int,
+        search: String?
+    ): Pair<List<StudentProfileResponse>, Long> = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        findAllWithUserAndClassInCurrentTransaction(page, limit, search)
     }
 
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun existsByIdInCurrentTransaction(id: Int): Boolean {
+        return StudentsTable
+            .selectAll()
+            .where { StudentsTable.id eq id }
+            .count() > 0
+    }
+
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
     fun existsById(id: Int): Boolean = transaction {
-            StudentsTable
-                .selectAll()
-                .where { StudentsTable.id eq id }
-                .count() > 0
-        }
+        existsByIdInCurrentTransaction(id)
+    }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun updateFullInCurrentTransaction(
+        id: Int,
+        req: UpdateStudentRequest
+    ): Boolean {
+        return StudentsTable.update({ StudentsTable.id eq id }) { row ->
+            row[StudentsTable.currentNewGradeClass] =
+                req.currentNewGradeClassId?.let { EntityID(it, NewGradeClassTable) }
+
+            row[StudentsTable.isGraduated] = req.isGraduated
+            row[StudentsTable.lastSchoolAttended] = req.lastSchoolAttended
+            row[StudentsTable.isDiscountedStudent] = req.isDiscountedStudent
+            row[StudentsTable.isImmunized] = req.isImmunized
+            row[StudentsTable.hasAllergies] = req.hasAllergies
+            row[StudentsTable.allergicFoods] = req.allergicFoods
+            row[StudentsTable.otherRelatedInfo] = req.otherRelatedInfo
+            row[StudentsTable.nameOfFather] = req.nameOfFather
+            row[StudentsTable.nameOfMother] = req.nameOfMother
+            row[StudentsTable.occupationOfFather] = req.occupationOfFather
+            row[StudentsTable.occupationOfMother] = req.occupationOfMother
+            row[StudentsTable.nationalityOfFather] = req.nationalityOfFather
+            row[StudentsTable.nationalityOfMother] = req.nationalityOfMother
+            row[StudentsTable.contactOfFather] = req.contactOfFather
+            row[StudentsTable.contactOfMother] = req.contactOfMother
+            row[StudentsTable.houseNumber] = req.houseNumber
+        } > 0
+    }
+
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
     fun updateFull(id: Int, req: UpdateStudentRequest): Boolean = transaction {
-            StudentsTable.update({ StudentsTable.id eq id }) { row ->
+        updateFullInCurrentTransaction(id, req)
+    }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun patchInCurrentTransaction(
+        id: Int,
+        req: PatchStudentRequest
+    ): Boolean {
+        val existing = StudentsTable
+            .selectAll()
+            .where { StudentsTable.id eq id }
+            .singleOrNull()
+            ?: return false
+
+        val accountId = existing[StudentsTable.user].value
+
+        val updated = StudentsTable.update({ StudentsTable.id eq id }) { row ->
+            if (req.currentNewGradeClassId != null) {
                 row[StudentsTable.currentNewGradeClass] =
-                    req.currentNewGradeClassId?.let { EntityID(it, NewGradeClassTable) }
-
-                row[StudentsTable.isGraduated] = req.isGraduated
-                row[StudentsTable.lastSchoolAttended] = req.lastSchoolAttended
-
-                row[StudentsTable.isDiscountedStudent] = req.isDiscountedStudent
-                row[StudentsTable.isImmunized] = req.isImmunized
-                row[StudentsTable.hasAllergies] = req.hasAllergies
-
-
-                row[StudentsTable.allergicFoods] = req.allergicFoods
-
-                row[StudentsTable.otherRelatedInfo] = req.otherRelatedInfo
-
-                row[StudentsTable.nameOfFather] = req.nameOfFather
-                row[StudentsTable.nameOfMother] = req.nameOfMother
-                row[StudentsTable.occupationOfFather] = req.occupationOfFather
-                row[StudentsTable.occupationOfMother] = req.occupationOfMother
-                row[StudentsTable.nationalityOfFather] = req.nationalityOfFather
-                row[StudentsTable.nationalityOfMother] = req.nationalityOfMother
-                row[StudentsTable.contactOfFather] = req.contactOfFather
-                row[StudentsTable.contactOfMother] = req.contactOfMother
-
-                row[StudentsTable.houseNumber] = req.houseNumber
-            } > 0
-        }
-
-
-
-
-        fun patch(id: Int, req: PatchStudentRequest): Boolean = transaction {
-
-            // 1) Get linked account id (needed for nested user update)
-            val existing = StudentsTable
-                .selectAll()
-                .where { StudentsTable.id eq id }
-                .singleOrNull()
-                ?: return@transaction false
-
-            val accountId = existing[StudentsTable.user].value
-
-            // 2) Update StudentProfile fields
-            val updated = StudentsTable.update({ StudentsTable.id eq id }) { row ->
-
-                // ✅ FK update:
-                // If frontend always sends currentNewGradeClassId (null or value), this is correct:
-                // - value -> set FK
-                // - null  -> clear FK
-                if (req.currentNewGradeClassId != null) {
-                    row[StudentsTable.currentNewGradeClass] =
-                        EntityID(req.currentNewGradeClassId, NewGradeClassTable)
-                } else {
-                    row[StudentsTable.currentNewGradeClass] = null
-                }
-
-                req.lastSchoolAttended?.let { row[StudentsTable.lastSchoolAttended] = it }
-                req.isDiscountedStudent?.let { row[StudentsTable.isDiscountedStudent] = it }
-                req.isImmunized?.let { row[StudentsTable.isImmunized] = it }
-                req.allergicFoods?.let { row[StudentsTable.allergicFoods] = it }
-                req.otherRelatedInfo?.let { row[StudentsTable.otherRelatedInfo] = it }
-
-                req.nameOfFather?.let { row[StudentsTable.nameOfFather] = it }
-                req.occupationOfFather?.let { row[StudentsTable.occupationOfFather] = it }
-                req.nationalityOfFather?.let { row[StudentsTable.nationalityOfFather] = it }
-
-                req.nameOfMother?.let { row[StudentsTable.nameOfMother] = it }
-                req.occupationOfMother?.let { row[StudentsTable.occupationOfMother] = it }
-                req.nationalityOfMother?.let { row[StudentsTable.nationalityOfMother] = it }
-
-                req.contactOfFather?.let { row[StudentsTable.contactOfFather] = it }
-                req.contactOfMother?.let { row[StudentsTable.contactOfMother] = it }
-                req.houseNumber?.let { row[StudentsTable.houseNumber] = it }
-
-                // ✅ Only include these if the columns exist in StudentsTable:
-                // req.classSeekingAdmissionTo?.let { row[StudentsTable.classSeekingAdmissionTo] = it }
-                // req.deactivationReason?.let { row[StudentsTable.deactivationReason] = it }
+                    EntityID(req.currentNewGradeClassId, NewGradeClassTable)
+            } else {
+                row[StudentsTable.currentNewGradeClass] = null
             }
 
-            if (updated == 0) return@transaction false
+            req.lastSchoolAttended?.let { row[StudentsTable.lastSchoolAttended] = it }
+            req.isDiscountedStudent?.let { row[StudentsTable.isDiscountedStudent] = it }
+            req.isImmunized?.let { row[StudentsTable.isImmunized] = it }
+            req.allergicFoods?.let { row[StudentsTable.allergicFoods] = it }
+            req.otherRelatedInfo?.let { row[StudentsTable.otherRelatedInfo] = it }
+            req.nameOfFather?.let { row[StudentsTable.nameOfFather] = it }
+            req.occupationOfFather?.let { row[StudentsTable.occupationOfFather] = it }
+            req.nationalityOfFather?.let { row[StudentsTable.nationalityOfFather] = it }
+            req.nameOfMother?.let { row[StudentsTable.nameOfMother] = it }
+            req.occupationOfMother?.let { row[StudentsTable.occupationOfMother] = it }
+            req.nationalityOfMother?.let { row[StudentsTable.nationalityOfMother] = it }
+            req.contactOfFather?.let { row[StudentsTable.contactOfFather] = it }
+            req.contactOfMother?.let { row[StudentsTable.contactOfMother] = it }
+            req.houseNumber?.let { row[StudentsTable.houseNumber] = it }
+        }
 
-            // 3) Update nested Account fields (if user object exists)
-            req.user?.let { u ->
-                AccountTable.update({ AccountTable.id eq accountId }) { a ->
-                    u.fullName?.let { a[AccountTable.fullName] = it }
-                    u.gender?.let { a[AccountTable.gender] = it }
-                    u.nationality?.let { a[AccountTable.nationality] = it }
-                    u.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
-                    u.role?.let { a[AccountTable.role] = it.lowercase() }
-                    u.isActive?.let { a[AccountTable.isActive] = it }
-                    u.isStaff?.let { a[AccountTable.isStaff] = it }
-                    // u.id is intentionally ignored
-                }
+        if (updated == 0) {
+            return false
+        }
+
+        req.user?.let { userPatch ->
+            AccountTable.update({ AccountTable.id eq accountId }) { a ->
+                userPatch.fullName?.let { a[AccountTable.fullName] = it }
+                userPatch.gender?.let { a[AccountTable.gender] = it }
+                userPatch.nationality?.let { a[AccountTable.nationality] = it }
+                userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
+                userPatch.role?.let { a[AccountTable.role] = it.lowercase() }
+                userPatch.isActive?.let { a[AccountTable.isActive] = it }
+                userPatch.isStaff?.let { a[AccountTable.isStaff] = it }
             }
-
-            true
         }
 
+        return true
+    }
 
-    fun delete(id: Int): Boolean = transaction {
-            StudentsTable.deleteWhere { StudentsTable.id eq id } > 0
-        }
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchStudentRequest
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        patchInCurrentTransaction(id, req)
+    }
 
 
-    fun patchNested(studentProfileId: Int, req: PatchStudentRequest): StudentProfileResponse? = transaction {
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun deleteInCurrentTransaction(id: Int): Boolean {
+        return StudentsTable.deleteWhere { StudentsTable.id eq id } > 0
+    }
 
-        // 1) Get the linked account id (because StudentsTable.user is a FK reference)
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        deleteInCurrentTransaction(id)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun patchNestedInCurrentTransaction(
+        studentProfileId: Int,
+        req: PatchStudentRequest
+    ): StudentProfileResponse? {
         val row = StudentsTable
             .selectAll()
             .where { StudentsTable.id eq studentProfileId }
             .singleOrNull()
-            ?: return@transaction null
+            ?: return null
 
         val accountId = row[StudentsTable.user].value
 
-        // 2) Update profile fields (only those provided)
         StudentsTable.update({ StudentsTable.id eq studentProfileId }) { u ->
-
-            // FK (nullable) - only update if provided
             if (req.currentNewGradeClassId != null) {
-                u[StudentsTable.currentNewGradeClass] = EntityID(req.currentNewGradeClassId, NewGradeClassTable)
+                u[StudentsTable.currentNewGradeClass] =
+                    EntityID(req.currentNewGradeClassId, NewGradeClassTable)
             }
 
             u[StudentsTable.family] =
                 req.family?.let { EntityID(it, FamilyTable) }
 
-
             req.lastSchoolAttended?.let { u[StudentsTable.lastSchoolAttended] = it }
-
             req.isDiscountedStudent?.let { u[StudentsTable.isDiscountedStudent] = it }
             req.isImmunized?.let { u[StudentsTable.isImmunized] = it }
-
-
-
             req.allergicFoods?.let { u[StudentsTable.allergicFoods] = it }
-
             req.otherRelatedInfo?.let { u[StudentsTable.otherRelatedInfo] = it }
-
             req.nameOfFather?.let { u[StudentsTable.nameOfFather] = it }
             req.nameOfMother?.let { u[StudentsTable.nameOfMother] = it }
             req.occupationOfFather?.let { u[StudentsTable.occupationOfFather] = it }
             req.occupationOfMother?.let { u[StudentsTable.occupationOfMother] = it }
-
             req.nationalityOfFather?.let { u[StudentsTable.nationalityOfFather] = it }
             req.nationalityOfMother?.let { u[StudentsTable.nationalityOfMother] = it }
             req.contactOfFather?.let { u[StudentsTable.contactOfFather] = it }
             req.contactOfMother?.let { u[StudentsTable.contactOfMother] = it }
-
             req.houseNumber?.let { u[StudentsTable.houseNumber] = it }
         }
 
-        // 3) Update nested account fields (only if user object exists)
         req.user?.let { userPatch ->
-
             AccountTable.update({ AccountTable.id eq accountId }) { a ->
                 userPatch.fullName?.let { a[AccountTable.fullName] = it }
                 userPatch.gender?.let { a[AccountTable.gender] = it }
@@ -478,27 +597,33 @@ object StudentRepository {
             }
         }
 
-        // 4) Return the updated nested response
-        findByIdWithUserAndClass(studentProfileId)
+        return findByIdWithUserAndClassInCurrentTransaction(studentProfileId)
     }
 
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun patchNested(
+        tenantSchema: String,
+        studentProfileId: Int,
+        req: PatchStudentRequest
+    ): StudentProfileResponse? = transaction {
 
-    fun findStudentsByClass(classId: Int): List<StudentLiteResponse> = transaction {
+        setTenantSchema(tenantSchema)
 
-        StudentsTable
-            .join(
-                AccountTable,
-                JoinType.INNER,
-                StudentsTable.user,
-                AccountTable.id
-            )
+        patchNestedInCurrentTransaction(studentProfileId, req)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findStudentsByClassInCurrentTransaction(classId: Int): List<StudentLiteResponse> {
+        return StudentsTable
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
             .selectAll()
-            .where {
-                StudentsTable.currentNewGradeClass eq classId
-            }
+            .where { StudentsTable.currentNewGradeClass eq classId }
             .orderBy(AccountTable.fullName to SortOrder.ASC)
             .map { row ->
-
                 StudentLiteResponse(
                     id = row[StudentsTable.id].value,
                     full_name = row[AccountTable.fullName],
@@ -507,9 +632,25 @@ object StudentRepository {
             }
     }
 
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findStudentsByClass(
+        tenantSchema: String,
+        classId: Int
+    ): List<StudentLiteResponse> = transaction {
 
-    fun findByIdWithUserAndClass(studentProfileId: Int): StudentProfileResponse? = transaction {
+        setTenantSchema(tenantSchema)
 
+        findStudentsByClassInCurrentTransaction(classId)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByIdWithUserAndClassInCurrentTransaction(
+        studentProfileId: Int
+    ): StudentProfileResponse? {
         val query = StudentsTable
             .join(
                 otherTable = AccountTable,
@@ -519,19 +660,22 @@ object StudentRepository {
             )
             .join(
                 otherTable = NewGradeClassTable,
-                joinType = JoinType.LEFT, // because class is nullable
+                joinType = JoinType.LEFT,
                 onColumn = StudentsTable.currentNewGradeClass,
                 otherColumn = NewGradeClassTable.id
             )
-            .join(FamilyTable, JoinType.LEFT, onColumn = StudentsTable.family, otherColumn = FamilyTable.id)
+            .join(
+                otherTable = FamilyTable,
+                joinType = JoinType.LEFT,
+                onColumn = StudentsTable.family,
+                otherColumn = FamilyTable.id
+            )
 
-
-        query
+        return query
             .selectAll()
             .where { StudentsTable.id eq studentProfileId }
             .singleOrNull()
             ?.let { r ->
-
                 val userDto = StudentUserResponse(
                     id = r[AccountTable.id].value,
                     userId = r[AccountTable.userId],
@@ -540,10 +684,9 @@ object StudentRepository {
                     role = r[AccountTable.role],
                     isActive = r[AccountTable.isActive],
                     pin = r[AccountTable.pin],
-                    dateOfBirth = r[AccountTable.dateOfBirth ],
+                    dateOfBirth = r[AccountTable.dateOfBirth],
                     profilePictureUrl = r[AccountTable.profilePictureUrl],
                     profilePicturePublicId = r[AccountTable.profilePicturePublicId]
-
                 )
 
                 val classDto = r[NewGradeClassTable.id]?.value?.let { classId ->
@@ -553,9 +696,9 @@ object StudentRepository {
                     )
                 }
 
-                val famdto = r[FamilyTable.id]?.value?.let { famId ->
+                val familyDto = r[FamilyTable.id]?.value?.let { familyId ->
                     FamilyMinimal(
-                        id = famId,
+                        id = familyId,
                         name = r[FamilyTable.name]
                     )
                 }
@@ -564,19 +707,14 @@ object StudentRepository {
                     id = r[StudentsTable.id].value,
                     user = userDto,
                     currentNewGradeClass = classDto,
-                    family = famdto,
+                    family = familyDto,
                     isGraduated = r[StudentsTable.isGraduated],
                     lastSchoolAttended = r[StudentsTable.lastSchoolAttended],
-
                     isDiscountedStudent = r[StudentsTable.isDiscountedStudent],
                     isImmunized = r[StudentsTable.isImmunized],
                     hasAllergies = r[StudentsTable.hasAllergies],
-
-
                     allergicFoods = r[StudentsTable.allergicFoods],
-
                     otherRelatedInfo = r[StudentsTable.otherRelatedInfo],
-
                     nameOfFather = r[StudentsTable.nameOfFather],
                     nameOfMother = r[StudentsTable.nameOfMother],
                     occupationOfFather = r[StudentsTable.occupationOfFather],
@@ -585,17 +723,25 @@ object StudentRepository {
                     nationalityOfMother = r[StudentsTable.nationalityOfMother],
                     contactOfFather = r[StudentsTable.contactOfFather],
                     contactOfMother = r[StudentsTable.contactOfMother],
-
                     houseNumber = r[StudentsTable.houseNumber]
                 )
             }
     }
 
-    fun countPerClass(): List<PerClassResponse> = transaction {
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findByIdWithUserAndClass(studentProfileId: Int): StudentProfileResponse? = transaction {
+        findByIdWithUserAndClassInCurrentTransaction(studentProfileId)
+    }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun countPerClassInCurrentTransaction(): List<PerClassResponse> {
         val countExpr = StudentsTable.id.count()
 
-        StudentsTable
+        return StudentsTable
             .leftJoin(
                 NewGradeClassTable,
                 { StudentsTable.currentNewGradeClass },
@@ -604,8 +750,7 @@ object StudentRepository {
             .select(NewGradeClassTable.name, countExpr)
             .groupBy(NewGradeClassTable.name)
             .orderBy(NewGradeClassTable.name to SortOrder.ASC)
-            .map { row ->   // ✅ THIS is where it goes
-
+            .map { row ->
                 PerClassResponse(
                     `class` = row[NewGradeClassTable.name] ?: "No Class Assigned",
                     count = row[countExpr]
@@ -613,24 +758,15 @@ object StudentRepository {
             }
     }
 
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun countPerClass(
+        tenantSchema: String
+    ): List<PerClassResponse> = transaction {
 
+        setTenantSchema(tenantSchema)
 
-
-
+        countPerClassInCurrentTransaction()
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

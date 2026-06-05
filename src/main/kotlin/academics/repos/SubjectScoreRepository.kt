@@ -22,16 +22,12 @@ import com.example.academics.dtos.response.SubjectScoreContextResponse
 
 object SubjectScoreRepository {
 
-    /**
-     * ✅ CREATE / UPDATE (UPSERT) by (academicRecordId, subjectId)
-     * - computes totalScore
-     * - computes grade + interpretation
-     * - saves into SubjectScoresTable
-     * - returns EXPANDED response by scoreId
-     *
-     * NOTE: does NOT update AcademicRecordsTable.rawScoreTotal here — do it in the service.
-     */
-    fun createOrUpdate(req: CreateOrUpdateSubjectScoreRequest): SubjectScoreExpandedResponse = transaction {
+    fun createOrUpdate(
+        tenantSchema: String,
+        req: CreateOrUpdateSubjectScoreRequest
+    ): SubjectScoreExpandedResponse = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val recordEid = EntityID(req.academicRecordId, AcademicRecordsTable)
         val subjectEid = EntityID(req.subjectId, SubjectsTable)
@@ -62,11 +58,12 @@ object SubjectScoreRepository {
                 .singleOrNull()
 
             val gid = gradeRow?.get(GradesTable.id)?.value
+
             gradeEid = gid?.let { EntityID(it, GradesTable) }
             interpretation = gradeRow?.get(GradesTable.label)
         }
 
-        // ✅ Check existing (uniqueIndex(academicRecord, subject))
+        // ✅ Check existing
         val existing = SubjectScoresTable
             .selectAll()
             .where {
@@ -79,10 +76,10 @@ object SubjectScoreRepository {
             val existingId = existing[SubjectScoresTable.id].value
 
             SubjectScoresTable.update({ SubjectScoresTable.id eq existingId }) {
-                it[SubjectScoresTable.classScore] = req.classScore
-                it[SubjectScoresTable.examScore] = req.examScore
+                it[classScore] = req.classScore
+                it[examScore] = req.examScore
                 it[SubjectScoresTable.totalScore] = totalScore
-                it[SubjectScoresTable.grade] = gradeEid
+                it[grade] = gradeEid
                 it[SubjectScoresTable.interpretation] = interpretation
             }
 
@@ -91,28 +88,43 @@ object SubjectScoreRepository {
             SubjectScoresTable.insertAndGetId {
                 it[academicRecord] = recordEid
                 it[subject] = subjectEid
-                it[SubjectScoresTable.classScore] = req.classScore
-                it[SubjectScoresTable.examScore] = req.examScore
+                it[classScore] = req.classScore
+                it[examScore] = req.examScore
                 it[SubjectScoresTable.totalScore] = totalScore
-                it[SubjectScoresTable.grade] = gradeEid
+                it[grade] = gradeEid
                 it[SubjectScoresTable.interpretation] = interpretation
             }.value
         }
 
-        // ✅ Return expanded response
-        findByIdExpanded(scoreId) ?: throw IllegalStateException("Score saved but not found")
+        findByIdExpanded(tenantSchema, scoreId)
+            ?: throw IllegalStateException("Score saved but not found")
     }
 
+
+
+
     // ✅ GET ALL (expanded)
-    fun findAllExpanded(): List<SubjectScoreExpandedResponse> = transaction {
+    fun findAllExpanded(
+        tenantSchema: String
+    ): List<SubjectScoreExpandedResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         baseExpandedQuery()
             .selectAll()
             .orderBy(SubjectScoresTable.id, SortOrder.DESC)
             .map { it.toExpanded() }
     }
 
+
     // ✅ GET BY ID (expanded)
-    fun findByIdExpanded(id: Int): SubjectScoreExpandedResponse? = transaction {
+    fun findByIdExpanded(
+        tenantSchema: String,
+        id: Int
+    ): SubjectScoreExpandedResponse? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         baseExpandedQuery()
             .selectAll()
             .where { SubjectScoresTable.id eq id }
@@ -120,55 +132,33 @@ object SubjectScoreRepository {
             ?.toExpanded()
     }
 
+
     // ✅ GET BY ACADEMIC RECORD (expanded)
-    fun findByAcademicRecordExpanded(recordId: Int): List<SubjectScoreExpandedResponse> = transaction {
-        val recordEid = EntityID(recordId, AcademicRecordsTable)
+    fun findByAcademicRecordExpanded(
+        tenantSchema: String,
+        recordId: Int
+    ): List<SubjectScoreExpandedResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         baseExpandedQuery()
             .selectAll()
-            .where { SubjectScoresTable.academicRecord eq recordEid }
+            .where { SubjectScoresTable.academicRecord eq recordId }
             .orderBy(SubjectsTable.name, SortOrder.ASC)
             .map { it.toExpanded() }
     }
 
-    /**
-     * ✅ Helper: get academicRecordId for a scoreId (NO slice)
-     */
-    fun getAcademicRecordIdByScoreId(scoreId: Int): Int? = transaction {
+
+
+    fun deleteById(
+        tenantSchema: String,
+        scoreId: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
         SubjectScoresTable
-            .selectAll()
-            .where { SubjectScoresTable.id eq scoreId }
-            .limit(1)
-            .singleOrNull()
-            ?.get(SubjectScoresTable.academicRecord)
-            ?.value
-    }
-
-    /**
-     * ✅ Helper: get subjectId for a scoreId (needed for PATCH recompute)
-     */
-    fun getSubjectIdByScoreId(scoreId: Int): Int? = transaction {
-        SubjectScoresTable
-            .selectAll()
-            .where { SubjectScoresTable.id eq scoreId }
-            .limit(1)
-            .singleOrNull()
-            ?.get(SubjectScoresTable.subject)
-            ?.value
-    }
-
-    /**
-     * ✅ PATCH raw fields (service should recompute totals/grade by calling createOrUpdate)
-     */
-    fun patchById(scoreId: Int, req: PatchSubjectScoreRequest): Boolean = transaction {
-        SubjectScoresTable.update({ SubjectScoresTable.id eq scoreId }) { row ->
-            req.classScore?.let { row[SubjectScoresTable.classScore] = it }
-            req.examScore?.let { row[SubjectScoresTable.examScore] = it }
-        } > 0
-    }
-
-    fun deleteById(scoreId: Int): Boolean = transaction {
-        SubjectScoresTable.deleteWhere { SubjectScoresTable.id eq scoreId } > 0
+            .deleteWhere { SubjectScoresTable.id eq scoreId } > 0
     }
 
     // -------------------------------
@@ -240,11 +230,13 @@ object SubjectScoreRepository {
     }
 
     fun findByContext(
+        tenantSchema: String,
         classLevelId: Int,
         termId: Int,
         academicYearId: Int,
         subjectId: Int? = null
     ): List<SubjectScoreContextResponse> = transaction {
+        setTenantSchema(tenantSchema)
 
         val classEid = EntityID(classLevelId, NewGradeClassTable)
         val termEid = EntityID(termId, TermTable)

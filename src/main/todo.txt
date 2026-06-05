@@ -120,3 +120,95 @@ so just join:
 todo
 remove cloudinary secret codes
 
+////////////////////////////////////
+
+Ktor resolves the tenant
+Ktor attaches tenant context to each request
+each module reads the current tenant
+every business table/query is filtered by tenantId
+feature access is enforced per tenant
+
+
+        OR
+
+Summary: how the whole thing works now
+With your chosen DB strategy:
+one PostgreSQL database
+many schemas
+same set of tables inside each schema
+The correct flow is:
+1. Ktor resolves tenant
+By host/header → gets tenantSchema
+2. Ktor attaches tenant context
+Stored in request attributes
+3. Each module reads current tenant
+Using call.currentTenant()
+4. Database queries are scoped by schema
+Using:
+
+KotlintenantTransaction(tenant.tenantSchema) { ... }Show more lines
+5. Feature access is enforced per tenant
+Using:
+KotlinrequireTenantFeature("students")requireTenantFeature("fees")Show more lines
+6. New school onboarding triggers new schema
+Using:
+KotlinTenantSchemaService.createTenantSchema("tenant_schoola")
+
+//////////////////////////////////////////////////
+insert tenantslug into console:
+Press F12 (or Ctrl + Shift + I)
+Open the Console tab
+Run this:
+
+localStorage.setItem('tenantSlug', 't-afxca9ox')
+
+////////////////////////////////
+
+93949234 2065
+
+//////////////
+tenant error
+val tenant = call.currentTenant()
+        val tenantSchema = tenant.tenantSchema
+//////////////////////
+make all routes tenant aware
+/////////////
+
+route:
+ get {
+        val tenant = call.currentTenant() ##
+
+        val grades = GradeRepository.findAll(
+            tenantSchema = tenant.tenantSchema,   ##
+        )
+
+        call.respond(HttpStatusCode.OK, grades)
+    }
+
+
+
+
+ repo:
+            import org.jetbrains.exposed.sql.transactions.transaction
+
+            fun Transaction.setTenantSchema(tenantSchema: String) {
+                val safeSchema = tenantSchema.replace("\"", "\"\"")
+                exec("""SET LOCAL search_path TO "$safeSchema"""")
+            }
+
+
+
+    fun findAll(
+        tenantSchema: String,    ##
+    ): List<Grade> = transaction {
+
+        setTenantSchema(tenantSchema) ##
+
+        GradesTable
+            .selectAll()
+            .orderBy(GradesTable.order to SortOrder.ASC)
+            .map { it.toGrade() }
+    }
+
+
+    /// exec("SET LOCAL search_path TO \"$tenantSchema\"")///

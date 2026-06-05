@@ -4,6 +4,7 @@ package com.example.academics.routes
 import com.example.academics.dtos.requests.CreateGradeRequest
 import com.example.academics.dtos.requests.PatchGradeRequest
 import com.example.academics.repos.GradeRepository
+import com.example.tenant.currentTenant
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -11,14 +12,19 @@ import io.ktor.server.routing.*
 
 fun Route.gradeRoutes() {
 
-    // ✅ GET ALL
     get {
-        val grades = GradeRepository.findAll()
+        val tenant = call.currentTenant()
+
+        val grades = GradeRepository.findAll(
+            tenantSchema = tenant.tenantSchema
+        )
+
         call.respond(HttpStatusCode.OK, grades)
     }
 
-    // ✅ CREATE
     post {
+        val tenant = call.currentTenant()
+
         val req = call.receive<CreateGradeRequest>()
 
         if (req.code.isBlank()) {
@@ -31,18 +37,31 @@ fun Route.gradeRoutes() {
             return@post
         }
 
-        val existing = GradeRepository.findByCode(req.code)
+        val existing = GradeRepository.findByCode(
+            tenantSchema = tenant.tenantSchema,
+            code = req.code
+        )
+
         if (existing != null) {
-            call.respond(HttpStatusCode.Conflict, mapOf("error" to "Grade code already exists"))
+            call.respond(
+                HttpStatusCode.Conflict,
+                mapOf("error" to "Grade code already exists")
+            )
             return@post
         }
 
-        val created = GradeRepository.create(req)
+        val created = GradeRepository.create(
+            tenantSchema = tenant.tenantSchema,
+            req = req
+        )
+
         call.respond(HttpStatusCode.Created, created)
     }
 
-    // ✅ DELETE
     delete("{id}") {
+
+        val tenant = call.currentTenant()
+
         val id = call.parameters["id"]?.toIntOrNull()
 
         if (id == null) {
@@ -50,36 +69,58 @@ fun Route.gradeRoutes() {
             return@delete
         }
 
-        val ok = GradeRepository.delete(id)
-        if (!ok) call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
-        else call.respond(HttpStatusCode.NoContent)
+        val ok = GradeRepository.delete(
+            tenantSchema = tenant.tenantSchema,
+            id = id
+        )
+
+        if (!ok) {
+            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
+        } else {
+            call.respond(HttpStatusCode.NoContent)
+        }
     }
 
     patch("{id}") {
-                val id = call.parameters["id"]?.toIntOrNull()
-                if (id == null) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid ID"))
-                    return@patch
-                }
 
-                val req = call.receive<PatchGradeRequest>()
+        val tenant = call.currentTenant()
 
-                // Optional: quick check if request body is empty (all null)
-                if (req.code == null && req.label == null && req.minScore == null && req.maxScore == null && req.order == null) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Nothing to update"))
-                    return@patch
-                }
+        val id = call.parameters["id"]?.toIntOrNull()
 
-                val updated = GradeRepository.patch(id, req)
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid ID"))
+            return@patch
+        }
 
-                if (updated == null) {
-                    // Could be: not found OR validation fail OR duplicate code
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Update failed (not found or invalid data / duplicate code)"))
-                } else {
-                    call.respond(HttpStatusCode.OK, updated)
-                }
-            }
+        val req = call.receive<PatchGradeRequest>()
 
+        if (
+            req.code == null &&
+            req.label == null &&
+            req.minScore == null &&
+            req.maxScore == null &&
+            req.order == null
+        ) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Nothing to update")
+            )
+            return@patch
+        }
 
+        val updated = GradeRepository.patch(
+            tenantSchema = tenant.tenantSchema,
+            id = id,
+            req = req
+        )
 
+        if (updated == null) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Update failed (not found or invalid data / duplicate code)")
+            )
+        } else {
+            call.respond(HttpStatusCode.OK, updated)
+        }
+    }
 }

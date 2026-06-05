@@ -14,12 +14,24 @@ import com.example.student.dtos.response.TermResponseDto
 import com.example.student.tables.AcademicYearTable
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.update
 
+
+
+
+fun Transaction.setTenantSchema(tenantSchema: String) {
+    val safeSchema = tenantSchema.replace("\"", "\"\"")
+    exec("""SET LOCAL search_path TO "$safeSchema"""")
+}
+
+
 object TermRepository {
 
-    fun getCurrent(): Pair<Int, Int>? = transaction {
+    fun getCurrent(tenantSchema: String): Pair<Int, Int>? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val row = TermTable
             .selectAll()
@@ -34,42 +46,46 @@ object TermRepository {
         termId to yearId
     }
 
+    fun findAll(tenantSchema: String): List<TermModel> = transaction {
 
+        setTenantSchema(tenantSchema)
 
-fun setCurrentTerm(id: Int) = transaction {
-        TermTable.update({ TermTable.isCurrent eq true }) {
-            it[isCurrent] = false
-        }
-        TermTable.update({ TermTable.id eq id }) {
-            it[isCurrent] = true
-        }
-    }
-    fun findAll(): List<TermModel> = transaction {
         TermTable
             .selectAll()
             .orderBy(TermTable.id, SortOrder.DESC)
             .map { it.toTermModel() }
     }
 
-    fun create(term: TermModel): TermResponseDto = transaction {
+    fun create(
+        tenantSchema: String,
+        term: TermModel
+    ): TermResponseDto = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val id = TermTable.insertAndGetId {
             it[name] = term.name
-            it[academic_year] = EntityID(term.academic_year, AcademicYearTable)
+            it[academic_year] = term.academic_year
         }.value
 
-        findByIdWithYearName(id)
+
+        findByIdWithYearName(tenantSchema, id)
             ?: error("Term created but not found")
     }
 
-    fun findByIdWithYearName(id: Int): TermResponseDto? = transaction {
+    fun findByIdWithYearName(
+        tenantSchema: String,
+        id: Int
+    ): TermResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         TermTable
             .join(
                 AcademicYearTable,
                 JoinType.INNER,
-                onColumn = TermTable.academic_year,
-                otherColumn = AcademicYearTable.id
+                TermTable.academic_year,
+                AcademicYearTable.id
             )
             .selectAll()
             .where { TermTable.id eq id }
@@ -89,20 +105,26 @@ fun setCurrentTerm(id: Int) = transaction {
             }
     }
 
-    fun findAllWithYearName(): List<TermResponseDto> = transaction {
+    fun findAllWithYearName(
+        tenantSchema: String
+    ): List<TermResponseDto> = transaction {
 
-        val query = TermTable
-            .join(AcademicYearTable, JoinType.INNER, onColumn = TermTable.academic_year, otherColumn = AcademicYearTable.id)
+        setTenantSchema(tenantSchema)
 
-        query
+        TermTable
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                TermTable.academic_year,
+                AcademicYearTable.id
+            )
             .selectAll()
             .orderBy(TermTable.id, SortOrder.DESC)
-            .map {
-                row ->
+            .map { row ->
+
                 val academicYear = AcademicYearResponse(
                     id = row[AcademicYearTable.id].value,
-                    name = row[AcademicYearTable.name],
-
+                    name = row[AcademicYearTable.name]
                 )
 
                 TermResponseDto(
@@ -110,32 +132,40 @@ fun setCurrentTerm(id: Int) = transaction {
                     name = row[TermTable.name],
                     academic_year = academicYear
                 )
-
-
-
             }
-
-
-
     }
 
-    fun delete(id: Int) = transaction {
-        TermTable.deleteWhere { TermTable.id eq id }
-    } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
 
+        setTenantSchema(tenantSchema)
 
+        TermTable.deleteWhere { TermTable.id eq id } > 0
+    }
 
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): TermModel? = transaction {
 
+        setTenantSchema(tenantSchema)
 
-    fun findById(id: Int): TermModel? = transaction {
         TermTable
             .selectAll()
-            .where{ TermTable.id eq id }
+            .where { TermTable.id eq id }
             .singleOrNull()
             ?.toTermModel()
     }
 
-    fun patch(id: Int, req: PatchTermRequest): TermModel? = transaction {
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchTermRequest
+    ): TermModel? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val rowsUpdated = TermTable.update(
             where = { TermTable.id eq id }
@@ -146,32 +176,30 @@ fun setCurrentTerm(id: Int) = transaction {
             }
 
             req.academic_year_id?.let {
-                row[TermTable.academic_year] = EntityID(it, AcademicYearTable)
+                row[TermTable.academic_year] =
+                    EntityID(it, AcademicYearTable)
             }
         }
 
-        if (rowsUpdated == 0) {
-            null
-        } else {
-            findById(id)
-        }
+        if (rowsUpdated == 0) null else findById(tenantSchema, id)
     }
 
-    fun getCurrent_(): TermResponseDto? = transaction {
+    fun getCurrentt(): TermResponseDto? {
 
         val row = TermTable
             .join(
                 AcademicYearTable,
                 JoinType.INNER,
-                additionalConstraint = { TermTable.academic_year eq AcademicYearTable.id }
+                TermTable.academic_year,
+                AcademicYearTable.id
             )
             .selectAll()
             .orderBy(TermTable.id, SortOrder.DESC)
             .limit(1)
             .singleOrNull()
-            ?: return@transaction null
+            ?: return null
 
-        TermResponseDto(
+        return TermResponseDto(
             id = row[TermTable.id].value,
             name = row[TermTable.name],
             academic_year = AcademicYearResponse(

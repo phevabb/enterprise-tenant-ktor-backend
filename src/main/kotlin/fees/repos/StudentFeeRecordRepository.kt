@@ -25,7 +25,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object StudentFeeRecordRepository {
 
-    fun findAll(): List<StudentFeeRecordModel> = transaction {
+    fun findAll(tenantSchema: String): List<StudentFeeRecordModel> = transaction {
+        setTenantSchema(tenantSchema)
 
         StudentFeeRecordTable
             .join(
@@ -70,104 +71,96 @@ object StudentFeeRecordRepository {
     }
 
 
+    fun findAllPaginated(
+        tenantSchema: String,
+        page: Int,
+        limit: Int,
+        search: String?,
+        feeStructureId: Int?,
+        isFullyPaid: Boolean?
+    ): Pair<List<StudentFeeRecordModel>, Long> = transaction {
 
+        setTenantSchema(tenantSchema)
 
+        val safePage = if (page < 1) 1 else page
+        val safeLimit = if (limit < 1) 20 else limit
+        val offset = ((safePage - 1) * safeLimit).toLong()
 
+        val baseQuery = StudentFeeRecordTable
+            .join(
+                StudentsTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.student,
+                StudentsTable.id
+            )
+            .join(
+                AccountTable,
+                JoinType.INNER,
+                StudentsTable.user,
+                AccountTable.id
+            )
+            .join(
+                FeeStructureTable,
+                JoinType.INNER,
+                StudentFeeRecordTable.feeStructure,
+                FeeStructureTable.id
+            )
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FeeStructureTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FeeStructureTable.term,
+                TermTable.id
+            )
+            .join(
+                NewGradeClassTable,
+                JoinType.INNER,
+                FeeStructureTable.grade_class,
+                NewGradeClassTable.id
+            )
+            .selectAll()
 
+        val withFeeStructureFilter = if (feeStructureId != null) {
+            baseQuery.andWhere { FeeStructureTable.id eq feeStructureId }
+        } else baseQuery
 
-
-        fun findAllPaginated(
-            page: Int,
-            limit: Int,
-            search: String?,
-            feeStructureId: Int?,
-            isFullyPaid: Boolean?
-        ): Pair<List<StudentFeeRecordModel>, Long> = transaction {
-
-            val safePage = if (page < 1) 1 else page
-            val safeLimit = if (limit < 1) 20 else limit
-            val offset = ((safePage - 1) * safeLimit).toLong()
-
-            val baseQuery = StudentFeeRecordTable
-                .join(
-                    StudentsTable,
-                    JoinType.INNER,
-                    StudentFeeRecordTable.student,
-                    StudentsTable.id
-                )
-                .join(
-                    AccountTable,
-                    JoinType.INNER,
-                    StudentsTable.user,
-                    AccountTable.id
-                )
-                .join(
-                    FeeStructureTable,
-                    JoinType.INNER,
-                    StudentFeeRecordTable.feeStructure,
-                    FeeStructureTable.id
-                )
-                .join(
-                    AcademicYearTable,
-                    JoinType.INNER,
-                    FeeStructureTable.academic_year,
-                    AcademicYearTable.id
-                )
-                .join(
-                    TermTable,
-                    JoinType.INNER,
-                    FeeStructureTable.term,
-                    TermTable.id
-                )
-                .join(
-                    NewGradeClassTable,
-                    JoinType.INNER,
-                    FeeStructureTable.grade_class,
-                    NewGradeClassTable.id
-                )
-                .selectAll()
-
-            // -----------------------------
-            // ✅ Apply fee_structure_id filter
-            // -----------------------------
-            val withFeeStructureFilter = if (feeStructureId != null) {
-                baseQuery.andWhere { FeeStructureTable.id eq feeStructureId }
-            } else baseQuery
-
-            // -----------------------------
-            // ✅ Apply is_fully_paid filter (balance == 0)
-            // -----------------------------
-            val withPaidFilter = if (isFullyPaid != null) {
-                if (isFullyPaid) {
-                    withFeeStructureFilter.andWhere { StudentFeeRecordTable.balance eq 0 }
-                } else {
-                    withFeeStructureFilter.andWhere { StudentFeeRecordTable.balance greater 0 }
+        val withPaidFilter = if (isFullyPaid != null) {
+            if (isFullyPaid) {
+                withFeeStructureFilter.andWhere {
+                    StudentFeeRecordTable.balance eq 0
                 }
-            } else withFeeStructureFilter
-
-            // -----------------------------
-            // ✅ Case-insensitive search (DB-agnostic)
-            // -----------------------------
-            val finalQuery = if (!search.isNullOrBlank()) {
-                val pattern = "%${search.lowercase()}%"
-                withPaidFilter.andWhere {
-                    (AccountTable.fullName.lowerCase() like pattern) or
-                            (NewGradeClassTable.name.lowerCase() like pattern) or
-                            (TermTable.name.lowerCase() like pattern) or
-                            (AcademicYearTable.name.lowerCase() like pattern)
+            } else {
+                withFeeStructureFilter.andWhere {
+                    StudentFeeRecordTable.balance greater 0
                 }
-            } else withPaidFilter
+            }
+        } else withFeeStructureFilter
 
-            val total = finalQuery.count()
+        val finalQuery = if (!search.isNullOrBlank()) {
+            val pattern = "%${search.lowercase()}%"
+            withPaidFilter.andWhere {
+                (AccountTable.fullName.lowerCase() like pattern) or
+                        (NewGradeClassTable.name.lowerCase() like pattern) or
+                        (TermTable.name.lowerCase() like pattern) or
+                        (AcademicYearTable.name.lowerCase() like pattern)
+            }
+        } else withPaidFilter
 
-            val items = finalQuery
-                .orderBy(StudentFeeRecordTable.id, SortOrder.DESC)
-                .limit(safeLimit)
-                .offset(offset)
-                .map { it.toStudentFeeRecordModel() }
+        val total = finalQuery.count()
 
-            Pair(items, total)
-        }
+        val items = finalQuery
+            .orderBy(StudentFeeRecordTable.id, SortOrder.DESC)
+            .limit(safeLimit)
+            .offset(offset)
+            .map { it.toStudentFeeRecordModel() }
+
+        Pair(items, total)
+    }
 
 
 
@@ -212,7 +205,18 @@ object StudentFeeRecordRepository {
                 FeeStructureTable.grade_class,
                 NewGradeClassTable.id
             )
-    fun findById(id: Int): StudentFeeRecordModel? = transaction {
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        val safeSchema = tenantSchema.replace("\"", "\"\"")
+        exec("""SET LOCAL search_path TO "$safeSchema"""")
+    }
+
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): StudentFeeRecordModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         baseStudentFeeRecordQuery()
             .selectAll()
             .where { StudentFeeRecordTable.id eq id }
@@ -220,19 +224,29 @@ object StudentFeeRecordRepository {
             ?.toStudentFeeRecordModel()
     }
 
-    fun findByStudent(studentId: Int): List<StudentFeeRecordModel> = transaction {
+    fun findByStudent(
+        tenantSchema: String,
+        studentId: Int
+    ): List<StudentFeeRecordModel> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         StudentFeeRecordTable
             .selectAll()
-            .where { StudentFeeRecordTable.student eq EntityID(studentId, StudentsTable) }
+            .where {
+                StudentFeeRecordTable.student eq EntityID(studentId, StudentsTable)
+            }
             .orderBy(StudentFeeRecordTable.id, SortOrder.DESC)
             .map { it.toStudentFeeRecordModel() }
     }
 
-    /**
-     * Create a record (assignment + initial balance).
-     * Enforces: one fee structure per student per term (by query check).
-     */
-    fun create(studentId: Int, feeStructureId: Int): StudentFeeRecordModel = transaction {
+    fun create(
+        tenantSchema: String,
+        studentId: Int,
+        feeStructureId: Int
+    ): StudentFeeRecordModel = transaction {
+
+        setTenantSchema(tenantSchema)
 
         // 1) Load fee structure (amount + term)
         val fsRow = FeeStructureTable
@@ -308,14 +322,21 @@ object StudentFeeRecordRepository {
             it[dateCreated] = System.currentTimeMillis()
         }.value
 
-        findById(newId) ?: error("StudentFeeRecord created but not found")
+        findById(tenantSchema,newId) ?: error("StudentFeeRecord created but not found")
     }
 
-    /**
-     * Add payment and recompute balance/isFullyPaid.
-     */
-    fun addPayment(recordId: Int, payment: Int): StudentFeeRecordModel? = transaction {
+
+    fun addPayment(
+        tenantSchema: String,
+        recordId: Int,
+        payment: Int
+    ): StudentFeeRecordModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         if (payment <= 0) return@transaction null
+
+
 
         val recRow = StudentFeeRecordTable
             .selectAll()
@@ -344,14 +365,24 @@ object StudentFeeRecordRepository {
             u[isFullyPaid] = fullyPaid
         }
 
-        if (updated == 0) null else findById(recordId)
+        if (updated == 0) {
+            null
+        } else {
+            findById(tenantSchema, recordId)
+        }
     }
 
-    /**
-     * Total arrears across same academic year for a student:
-     * SUM(balance) where balance > 0 and fee_structure.academic_year = academicYearId
-     */
-    fun totalArrears(studentId: Int, academicYearId: Int, excludeRecordId: Int? = null): Int = transaction {
+    fun totalArrears(
+        tenantSchema: String,
+        studentId: Int,
+        academicYearId: Int,
+        excludeRecordId: Int? = null
+    ): Int = transaction {
+
+        setTenantSchema(tenantSchema)
+
+
+
 
         val sumAlias = StudentFeeRecordTable.balance.sum().alias("total_balance")
 
@@ -376,7 +407,15 @@ object StudentFeeRecordRepository {
         finalQuery.singleOrNull()?.get(sumAlias) ?: 0
     }
 
-    fun delete(id: Int): Boolean = transaction {
-        StudentFeeRecordTable.deleteWhere { StudentFeeRecordTable.id eq id } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        StudentFeeRecordTable.deleteWhere {
+            StudentFeeRecordTable.id eq id
+        } > 0
     }
 }

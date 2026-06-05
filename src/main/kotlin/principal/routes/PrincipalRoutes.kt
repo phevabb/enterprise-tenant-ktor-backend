@@ -4,24 +4,23 @@ package com.example.principal.routes
 
 
 
-import com.example.admin.repos.AdminRepository
+import com.example.academics.repos.setTenantSchema
 import com.example.familyfees.tables.FamilyFeeRecordTable
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.StudentFeeRecordTable
 import com.example.principal.dtos.requests.CreatePrincipalRequest
 import com.example.principal.dtos.requests.PatchPrincipalRequest
-import com.example.principal.dtos.responses.ExpectedFeesResponse
 import com.example.principal.service.PrincipalService
 import com.example.principal.repos.PrincipalRepository
 import com.example.principal.repos.PrincipalRepository.countAdmins
 import com.example.principal.repos.PrincipalRepository.countStaff
 
-import com.example.principal.service.PrincipalService.expectedFeesSummary
+
 import com.example.staff.dtos.response.CollectionSummaryResponse
 
 import com.example.student.tables.AcademicYearTable
-import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
+import com.example.tenant.currentTenant
 
 import io.ktor.http.*
 import io.ktor.server.auth.authenticate
@@ -38,18 +37,27 @@ fun Route.principalRoutes() {
     authenticate("auth-jwt") {
 
         get("/raw") {
+            val tenant = call.currentTenant()
+
             val search = call.request.queryParameters["search"]
-            val data = PrincipalRepository.findAllWithUser(search)
+            val data = PrincipalRepository.findAllWithUser(tenantSchema = tenant.tenantSchema, search)
             call.respond(HttpStatusCode.OK, data)
         }
 
         post {
+            val tenant = call.currentTenant()
             val req = call.receive<CreatePrincipalRequest>()
-            val created = PrincipalService.createPrincipal(req)
+
+            val created = PrincipalService.createPrincipal(
+                tenantSchema = tenant.tenantSchema,
+                req = req
+            )
+
             call.respond(HttpStatusCode.Created, created)
         }
 
         patch("{id}") {
+            val tenant = call.currentTenant()
             val id = call.parameters["id"]?.toIntOrNull()
 
             if (id == null) {
@@ -58,7 +66,7 @@ fun Route.principalRoutes() {
             }
 
             val req = call.receive<PatchPrincipalRequest>()
-            val updated = PrincipalRepository.patchNested(id, req)
+            val updated = PrincipalRepository.patchNested(tenantSchema = tenant.tenantSchema, id, req)
 
             if (updated == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Principal not found"))
@@ -68,6 +76,8 @@ fun Route.principalRoutes() {
         }
 
         delete("{id}") {
+            val tenant = call.currentTenant()
+
             val id = call.parameters["id"]?.toIntOrNull()
 
             if (id == null) {
@@ -75,7 +85,7 @@ fun Route.principalRoutes() {
                 return@delete
             }
 
-            val ok = PrincipalRepository.delete(id)
+            val ok = PrincipalRepository.delete(tenantSchema = tenant.tenantSchema,  id)
 
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "Principal not found")
@@ -84,9 +94,6 @@ fun Route.principalRoutes() {
             }
         }
 
-        get("/fees/expected_fees") {
-            val data = expectedFeesSummary()
-            call.respond(HttpStatusCode.OK, data)
 
 
     }
@@ -94,23 +101,27 @@ fun Route.principalRoutes() {
 
 
         get("/collection-summary") {
-            val response = getCollectionSummary()
+            val tenant = call.currentTenant()
+            println("actual tenant issssssssssss is $tenant")
+            val response = getCollectionSummary(tenantSchema = tenant.tenantSchema)
             call.respond(HttpStatusCode.OK, response)
         }
 
         get("/staff-number") {
-            val count = countStaff()
+            val tenant = call.currentTenant()
+            val count = countStaff(tenantSchema = tenant.tenantSchema)
             call.respond(HttpStatusCode.OK, mapOf("count" to count))
         }
 
         get("/admin-number") {
-            val count = countAdmins()
+            val tenant = call.currentTenant()
+            val count = countAdmins(tenantSchema = tenant.tenantSchema)
             call.respond(HttpStatusCode.OK, mapOf("count" to count))}
 
 
 
 
-    }}
+    }
 
 
 private data class Totals(
@@ -118,7 +129,8 @@ private data class Totals(
     var pendingAmount: Int = 0
 )
 
-fun getCollectionSummary(): List<CollectionSummaryResponse> = transaction {
+fun getCollectionSummary(tenantSchema: String,  ): List<CollectionSummaryResponse> = transaction {
+    setTenantSchema(tenantSchema)
     val combined = linkedMapOf<Pair<String, String>, Totals>()
 
     // -----------------------------------------

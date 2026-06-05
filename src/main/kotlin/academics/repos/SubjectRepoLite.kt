@@ -11,7 +11,8 @@ object SubjectRepoLite {
      * - numeric string -> id
      * - otherwise -> name (case-insensitive, trim-safe)
      */
-    fun findIdByIdOrName(value: String): Int? = transaction {
+    fun findIdByIdOrName(tenantSchema: String, value: String): Int? = transaction {
+        setTenantSchema(tenantSchema)
         val clean = value.trim()
 
         val row = if (clean.all { it.isDigit() }) {

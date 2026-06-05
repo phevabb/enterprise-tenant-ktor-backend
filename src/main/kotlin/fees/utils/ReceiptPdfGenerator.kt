@@ -17,7 +17,7 @@ import java.awt.Color
 
 object ReceiptPdfGenerator {
 
-    fun buildPdf(r: ReceiptResponse): ByteArray {
+    fun buildPdf(r: ReceiptResponse, schoolName: String): ByteArray {
         val out = ByteArrayOutputStream()
         val document = Document(PageSize.A4, 36f, 36f, 36f, 36f)
         PdfWriter.getInstance(document, out)
@@ -33,7 +33,7 @@ object ReceiptPdfGenerator {
         val bigFont = Font(Font.HELVETICA, 12f, Font.BOLD, Color.BLACK)
 
         // Header
-        document.add(Paragraph("King Of Glory School", titleFont))
+        document.add(Paragraph(schoolName, titleFont))
         document.add(Paragraph("Official Payment Receipt", subFont))
         document.add(Chunk.NEWLINE)
 

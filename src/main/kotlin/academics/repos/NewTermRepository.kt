@@ -10,12 +10,19 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object NewTermRepository {
 
-    fun findAll(): List<TermResponseDto> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<TermResponseDto> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         TermTable
             .join(
                 AcademicYearTable,
                 JoinType.INNER,
-                additionalConstraint = { TermTable.academic_year eq AcademicYearTable.id }
+                additionalConstraint = {
+                    TermTable.academic_year eq AcademicYearTable.id
+                }
             )
             .selectAll()
             .orderBy(TermTable.id, SortOrder.DESC)

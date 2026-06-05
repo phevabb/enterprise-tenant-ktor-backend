@@ -15,7 +15,7 @@ object ReceiptsTable : IntIdTable("receipts") {
 
     val payment = reference("payment_id", PaymentTable, onDelete = ReferenceOption.CASCADE)
     val studentFeeRecord = reference("student_fee_record_id", StudentFeeRecordTable, onDelete = ReferenceOption.CASCADE)
-    val student = reference("student_id", StudentsTable)
+    val student = reference("student_id", StudentsTable, onDelete = ReferenceOption.CASCADE)
 
     val amountPaid = integer("amount_paid")
     val balanceAfter = integer("balance_after")

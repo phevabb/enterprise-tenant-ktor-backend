@@ -1,28 +1,35 @@
 package com.example.account
 
-
-
 import com.cloudinary.utils.ObjectUtils
-
+import com.example.account.dto.ProfilePictureDeleteResponse
+import com.example.account.dto.ProfilePictureUploadResponse
 import com.example.cloudinary.CloudinaryClient
-import io.ktor.http.*
+import com.example.tenant.currentTenant
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.post
-
 import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
-
 
 fun Route.accountProfilePictureRoutes() {
 
     post("{id}") {
         println("✅ [profile-picture] Route hit")
+
+        val tenant = call.currentTenant()
+        val tenantSchema = tenant.tenantSchema
+
+        println(
+            "✅ [profile-picture] Current tenant => " +
+                    "tenantCode=${tenant.tenantCode}, " +
+                    "tenantSchema=${tenantSchema}, " +
+                    "tenantSlug=${tenant.tenantSlug}"
+        )
 
         val id = call.parameters["id"]?.toIntOrNull()
         println("✅ [profile-picture] Raw id param = ${call.parameters["id"]}")
@@ -44,6 +51,7 @@ fun Route.accountProfilePictureRoutes() {
         } catch (e: Exception) {
             println("❌ [profile-picture] Failed to receive multipart: ${e.message}")
             e.printStackTrace()
+
             return@post call.respond(
                 HttpStatusCode.UnsupportedMediaType,
                 mapOf("error" to "Content-Type header is required or multipart body is invalid")
@@ -69,7 +77,6 @@ fun Route.accountProfilePictureRoutes() {
 
                         try {
                             imageBytes = part.provider().readRemaining().readByteArray()
-
                         } catch (e: Exception) {
                             println("❌ [profile-picture] Failed reading file bytes: ${e.message}")
                             e.printStackTrace()
@@ -90,6 +97,7 @@ fun Route.accountProfilePictureRoutes() {
         } catch (e: Exception) {
             println("❌ [profile-picture] Error while iterating multipart parts: ${e.message}")
             e.printStackTrace()
+
             return@post call.respond(
                 HttpStatusCode.BadRequest,
                 mapOf("error" to "Failed to parse multipart body")
@@ -120,7 +128,10 @@ fun Route.accountProfilePictureRoutes() {
         // Optional: delete old image first if it exists
         // ---------------------------------------------------------
         val oldPublicId = try {
-            AccountRepository.getProfilePicturePublicId(id)
+            AccountRepository.getProfilePicturePublicId(
+                tenantSchema = tenantSchema,
+                accountId = id
+            )
         } catch (e: Exception) {
             println("❌ [profile-picture] Failed to get old public id from DB: ${e.message}")
             e.printStackTrace()
@@ -132,10 +143,12 @@ fun Route.accountProfilePictureRoutes() {
         if (!oldPublicId.isNullOrBlank()) {
             try {
                 println("➡️ [profile-picture] Deleting old Cloudinary image: $oldPublicId")
+
                 val destroyResult = CloudinaryClient.instance.uploader().destroy(
                     oldPublicId,
                     ObjectUtils.emptyMap()
                 )
+
                 println("✅ [profile-picture] Cloudinary destroy result = $destroyResult")
             } catch (e: Exception) {
                 println("⚠️ [profile-picture] Failed to delete old Cloudinary image: ${e.message}")
@@ -148,6 +161,7 @@ fun Route.accountProfilePictureRoutes() {
         // ---------------------------------------------------------
         val uploadResult = try {
             println("➡️ [profile-picture] Uploading to Cloudinary...")
+
             CloudinaryClient.instance.uploader().upload(
                 imageBytes,
                 ObjectUtils.asMap(
@@ -160,9 +174,13 @@ fun Route.accountProfilePictureRoutes() {
         } catch (e: Exception) {
             println("❌ [profile-picture] Cloudinary upload failed: ${e.message}")
             e.printStackTrace()
+
             return@post call.respond(
                 HttpStatusCode.InternalServerError,
-                mapOf("error" to "Cloudinary upload failed", "details" to (e.message ?: "Unknown error"))
+                mapOf(
+                    "error" to "Cloudinary upload failed",
+                    "details" to (e.message ?: "Unknown error")
+                )
             )
         }
 
@@ -186,8 +204,10 @@ fun Route.accountProfilePictureRoutes() {
         // Save to DB
         // ---------------------------------------------------------
         val ok = try {
-            println("➡️ [profile-picture] Updating DB for accountId=$id")
+            println("➡️ [profile-picture] Updating DB for accountId=$id in tenantSchema=$tenantSchema")
+
             AccountRepository.updateProfilePicture(
+                tenantSchema = tenantSchema,
                 accountId = id,
                 profilePictureUrl = secureUrl,
                 profilePicturePublicId = publicId
@@ -195,6 +215,7 @@ fun Route.accountProfilePictureRoutes() {
         } catch (e: Exception) {
             println("❌ [profile-picture] DB update failed: ${e.message}")
             e.printStackTrace()
+
             return@post call.respond(
                 HttpStatusCode.InternalServerError,
                 mapOf("error" to "Failed to save profile picture in database")
@@ -213,11 +234,9 @@ fun Route.accountProfilePictureRoutes() {
 
         println("✅ [profile-picture] Upload successful for accountId=$id")
 
-
-
         call.respond(
             HttpStatusCode.OK,
-            com.example.account.dto.ProfilePictureUploadResponse(
+            ProfilePictureUploadResponse(
                 id = id,
                 profilePictureUrl = secureUrl,
                 profilePicturePublicId = publicId,
@@ -226,13 +245,20 @@ fun Route.accountProfilePictureRoutes() {
                 sizeBytes = imageBytes!!.size
             )
         )
-
-
     }
-
 
     delete("{id}") {
         println("✅ [profile-picture DELETE] Route hit")
+
+        val tenant = call.currentTenant()
+        val tenantSchema = tenant.tenantSchema
+
+        println(
+            "✅ [profile-picture DELETE] Current tenant => " +
+                    "tenantCode=${tenant.tenantCode}, " +
+                    "tenantSchema=${tenantSchema}, " +
+                    "tenantSlug=${tenant.tenantSlug}"
+        )
 
         val id = call.parameters["id"]?.toIntOrNull()
         println("✅ [profile-picture DELETE] Raw id param = ${call.parameters["id"]}")
@@ -246,12 +272,16 @@ fun Route.accountProfilePictureRoutes() {
             )
         }
 
-        // 1) get old public id
+        // 1) Get old public id
         val oldPublicId = try {
-            AccountRepository.getProfilePicturePublicId(id)
+            AccountRepository.getProfilePicturePublicId(
+                tenantSchema = tenantSchema,
+                accountId = id
+            )
         } catch (e: Exception) {
             println("❌ [profile-picture DELETE] Failed fetching old public id: ${e.message}")
             e.printStackTrace()
+
             return@delete call.respond(
                 HttpStatusCode.InternalServerError,
                 mapOf("error" to "Failed to fetch existing profile picture")
@@ -260,7 +290,7 @@ fun Route.accountProfilePictureRoutes() {
 
         println("✅ [profile-picture DELETE] oldPublicId = $oldPublicId")
 
-        // 2) delete from Cloudinary if exists
+        // 2) Delete from Cloudinary if exists
         var deletedFromCloudinary = false
 
         if (!oldPublicId.isNullOrBlank()) {
@@ -284,12 +314,16 @@ fun Route.accountProfilePictureRoutes() {
             println("ℹ️ [profile-picture DELETE] No Cloudinary public ID found; skipping Cloudinary delete")
         }
 
-        // 3) clear DB fields
+        // 3) Clear DB fields
         val dbCleared = try {
-            AccountRepository.clearProfilePicture(id)
+            AccountRepository.clearProfilePicture(
+                tenantSchema = tenantSchema,
+                accountId = id
+            )
         } catch (e: Exception) {
             println("❌ [profile-picture DELETE] Failed clearing DB fields: ${e.message}")
             e.printStackTrace()
+
             return@delete call.respond(
                 HttpStatusCode.InternalServerError,
                 mapOf("error" to "Failed to clear profile picture from database")
@@ -308,7 +342,7 @@ fun Route.accountProfilePictureRoutes() {
 
         call.respond(
             HttpStatusCode.OK,
-            com.example.account.dto.ProfilePictureDeleteResponse(
+            ProfilePictureDeleteResponse(
                 id = id,
                 deleted = true,
                 deletedFromCloudinary = deletedFromCloudinary,
@@ -317,8 +351,4 @@ fun Route.accountProfilePictureRoutes() {
             )
         )
     }
-
-
-
-
 }

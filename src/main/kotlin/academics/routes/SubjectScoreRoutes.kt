@@ -6,6 +6,7 @@ import com.example.academics.dtos.requests.PatchSubjectScoreRequest
 import com.example.academics.repos.SubjectRepoLite
 import com.example.academics.repos.SubjectScoreRepository
 import com.example.academics.services.SubjectScoreService
+import com.example.tenant.currentTenant
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -16,27 +17,30 @@ fun Route.subjectScoreRoutes() {
 
     authenticate("auth-jwt") {
 
-        /**
-         * ✅ GET ALL (expanded)
-         * GET /api/subject-scores
-         */
+
         get {
-            val scores = SubjectScoreRepository.findAllExpanded()
+            val tenant = call.currentTenant()
+
+            val scores = SubjectScoreRepository.findAllExpanded(
+                tenantSchema = tenant.tenantSchema
+            )
+
             call.respond(HttpStatusCode.OK, scores)
         }
-
-        /**
-         * ✅ GET ONE (expanded)
-         * GET /api/subject-scores/{id}
-         */
         get("{id}") {
+            val tenant = call.currentTenant()
+
             val id = call.parameters["id"]?.toIntOrNull()
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                 return@get
             }
 
-            val score = SubjectScoreRepository.findByIdExpanded(id)
+            val score = SubjectScoreRepository.findByIdExpanded(
+                tenantSchema = tenant.tenantSchema,
+                id = id
+            )
+
             if (score == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not found"))
             } else {
@@ -44,34 +48,39 @@ fun Route.subjectScoreRoutes() {
             }
         }
 
-        /**
-         * ✅ GET BY ACADEMIC RECORD (expanded)
-         * GET /api/subject-scores/record/{recordId}/expanded
-         */
+
         get("record/{recordId}/expanded") {
+            val tenant = call.currentTenant()
+
             val recordId = call.parameters["recordId"]?.toIntOrNull()
             if (recordId == null) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid recordId"))
                 return@get
             }
 
-            val scores = SubjectScoreRepository.findByAcademicRecordExpanded(recordId)
+            val scores = SubjectScoreRepository.findByAcademicRecordExpanded(
+                tenantSchema = tenant.tenantSchema,
+                recordId = recordId
+            )
+
             call.respond(HttpStatusCode.OK, scores)
         }
 
-        /**
-         * ✅ CREATE / UPDATE (upsert)
-         * POST /api/subject-scores
-         *
-         * Service should:
-         * - compute totalScore/grade/interpretation
-         * - recompute AcademicRecord.rawScoreTotal
-         */
+
+
         post {
+            val tenant = call.currentTenant()
+
             try {
                 val req = call.receive<CreateOrUpdateSubjectScoreRequest>()
-                val result = SubjectScoreService.createOrUpdate(req)
+
+                val result = SubjectScoreService.createOrUpdate(
+                    tenantSchema = tenant.tenantSchema,
+                    req = req
+                )
+
                 call.respond(HttpStatusCode.OK, result)
+
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to (e.message ?: "Invalid request")))
             } catch (e: Exception) {
@@ -80,16 +89,11 @@ fun Route.subjectScoreRoutes() {
             }
         }
 
-        /**
-         * ✅ PATCH (partial update by score id)
-         * PATCH /api/subject-scores/{id}
-         *
-         * Service.patch should:
-         * - update classScore/examScore
-         * - recompute totalScore/grade/interpretation (Django-like save())
-         * - recompute AcademicRecord.rawScoreTotal
-         */
+
+
         patch("{id}") {
+            val tenant = call.currentTenant()
+
             try {
                 val id = call.parameters["id"]?.toIntOrNull()
                 if (id == null) {
@@ -99,13 +103,17 @@ fun Route.subjectScoreRoutes() {
 
                 val req = call.receive<PatchSubjectScoreRequest>()
 
-                // Optional guard: empty patch body
                 if (req.classScore == null && req.examScore == null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Nothing to update"))
                     return@patch
                 }
 
-                val updated = SubjectScoreService.patch(id, req)
+                val updated = SubjectScoreService.patch(
+                    tenantSchema = tenant.tenantSchema,
+                    scoreId = id,
+                    req = req
+                )
+
                 call.respond(HttpStatusCode.OK, updated)
 
             } catch (e: IllegalArgumentException) {
@@ -116,15 +124,11 @@ fun Route.subjectScoreRoutes() {
             }
         }
 
-        /**
-         * ✅ DELETE (by score id)
-         * DELETE /api/subject-scores/{id}
-         *
-         * Service.delete should:
-         * - delete row
-         * - recompute AcademicRecord.rawScoreTotal
-         */
+
+
         delete("{id}") {
+            val tenant = call.currentTenant()
+
             try {
                 val id = call.parameters["id"]?.toIntOrNull()
                 if (id == null) {
@@ -132,7 +136,11 @@ fun Route.subjectScoreRoutes() {
                     return@delete
                 }
 
-                SubjectScoreService.delete(id)
+                SubjectScoreService.delete(
+                    tenantSchema = tenant.tenantSchema,
+                    scoreId = id
+                )
+
                 call.respond(HttpStatusCode.NoContent)
 
             } catch (e: IllegalArgumentException) {
@@ -144,15 +152,12 @@ fun Route.subjectScoreRoutes() {
         }
 
 
-
-
         post("by-staff") {
-            try {
-//                println("====== REQUEST START ======")
+            val tenant = call.currentTenant()
 
+            try {
                 // ✅ 1. Read raw JSON body
                 val raw = call.receiveText()
-//                println("🔥 RAW REQUEST BODY: $raw")
 
                 // ✅ 2. Deserialize manually
                 val req = kotlinx.serialization.json.Json.decodeFromString(
@@ -160,27 +165,21 @@ fun Route.subjectScoreRoutes() {
                     raw
                 )
 
-//                println("✅ Parsed request: $req")
-
                 // ✅ 3. Process request
-                val result = SubjectScoreService.createOrUpdateByStudent(req)
-
-
+                val result = SubjectScoreService.createOrUpdateByStudent(
+                    tenantSchema = tenant.tenantSchema,
+                    req = req
+                )
 
                 call.respond(HttpStatusCode.OK, result)
 
             } catch (e: IllegalArgumentException) {
-                println("❌ Business error: ${e.message}")
-
                 call.respond(
                     HttpStatusCode.BadRequest,
                     mapOf("detail" to (e.message ?: "Invalid request"))
                 )
-
             } catch (e: Exception) {
-                println("====== ERROR ======")
                 e.printStackTrace()
-
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     mapOf("detail" to "Server error")
@@ -190,10 +189,8 @@ fun Route.subjectScoreRoutes() {
 
 
 
-
-
-        // GET /api/subject-scores/context?classId=17&termId=15&yearId=15&subject=Mathematics
         get("context") {
+            val tenant = call.currentTenant()
 
             val classId = call.request.queryParameters["classId"]?.toIntOrNull()
             val termId = call.request.queryParameters["termId"]?.toIntOrNull()
@@ -214,11 +211,13 @@ fun Route.subjectScoreRoutes() {
             // - "6" (id)
             // - "English Language" (name)
             val subjectId = subjectParam?.let {
-                SubjectRepoLite.findIdByIdOrName(it)
+                val tenant = call.currentTenant()
+                SubjectRepoLite.findIdByIdOrName(tenantSchema = tenant.tenantSchema, it)
                     ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid subject"))
             }
 
             val scores = SubjectScoreRepository.findByContext(
+                tenantSchema = tenant.tenantSchema,
                 classLevelId = classId,
                 termId = termId,
                 academicYearId = yearId,

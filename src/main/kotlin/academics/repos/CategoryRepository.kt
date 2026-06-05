@@ -14,8 +14,14 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object CategoryRepository {
 
-    fun findAll(): List<CategoryResponse> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<CategoryResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         CategoriesTable.selectAll().map { catRow ->
+
             val categoryId = catRow[CategoriesTable.id].value
             val categoryName = catRow[CategoriesTable.name]
 
@@ -50,35 +56,62 @@ object CategoryRepository {
         }
     }
 
-    fun create(name: String): Category = transaction {
+    fun create(
+        tenantSchema: String,
+        name: String
+    ): Category = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val id = CategoriesTable.insertAndGetId {
             it[CategoriesTable.name] = name.trim()
         }.value
+
         Category(id, name.trim())
     }
 
-    fun updateName(id: Int, name: String): Category? = transaction {
-        val updated = CategoriesTable.update({ CategoriesTable.id eq id }) {
+    fun updateName(
+        tenantSchema: String,
+        id: Int,
+        name: String
+    ): Category? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        val updated = CategoriesTable.update(
+            { CategoriesTable.id eq id }
+        ) {
             it[CategoriesTable.name] = name.trim()
         }
-        if (updated == 0) null else Category(id, name.trim())
+
+        if (updated == 0) null
+        else Category(id, name.trim())
     }
 
-    /**
-     * PROTECT delete: only delete if no classes and no subjects use this category.
-     */
-    fun deleteIfUnused(id: Int): Boolean = transaction {
-        val usedByClasses = NewGradeClassTable.selectAll()
-            .where { NewGradeClassTable.category eq id }
-            .count() > 0
+    fun deleteIfUnused(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
 
-        val usedBySubjects = SubjectsTable.selectAll()
-            .where { SubjectsTable.category eq id }
-            .count() > 0
+        setTenantSchema(tenantSchema)
+        val usedByClasses =
+            NewGradeClassTable
+                .selectAll()
+                .where { NewGradeClassTable.category eq id }
+                .count() > 0
 
-        if (usedByClasses || usedBySubjects) return@transaction false
+        val usedBySubjects =
+            SubjectsTable
+                .selectAll()
+                .where { SubjectsTable.category eq id }
+                .count() > 0
 
-        CategoriesTable.deleteWhere { CategoriesTable.id eq id } > 0
+        if (usedByClasses || usedBySubjects) {
+            return@transaction false
+        }
+
+        CategoriesTable.deleteWhere {
+            CategoriesTable.id eq id
+        } > 0
     }
 }
-

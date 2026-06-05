@@ -5,6 +5,7 @@ import com.example.fees.dtos.requests.PatchFeeStructureRequest
 import com.example.fees.repos.FeeStructureRepository
 import com.example.student.dtos.PaginatedResponse
 import com.example.student.dtos.PaginationMeta
+import com.example.tenant.currentTenant
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -19,19 +20,32 @@ import io.ktor.server.routing.post
 fun Route.feeStructureRoutes(){
 
 
+
     authenticate("auth-jwt") {
+
+
+
         get {
-            val feeStructures = FeeStructureRepository.findAll()
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
+            val feeStructures = FeeStructureRepository.findAll(tenantSchema)
             call.respond(HttpStatusCode.OK, feeStructures)
         }
 
         get("/paginated") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
             val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
             val limit = 10
             val search = call.request.queryParameters["search"]
 
             val (feeStructures, total) =
-                FeeStructureRepository.findAllPaginated(page, limit, search)
+                FeeStructureRepository.findAllPaginated(
+                    tenantSchema = tenantSchema,
+                    page = page,
+                    limit = limit,
+                    search = search)
 
             val response = PaginatedResponse(
                 data = feeStructures,
@@ -47,31 +61,35 @@ fun Route.feeStructureRoutes(){
         }
 
         post {
-//      val rawbody = call.receiveText()
-//        println(rawbody)
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val req = call.receive<CreateFeeStructureRequest>()
+
             println("new request is $req")
 
-
             val c = FeeStructureRepository.create(
-                req.academic_year_id,
-                req.grade_class_id,
-                req.term_id,
-                req.amount,
-                req.is_discounted
+                tenantSchema = tenantSchema,
+                academicYearId = req.academic_year_id,
+                gradeClassId = req.grade_class_id,
+                termId = req.term_id,
+                amount = req.amount,
+                isDiscounted = req.is_discounted
             )
 
             call.respond(HttpStatusCode.Created, c)
-
         }
 
         delete("{id}") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid id")
                 return@delete
             }
-            val ok = FeeStructureRepository.delete(id)
+            val ok = FeeStructureRepository.delete(tenantSchema,id )
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "Fee structure Not found")
                 return@delete
@@ -81,21 +99,30 @@ fun Route.feeStructureRoutes(){
         }
 
         patch("{id}") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
 
             val id = call.parameters["id"]?.toIntOrNull()
+
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid id")
                 return@patch
             }
+
             val req = call.receive<PatchFeeStructureRequest>()
-            val updated = FeeStructureRepository.patch(id, req.amount, req.is_discounted)
+
+            val updated = FeeStructureRepository.patch(
+                tenantSchema = tenantSchema,
+                id = id,
+                amount = req.amount,
+                isDiscounted = req.is_discounted
+            )
+
             if (updated == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid id")
             } else {
                 call.respond(HttpStatusCode.OK, updated)
             }
-
-
         }
 
     }

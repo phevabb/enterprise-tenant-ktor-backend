@@ -16,14 +16,17 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object SubjectCategoryRepository {
 
-    fun create(req: CreateSubjectCategoryRequest): SubjectCategoryResponse = transaction {
+    fun create(
+        tenantSchema: String,
+        req: CreateSubjectCategoryRequest
+    ): SubjectCategoryResponse = transaction {
 
-        // ✅ create subject category
+        setTenantSchema(tenantSchema)
+
         val id = SubjectCategoriesTable.insertAndGetId {
             it[category] = req.categoryId
         }.value
 
-        // ✅ assign subjects (M2M)
         req.subjectIds.forEach { subjectId ->
             SubjectCategorySubjectsTable.insertIgnore {
                 it[subjectCategory] = id
@@ -31,10 +34,19 @@ object SubjectCategoryRepository {
             }
         }
 
-        findById(id)!!
+        findById(
+            tenantSchema = tenantSchema,
+            id = id
+        )!!
     }
 
-    fun findById(id: Int): SubjectCategoryResponse? = transaction {
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): SubjectCategoryResponse? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         SubjectCategoriesTable
             .selectAll()
             .where { SubjectCategoriesTable.id eq id }
@@ -42,36 +54,45 @@ object SubjectCategoryRepository {
             ?.toSubjectCategory()
     }
 
+    fun findAll(
+        tenantSchema: String
+    ): List<SubjectCategoryResponse> = transaction {
 
-    fun findAll(): List<SubjectCategoryResponse> = transaction {
+        setTenantSchema(tenantSchema)
+
         SubjectCategoriesTable
             .selectAll()
-            .map { it.toSubjectCategory() }   // ✅ now using mapper
+            .map { it.toSubjectCategory() }
     }
 
-    fun updateSubjects(id: Int, subjectIds: List<Int>) = transaction {
+    fun updateSubjects(
+        tenantSchema: String,
+        id: Int,
+        subjectIds: List<Int>
+    ) = transaction {
 
-        // ✅ remove old
+        setTenantSchema(tenantSchema)
+
         SubjectCategorySubjectsTable.deleteWhere {
             SubjectCategorySubjectsTable.subjectCategory eq id
         }
 
-        // ✅ insert new
+        subjectIds.forEach { subjectId ->
+            SubjectCategorySubjectsTable.insert {
+                it[subjectCategory] = id
 
-
-                subjectIds.forEach { subjectId ->
-                    SubjectCategorySubjectsTable.insert {
-                        it[SubjectCategorySubjectsTable.subjectCategory] = id
-
-                        it[SubjectCategorySubjectsTable.subject] =
-                            EntityID(subjectId, SubjectsTable)   // ✅ FIXED
-                    }
-                }
-
-
+                it[subject] =
+                    EntityID(subjectId, SubjectsTable)
+            }
+        }
     }
 
-    fun delete(id: Int): Boolean = transaction {
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
 
         SubjectCategorySubjectsTable.deleteWhere {
             SubjectCategorySubjectsTable.subjectCategory eq id

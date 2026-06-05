@@ -19,139 +19,167 @@ import org.jetbrains.exposed.sql.update
 
 object AcademicYearRepository {
 
+    fun create(
+        tenantSchema: String,
+        name: String
+    ): AcademicYearModel = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        val id = AcademicYearTable.insertAndGetId {
+            it[AcademicYearTable.name] = name
+        }.value
+
+        StudentPromotionRepository.promoteAllStudentsForNewAcademicYear()
+
+        AcademicYearModel(
+            id = id,
+            name = name
+        )
+    }
+
+    fun findAll(
+        tenantSchema: String
+    ): List<AcademicYearModel> = transaction {
+
+        setTenantSchema(tenantSchema)
 
 
-        fun create(name: String): AcademicYearModel = transaction {
-            val id = AcademicYearTable.insertAndGetId {
-                it[AcademicYearTable.name] = name
-            }.value
-
-            // ✅ Equivalent to Django post_save(created=True)
-            StudentPromotionRepository.promoteAllStudentsForNewAcademicYear()
-
-            AcademicYearModel(
-                id = id,
-                name = name,
-            )
-        }
-
-
-
-    fun findAll(): List<AcademicYearModel> = transaction {
         AcademicYearTable
             .selectAll()
             .orderBy(AcademicYearTable.id, SortOrder.DESC)
-            .map {it.toAcademicYearModel()}
+            .map { it.toAcademicYearModel() }
     }
 
+    fun getCurrentId(
+        tenantSchema: String
+    ): Int? = transaction {
 
-    fun getCurrentId(): Int? = transaction {
-        AcademicYearTable.selectAll()
-            .where { AcademicYearTable.isCurrent eq true }
-            .singleOrNull()
-            ?.get(AcademicYearTable.id)?.value
-    }
+        setTenantSchema(tenantSchema)
 
-    fun delete(id: Int): Boolean = transaction {
-
-            // Reverse promotion map
-            // Example:
-            // class1 -> class2
-            // becomes:
-            // class2 -> class1
-
-            val reverseRules: Map<Int, Int> =
-                NewClassPromotionTable
-                    .selectAll()
-                    .associate { row ->
-
-                        val currentId =
-                            row[NewClassPromotionTable.currentStageId].value
-
-                        val nextId =
-                            row[NewClassPromotionTable.nextStageId]?.value
-
-                        nextId to currentId
-                    }
-                    .filterKeys { it != null }
-                    .mapKeys { it.key!! }
-
-            // Load students BEFORE updates
-            val students = StudentsTable
-                .selectAll()
-                .map {
-                    Triple(
-                        it[StudentsTable.id].value,
-                        it[StudentsTable.currentNewGradeClass]?.value,
-                        it[StudentsTable.user].value
-                    )
-                }
-
-            students.forEach { (studentId, currentStageId, _) ->
-
-                val previousStageId = reverseRules[currentStageId]
-
-                if (previousStageId != null) {
-
-                    // Move student back
-                    StudentsTable.update({
-                        StudentsTable.id eq studentId
-                    }) {
-                        it[currentNewGradeClass] =
-                            EntityID(previousStageId, NewGradeClassTable)
-
-                        // Optional:
-                        // if student had graduated before
-                        it[isGraduated] = false
-                    }
-                }
-            }
-
-            // Reactivate all accounts
-            AccountTable.update({
-                AccountTable.isActive eq false
-            }) {
-                it[isActive] = true
-            }
-
-            // Finally delete academic year
-            AcademicYearTable.deleteWhere {
-                AcademicYearTable.id eq id
-            } > 0
-        }
-
-
-    fun findById(id: Int): AcademicYearModel? = transaction {
         AcademicYearTable
             .selectAll()
-            .where{ AcademicYearTable.id eq id }
+            .where { AcademicYearTable.isCurrent eq true }
             .singleOrNull()
-        ?.toAcademicYearModel()
+            ?.get(AcademicYearTable.id)
+            ?.value
     }
 
-    fun patch(id: Int, req: PatchAcademicYearRequest): AcademicYearModel? = transaction {
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        val reverseRules =
+            NewClassPromotionTable
+                .selectAll()
+                .associate { row ->
+                    val currentId =
+                        row[NewClassPromotionTable.currentStageId].value
+
+                    val nextId =
+                        row[NewClassPromotionTable.nextStageId]?.value
+
+                    nextId to currentId
+                }
+                .filterKeys { it != null }
+                .mapKeys { it.key!! }
+
+        val students = StudentsTable
+            .selectAll()
+            .map {
+                Triple(
+                    it[StudentsTable.id].value,
+                    it[StudentsTable.currentNewGradeClass]?.value,
+                    it[StudentsTable.user].value
+                )
+            }
+
+        students.forEach { (studentId, currentStageId, _) ->
+
+            val previousStageId = reverseRules[currentStageId]
+
+            if (previousStageId != null) {
+
+                StudentsTable.update({
+                    StudentsTable.id eq studentId
+                }) {
+                    it[currentNewGradeClass] =
+                        EntityID(previousStageId, NewGradeClassTable)
+
+                    it[isGraduated] = false
+                }
+            }
+        }
+
+        AccountTable.update({
+            AccountTable.isActive eq false
+        }) {
+            it[isActive] = true
+        }
+
+        AcademicYearTable.deleteWhere {
+            AcademicYearTable.id eq id
+        } > 0
+    }
+
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): AcademicYearModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        AcademicYearTable
+            .selectAll()
+            .where { AcademicYearTable.id eq id }
+            .singleOrNull()
+            ?.toAcademicYearModel()
+    }
+
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchAcademicYearRequest
+    ): AcademicYearModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val rowUpdated = AcademicYearTable.update(
-            where = { AcademicYearTable.id eq id}
-        ){ row ->
-            req.name?.let {row[AcademicYearTable.name] = it }
+            where = { AcademicYearTable.id eq id }
+        ) { row ->
+            req.name?.let {
+                row[AcademicYearTable.name] = it
+            }
         }
 
-        if(rowUpdated == 0) {
+        if (rowUpdated == 0) {
             null
-        }else {
-            findById(id)!!
+        } else {
+            findById(tenantSchema, id)
         }
-        }
+    }
 
+    fun setCurrentAcademicYear(
+        tenantSchema: String,
+        id: Int
+    ) = transaction {
 
-    fun setCurrentAcademicYear(id: Int) = transaction {
-        AcademicYearTable.update({ AcademicYearTable.isCurrent eq true }) {
+        setTenantSchema(tenantSchema)
+
+        AcademicYearTable.update({
+            AcademicYearTable.isCurrent eq true
+        }) {
             it[isCurrent] = false
         }
-        AcademicYearTable.update({ AcademicYearTable.id eq id }) {
+
+        AcademicYearTable.update({
+            AcademicYearTable.id eq id
+        }) {
             it[isCurrent] = true
         }
     }
-
 }
 

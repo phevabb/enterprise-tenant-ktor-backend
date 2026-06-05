@@ -15,7 +15,12 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object GradeRepository {
 
-    fun create(req: CreateGradeRequest): Grade = transaction {
+    fun create(
+        tenantSchema: String,
+        req: CreateGradeRequest
+    ): Grade = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val id = GradesTable.insertAndGetId {
             it[code] = req.code.uppercase().trim()
@@ -25,17 +30,28 @@ object GradeRepository {
             it[order] = req.order
         }.value
 
-        findById(id)!!
+        findById(tenantSchema, id)!!
     }
 
-    fun findAll(): List<Grade> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<Grade> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         GradesTable
             .selectAll()
-            .orderBy(GradesTable.order to SortOrder.ASC) // ✅ Django ordering
+            .orderBy(GradesTable.order to SortOrder.ASC)
             .map { it.toGrade() }
     }
 
-    fun findById(id: Int): Grade? = transaction {
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): Grade? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         GradesTable
             .selectAll()
             .where { GradesTable.id eq id }
@@ -43,7 +59,13 @@ object GradeRepository {
             ?.toGrade()
     }
 
-    fun findByCode(code: String): Grade? = transaction {
+    fun findByCode(
+        tenantSchema: String,
+        code: String
+    ): Grade? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         GradesTable
             .selectAll()
             .where { GradesTable.code eq code.uppercase() }
@@ -51,41 +73,71 @@ object GradeRepository {
             ?.toGrade()
     }
 
-    fun delete(id: Int): Boolean = transaction {
-        GradesTable.deleteWhere { GradesTable.id eq id } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        GradesTable.deleteWhere {
+            GradesTable.id eq id
+        } > 0
     }
 
-    fun patch(id: Int, req: PatchGradeRequest): Grade? = transaction {
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchGradeRequest
+    ): Grade? = transaction {
 
-            val existing = findById(id) ?: return@transaction null
+        setTenantSchema(tenantSchema)
 
-            // ✅ compute what the new values would be (keep old if not provided)
-            val newCode = (req.code ?: existing.code).trim().uppercase()
-            val newLabel = (req.label ?: existing.label).trim()
-            val newMin = req.minScore ?: existing.minScore
-            val newMax = req.maxScore ?: existing.maxScore
-            val newOrder = req.order ?: existing.order
+        val existing = GradesTable
+            .selectAll()
+            .where { GradesTable.id eq id }
+            .singleOrNull()
+            ?.toGrade()
+            ?: return@transaction null
 
-            // ✅ basic validations
-            if (newCode.isBlank()) return@transaction null
-            if (newLabel.isBlank()) return@transaction null
-            if (newMin > newMax) return@transaction null
+        val newCode = (req.code ?: existing.code).trim().uppercase()
+        val newLabel = (req.label ?: existing.label).trim()
+        val newMin = req.minScore ?: existing.minScore
+        val newMax = req.maxScore ?: existing.maxScore
+        val newOrder = req.order ?: existing.order
 
-            // ✅ uniqueness check for code only if code changed
-            if (newCode != existing.code) {
-                val dup = findByCode(newCode)
-                if (dup != null) return@transaction null
+        if (newCode.isBlank()) return@transaction null
+        if (newLabel.isBlank()) return@transaction null
+        if (newMin > newMax) return@transaction null
+
+        if (newCode != existing.code) {
+
+            val duplicate = GradesTable
+                .selectAll()
+                .where {
+                    (GradesTable.code eq newCode) and
+                            (GradesTable.id neq id)
+                }
+                .singleOrNull()
+
+            if (duplicate != null) {
+                return@transaction null
             }
-
-            GradesTable.update({ GradesTable.id eq id }) {
-                it[code] = newCode
-                it[label] = newLabel
-                it[minScore] = newMin
-                it[maxScore] = newMax
-                it[order] = newOrder
-            }
-
-            findById(id)
         }
+
+        GradesTable.update({ GradesTable.id eq id }) {
+            it[code] = newCode
+            it[label] = newLabel
+            it[minScore] = newMin
+            it[maxScore] = newMax
+            it[order] = newOrder
+        }
+
+        GradesTable
+            .selectAll()
+            .where { GradesTable.id eq id }
+            .singleOrNull()
+            ?.toGrade()
+    }
 
 }

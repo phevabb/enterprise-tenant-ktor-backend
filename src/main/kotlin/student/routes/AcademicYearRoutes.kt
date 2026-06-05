@@ -5,6 +5,7 @@ import com.example.student.dtos.requests.CreateAcademicYearRequest
 import com.example.student.dtos.requests.PatchAcademicYearRequest
 import com.example.student.repos.AcademicYearRepository
 import com.example.student.tables.NewGradeClassTable
+import com.example.tenant.currentTenant
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -19,16 +20,23 @@ import io.ktor.server.routing.post
 fun Route.academicYearRoutes() {
     authenticate("auth-jwt") {
         get {
-            val years = AcademicYearRepository.findAll()
+
+            val tenant = call.currentTenant()
+
+            val years = AcademicYearRepository.findAll(
+                tenantSchema = tenant.tenantSchema
+            )
 
             call.respond(HttpStatusCode.OK, years)
         }
 
         post {
+
+            val tenant = call.currentTenant()
+
             val rawBody = call.receiveText()
             println("RAW BODY = $rawBody")
 
-            // rawBody is: "2027/2028"
             val yearValue = rawBody.removeSurrounding("\"")
 
             val req = CreateAcademicYearRequest(
@@ -36,6 +44,7 @@ fun Route.academicYearRoutes() {
             )
 
             val created = AcademicYearRepository.create(
+                tenantSchema = tenant.tenantSchema,
                 name = req.name.trim()
             )
 
@@ -43,6 +52,9 @@ fun Route.academicYearRoutes() {
         }
 
         delete("{id}") {
+
+            val tenant = call.currentTenant()
+
             val id = call.parameters["id"]!!.toIntOrNull()
 
             if (id == null) {
@@ -50,7 +62,11 @@ fun Route.academicYearRoutes() {
                 return@delete
             }
 
-            val ok = AcademicYearRepository.delete(id)
+            val ok = AcademicYearRepository.delete(
+                tenantSchema = tenant.tenantSchema,
+                id = id
+            )
+
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "year not found")
             } else {
@@ -59,11 +75,16 @@ fun Route.academicYearRoutes() {
         }
 
         patch("{id}") {
+
+            val tenant = call.currentTenant()
+
             val rawBody = call.receiveText()
             println("RAW BODY to patch = $rawBody")
+
             val yearValue = rawBody.removeSurrounding("\"")
 
             val id = call.parameters["id"]!!.toIntOrNull()
+
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "invalid id")
                 return@patch
@@ -73,20 +94,27 @@ fun Route.academicYearRoutes() {
                 name = yearValue
             )
 
-            val updated = AcademicYearRepository.patch(id, req)
+            val updated = AcademicYearRepository.patch(
+                tenantSchema = tenant.tenantSchema,
+                id = id,
+                req = req
+            )
+
             if (updated == null) {
                 call.respond(HttpStatusCode.BadRequest, "invalid id")
-                return@patch
             } else {
                 call.respond(HttpStatusCode.OK, updated)
             }
-
-
         }
 
-
         get("all-years") {
-            val years = NewAcademicYearRepository.findAll()
+
+            val tenant = call.currentTenant()
+
+            val years = NewAcademicYearRepository.findAll(
+                tenantSchema = tenant.tenantSchema
+            )
+
             call.respond(HttpStatusCode.OK, years)
         }
 

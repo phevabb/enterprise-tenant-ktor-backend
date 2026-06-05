@@ -77,195 +77,99 @@ private fun dateRangeForFilterMillis(
         else -> null
     }
 }
-
 object PaymentRepository {
 
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        val safeSchema = tenantSchema.replace("\"", "\"\"")
+        exec("""SET LOCAL search_path TO "$safeSchema"""")
+    }
 
     fun create(
+        tenantSchema: String,
         student_fee_record: Int,
         amount: Int,
     ) = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val id = PaymentTable.insertAndGetId {
             it[PaymentTable.student_fee_record] = EntityID(student_fee_record, StudentFeeRecordTable)
             it[PaymentTable.amount] = amount
             it[date_created] = System.currentTimeMillis()
-
         }.value
-        findById(id)?: error("$id not found")
+
+        findById(tenantSchema, id) ?: error("$id not found")
     }
 
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): PaymentResponseDto? = transaction {
 
+        setTenantSchema(tenantSchema)
 
-    fun findById(id: Int): PaymentResponseDto? = transaction {
         PaymentTable
-            .join(
-                otherTable = StudentFeeRecordTable,
-                joinType = JoinType.INNER,
-                onColumn = PaymentTable.student_fee_record,
-                otherColumn = StudentFeeRecordTable.id
-            )
-            .join(
-                otherTable = StudentsTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.student,      // <-- your FK column
-                otherColumn = StudentsTable.id
-            )
-            .join(
-                otherTable = AccountTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentsTable.user,                 // <-- your FK column
-                otherColumn = AccountTable.id
-            )
-            .join(
-                otherTable = FeeStructureTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.feeStructure, // <-- your FK column
-                otherColumn = FeeStructureTable.id
-            )
-            // ✅ Explicit join removes ambiguity:
-            .join(
-                otherTable = NewGradeClassTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.grade_class,      // <-- IMPORTANT: use fee structure FK
-                otherColumn = NewGradeClassTable.id
-            )
-            .join(
-                otherTable = AcademicYearTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.academic_year,
-                otherColumn = AcademicYearTable.id
-            )
-            .join(
-                otherTable = TermTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.term,
-                otherColumn = TermTable.id
-            )
+            .join(StudentFeeRecordTable, JoinType.INNER, PaymentTable.student_fee_record, StudentFeeRecordTable.id)
+            .join(StudentsTable, JoinType.INNER, StudentFeeRecordTable.student, StudentsTable.id)
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .join(FeeStructureTable, JoinType.INNER, StudentFeeRecordTable.feeStructure, FeeStructureTable.id)
+            .join(NewGradeClassTable, JoinType.INNER, FeeStructureTable.grade_class, NewGradeClassTable.id)
+            .join(AcademicYearTable, JoinType.INNER, FeeStructureTable.academic_year, AcademicYearTable.id)
+            .join(TermTable, JoinType.INNER, FeeStructureTable.term, TermTable.id)
             .selectAll()
-            .where{ PaymentTable.id eq id }
+            .where { PaymentTable.id eq id }
             .singleOrNull()
             ?.toPaymentResponseDto()
     }
 
-    fun findAll(): List<PaymentResponseDto> = transaction {
+    fun findAll(tenantSchema: String): List<PaymentResponseDto> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         PaymentTable
-            .join(
-                otherTable = StudentFeeRecordTable,
-                joinType = JoinType.INNER,
-                onColumn = PaymentTable.student_fee_record,
-                otherColumn = StudentFeeRecordTable.id
-            )
-            .join(
-                otherTable = StudentsTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.student,      // <-- your FK column
-                otherColumn = StudentsTable.id
-            )
-            .join(
-                otherTable = AccountTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentsTable.user,                 // <-- your FK column
-                otherColumn = AccountTable.id
-            )
-            .join(
-                otherTable = FeeStructureTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.feeStructure, // <-- your FK column
-                otherColumn = FeeStructureTable.id
-            )
-            // ✅ Explicit join removes ambiguity:
-            .join(
-                otherTable = NewGradeClassTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.grade_class,      // <-- IMPORTANT: use fee structure FK
-                otherColumn = NewGradeClassTable.id
-            )
-            .join(
-                otherTable = AcademicYearTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.academic_year,
-                otherColumn = AcademicYearTable.id
-            )
-            .join(
-                otherTable = TermTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.term,
-                otherColumn = TermTable.id
-            )
+            .join(StudentFeeRecordTable, JoinType.INNER, PaymentTable.student_fee_record, StudentFeeRecordTable.id)
+            .join(StudentsTable, JoinType.INNER, StudentFeeRecordTable.student, StudentsTable.id)
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .join(FeeStructureTable, JoinType.INNER, StudentFeeRecordTable.feeStructure, FeeStructureTable.id)
+            .join(NewGradeClassTable, JoinType.INNER, FeeStructureTable.grade_class, NewGradeClassTable.id)
+            .join(AcademicYearTable, JoinType.INNER, FeeStructureTable.academic_year, AcademicYearTable.id)
+            .join(TermTable, JoinType.INNER, FeeStructureTable.term, TermTable.id)
             .selectAll()
             .orderBy(PaymentTable.id, SortOrder.DESC)
-            .map {it.toPaymentResponseDto()}
+            .map { it.toPaymentResponseDto() }
     }
 
-
-
-
-
     fun findAllPaginated(
+        tenantSchema: String,
         page: Int,
         limit: Int,
         search: String?,
         dateFilter: String?
     ): Pair<List<PaymentResponseDto>, Long> = transaction {
 
+        setTenantSchema(tenantSchema)
+
         val safePage = if (page < 1) 1 else page
         val safeLimit = if (limit < 1) 20 else limit
         val offset = ((safePage - 1) * safeLimit).toLong()
 
         val baseQuery = PaymentTable
-            .join(
-                otherTable = StudentFeeRecordTable,
-                joinType = JoinType.INNER,
-                onColumn = PaymentTable.student_fee_record,
-                otherColumn = StudentFeeRecordTable.id
-            )
-            .join(
-                otherTable = StudentsTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.student,
-                otherColumn = StudentsTable.id
-            )
-            .join(
-                otherTable = AccountTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentsTable.user,
-                otherColumn = AccountTable.id
-            )
-            .join(
-                otherTable = FeeStructureTable,
-                joinType = JoinType.INNER,
-                onColumn = StudentFeeRecordTable.feeStructure,
-                otherColumn = FeeStructureTable.id
-            )
-            .join(
-                otherTable = NewGradeClassTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.grade_class,
-                otherColumn = NewGradeClassTable.id
-            )
-            .join(
-                otherTable = AcademicYearTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.academic_year,
-                otherColumn = AcademicYearTable.id
-            )
-            .join(
-                otherTable = TermTable,
-                joinType = JoinType.INNER,
-                onColumn = FeeStructureTable.term,
-                otherColumn = TermTable.id
-            )
+            .join(StudentFeeRecordTable, JoinType.INNER, PaymentTable.student_fee_record, StudentFeeRecordTable.id)
+            .join(StudentsTable, JoinType.INNER, StudentFeeRecordTable.student, StudentsTable.id)
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .join(FeeStructureTable, JoinType.INNER, StudentFeeRecordTable.feeStructure, FeeStructureTable.id)
+            .join(NewGradeClassTable, JoinType.INNER, FeeStructureTable.grade_class, NewGradeClassTable.id)
+            .join(AcademicYearTable, JoinType.INNER, FeeStructureTable.academic_year, AcademicYearTable.id)
+            .join(TermTable, JoinType.INNER, FeeStructureTable.term, TermTable.id)
             .selectAll()
 
-        // ✅ Date filter (millis)
-        val range = dateRangeForFilterMillis(dateFilter /*, ZoneId.of("UTC") if needed */)
+        val range = dateRangeForFilterMillis(dateFilter)
+
         val withDateFilter = if (range != null) {
             val (startMs, endMs) = range
             baseQuery.andWhere { PaymentTable.date_created.between(startMs, endMs) }
         } else baseQuery
 
-        // ✅ Case-insensitive search (DB-agnostic)
         val finalQuery = if (!search.isNullOrBlank()) {
             val pattern = "%${search.lowercase()}%"
             withDateFilter.andWhere {
@@ -273,8 +177,6 @@ object PaymentRepository {
                         (NewGradeClassTable.name.lowerCase() like pattern) or
                         (AcademicYearTable.name.lowerCase() like pattern) or
                         (TermTable.name.lowerCase() like pattern)
-                // Add more if you have columns:
-                // or (PaymentTable.payment_method.lowerCase() like pattern)
             }
         } else withDateFilter
 
@@ -289,18 +191,24 @@ object PaymentRepository {
         Pair(items, total)
     }
 
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
 
+        setTenantSchema(tenantSchema)
 
-    fun delete(id: Int): Boolean = transaction{
-        PaymentTable.deleteWhere{ PaymentTable.id eq id } > 0
+        PaymentTable.deleteWhere { PaymentTable.id eq id } > 0
     }
 
-
     fun createPaymentAndUpdateSfr(
+        tenantSchema: String,
         studentFeeRecordId: Int,
         amount: Int,
         paymentMethod: String?
     ): CreatePaymentResult = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val sfr = StudentFeeRecordTable
             .selectAll()
@@ -314,9 +222,7 @@ object PaymentRepository {
             throw BadRequestException("Payment amount must be greater than zero")
 
         if (amount > balance)
-            throw BadRequestException(
-                "Payment exceeds remaining balance. Balance left: GH₵ $balance"
-            )
+            throw BadRequestException("Payment exceeds remaining balance. Balance left: GH₵ $balance")
 
         val paymentId = PaymentTable.insertAndGetId {
             it[student_fee_record] = EntityID(studentFeeRecordId, StudentFeeRecordTable)
@@ -335,72 +241,47 @@ object PaymentRepository {
         val dto = updated.toStudentFeeRecordSnapshotDto()
         val true_balance = dto.balance
 
-        val studentId = dto.studentId
-        val feeId = dto.feeStructureId
-
         val studentObject = StudentsTable
             .selectAll()
-            .where { StudentsTable.id eq studentId }
+            .where { StudentsTable.id eq dto.studentId }
             .singleOrNull()
             ?: throw BadRequestException("Student not found")
 
         val student_json_dto = studentObject.toStudentProfile()
 
-        val user_id = student_json_dto.user
-        val con_of_dad = student_json_dto.contactOfFather
-
         val user_object = AccountTable
             .selectAll()
-            .where { AccountTable.id eq user_id }
+            .where { AccountTable.id eq student_json_dto.user }
             .singleOrNull()
             ?: throw BadRequestException("Student user not found")
 
-        val final_user = user_object.toAccount()
-        val full_name = final_user.fullName
+        val full_name = user_object.toAccount().fullName
 
         val feeStructureObject = FeeStructureTable
             .selectAll()
-            .where { FeeStructureTable.id eq feeId }
+            .where { FeeStructureTable.id eq dto.feeStructureId }
             .singleOrNull()
             ?: throw BadRequestException("Fee structure not found")
 
         val seeStructure_dto = feeStructureObject.toFeeStructureModel()
 
-        val academic = seeStructure_dto.academicYearId
-        val year = AcademicYearTable
+        val year_name = AcademicYearTable
             .selectAll()
-            .where { AcademicYearTable.id eq academic }
-            .singleOrNull()
-            ?: throw BadRequestException("Year not found")
+            .where { AcademicYearTable.id eq seeStructure_dto.academicYearId }
+            .single()[AcademicYearTable.name]
 
-        val year_dto = year.toAcademicYearModel()
-        val year_name = year_dto.name
-
-        val term = seeStructure_dto.termId
-        val trueTerm = TermTable
+        val term_name = TermTable
             .selectAll()
-            .where { TermTable.id eq term }
-            .singleOrNull()
-            ?: throw BadRequestException("Term not found")
+            .where { TermTable.id eq seeStructure_dto.termId }
+            .single()[TermTable.name]
 
-        val term_dto = trueTerm.toTermModel()
-        val term_name = term_dto.name
-
-        val gradeclass = seeStructure_dto.gradeClassId
-        val Geade_class = NewGradeClassTable
+        val class_name = NewGradeClassTable
             .selectAll()
-            .where { NewGradeClassTable.id eq gradeclass }
-            .singleOrNull()
-            ?: throw BadRequestException("Class not found")
-
-        val class_dto = Geade_class.toNewGradeClassModel()
-        val class_name = class_dto.name
-
-        // ✅ Father only
-        val fatherPhone = con_of_dad
+            .where { NewGradeClassTable.id eq seeStructure_dto.gradeClassId }
+            .single()[NewGradeClassTable.name]
 
         val smsPayload = SmsPayload(
-            phone = fatherPhone,
+            phone = student_json_dto.contactOfFather,
             message = SmsTemplates.paymentReceived(
                 studentName = full_name,
                 amountPaid = amount,
@@ -411,13 +292,11 @@ object PaymentRepository {
             )
         )
 
-        // ==========================================================
-        // ✅ ✅ INSERT RECEIPT CODE HERE (RIGHT BEFORE RETURN)
-        // ==========================================================
         val receiptDto = ReceiptRepository.createReceipt(
+            tenantSchema = tenantSchema,
             paymentId = paymentId,
             studentFeeRecordId = studentFeeRecordId,
-            studentId = studentId,
+            studentId = dto.studentId,
             studentName = full_name,
             className = class_name,
             termName = term_name,
@@ -427,64 +306,14 @@ object PaymentRepository {
             paymentMethod = paymentMethod
         )
 
-        // ✅ existing payment response
-        val paymentResponse = findById(paymentId)!!
+        val paymentResponse = findById(tenantSchema, paymentId)!!
 
-        // ✅ attach receipt into the response dto
-        val paymentWithReceipt = paymentResponse.copy(receipt = receiptDto)
-
-        // ✅ return wrapper (if you still want sms too)
         CreatePaymentResult(
-            response = paymentWithReceipt,
+            response = paymentResponse.copy(receipt = receiptDto),
             sms = smsPayload
         )
     }
-
-
-
-    fun applyPaymentDelta(sfrId: Int, delta: Int) {
-        require(delta >= 0) { "delta must be >= 0 for payments. Use a separate function for refunds/reversals." }
-
-        StudentFeeRecordTable.update({ StudentFeeRecordTable.id eq sfrId }) { ub ->
-            with(SqlExpressionBuilder) {
-                val bal = StudentFeeRecordTable.balance
-                val paid = StudentFeeRecordTable.amountPaid
-
-                // newBalance = max(balance - delta, 0)
-                val newBalanceExpr =
-                    Case()
-                        .When((bal - delta) less 0, intLiteral(0))
-                        .Else(bal - delta)
-
-                // applied = min(delta, balance)
-                // If (balance - delta) < 0 => delta > balance => applied = balance
-                // else applied = delta
-                val appliedExpr =
-                    Case()
-                        .When((bal - delta) less 0, bal)
-                        .Else(intLiteral(delta))
-
-                // amountPaid = amountPaid + applied
-                ub.update(StudentFeeRecordTable.amountPaid, paid + appliedExpr)
-
-                // balance = newBalance (never negative)
-                ub.update(StudentFeeRecordTable.balance, newBalanceExpr)
-
-                // isFullyPaid = (newBalance <= 0)  (same as == 0 after clamp)
-                ub.update(
-                    StudentFeeRecordTable.isFullyPaid,
-                    Case()
-                        .When(newBalanceExpr lessEq 0, booleanLiteral(true))
-                        .Else(booleanLiteral(false))
-                )
-            }
-        }
-    }
-
-
-
 }
-
 
 
 

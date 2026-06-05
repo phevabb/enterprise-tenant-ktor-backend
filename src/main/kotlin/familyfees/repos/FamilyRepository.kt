@@ -12,6 +12,7 @@ import com.example.student.StudentsTable
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.countDistinct
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
@@ -26,7 +27,18 @@ import kotlin.random.Random
 
 object FamilyRepository {
 
-    fun findById(id: Int): FamilyResponseDto? = transaction {
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        val safeSchema = tenantSchema.replace("\"", "\"\"")
+        exec("""SET LOCAL search_path TO "$safeSchema"""")
+    }
+
+
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): FamilyResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val rows = FamilyTable
             .join(
@@ -41,7 +53,7 @@ object FamilyRepository {
                 otherColumn = AccountTable.id
             )
             .selectAll()
-            .where{ FamilyTable.id eq id }
+            .where { FamilyTable.id eq id }
             .toList()
 
         if (rows.isEmpty()) return@transaction null
@@ -64,17 +76,28 @@ object FamilyRepository {
             members = members
         )
     }
+
+
     fun create(
-        name:String,
+        tenantSchema: String,
+        name: String
     ) = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val id = FamilyTable.insertAndGetId {
             it[FamilyTable.name] = name
-
         }.value
-        findById(id)?:error("Family not found")
+
+        findById(tenantSchema, id)
+            ?: error("Family not found")
     }
 
-    fun findAll(): List<FamilyResponseDto> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<FamilyResponseDto> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val rows = FamilyTable
             .join(
@@ -117,10 +140,13 @@ object FamilyRepository {
     }
 
     fun findAllPaginated(
+        tenantSchema: String,
         page: Int,
         limit: Int,
         search: String?
     ): Pair<List<FamilyResponseDto>, Long> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val offset = ((page - 1) * limit).toLong()
 
@@ -140,7 +166,6 @@ object FamilyRepository {
             .orderBy(FamilyTable.id, SortOrder.DESC)
             .toList()
 
-        // ✅ SIMPLE SEARCH (case-insensitive using contains ignoreCase)
         val filtered = if (!search.isNullOrBlank()) {
             rows.filter { r ->
                 val familyName = r[FamilyTable.name]
@@ -149,7 +174,9 @@ object FamilyRepository {
                 familyName.contains(search, ignoreCase = true) ||
                         studentName.contains(search, ignoreCase = true)
             }
-        } else rows
+        } else {
+            rows
+        }
 
         val grouped = filtered.groupBy { it[FamilyTable.id].value }
 
@@ -180,26 +207,40 @@ object FamilyRepository {
             .drop(offset.toInt())
             .take(limit)
 
-        return@transaction Pair(paginated, total)
+        Pair(paginated, total)
     }
 
-    fun delete(id: Int): Boolean = transaction {
-        FamilyTable.deleteWhere { FamilyTable.id eq id } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        FamilyTable.deleteWhere {
+            FamilyTable.id eq id
+        } > 0
     }
 
-    fun update(id: Int, name: String): FamilyResponseDto? = transaction {
+    fun update(
+        tenantSchema: String,
+        id: Int,
+        name: String
+    ): FamilyResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val exists = FamilyTable
             .selectAll()
             .where { FamilyTable.id eq id }
-            .singleOrNull() ?: return@transaction null
+            .singleOrNull()
+            ?: return@transaction null
 
         FamilyTable.update({ FamilyTable.id eq id }) {
             it[FamilyTable.name] = name
         }
 
-        // return updated family (reuse your mapping)
-        findById(id)
+        findById(tenantSchema, id)
     }
 
 

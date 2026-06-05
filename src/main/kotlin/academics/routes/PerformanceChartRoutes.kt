@@ -4,6 +4,7 @@ package com.example.academics.routes
 import com.example.academics.repos.PerformanceChartRepository
 import com.example.student.repos.StudentLiteRepo
 import com.example.student.repos.TermRepository
+import com.example.tenant.currentTenant
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
@@ -18,10 +19,10 @@ fun Route.performanceChartRoutes() {
 
     authenticate("auth-jwt") {
 
-        /**
-         * ✅ GET /api/performance-charts?student=312&term=15&year=15
-         */
+
         get {
+            val tenant = call.currentTenant()
+
             val accountId = call.request.queryParameters["student"]?.toIntOrNull()
             val termId = call.request.queryParameters["term"]?.toIntOrNull()
             val yearId = call.request.queryParameters["year"]?.toIntOrNull()
@@ -35,13 +36,14 @@ fun Route.performanceChartRoutes() {
             }
 
             // ✅ Resolve StudentsTable.id from AccountTable.id
-            val studentProfileId = StudentLiteRepo.getStudentProfileIdByAccountId(accountId)
+            val studentProfileId = StudentLiteRepo.getStudentProfileIdByAccountId(tenantSchema = tenant.tenantSchema, accountId)
             if (studentProfileId == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("detail" to "No student profile found for this user"))
                 return@get
             }
 
             val chart = PerformanceChartRepository.getStudentChart(
+                tenantSchema = tenant.tenantSchema,
                 studentId = studentProfileId,
                 termId = termId,
                 yearId = yearId

@@ -1,88 +1,100 @@
 package com.example.admin.repos
 
-
-
 import com.example.account.AccountTable
 import com.example.admin.dtos.requests.PatchAdminRequest
 import com.example.admin.dtos.response.AdminProfileResponse
 import com.example.admin.mappers.toAdminProfile
 import com.example.admin.models.AdminProfile
 import com.example.admin.tables.AdminTable
-
 import com.example.student.dtos.response.StudentUserResponse
-
-
 import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 
 object AdminRepository {
 
-    /** ✅ Create Admin profile */
-    fun create(profile: AdminProfile) = transaction {
-
+    fun createInCurrentTransaction(profile: AdminProfile): AdminProfileResponse {
         val id = AdminTable.insertAndGetId {
-
-            it[user] = profile.user?.let {
-                EntityID(it, AccountTable)
+            it[user] = profile.user?.let { userId ->
+                EntityID(userId, AccountTable)
             }
-
-
             it[tel] = profile.tel
-
         }.value
 
-        findByIdWithUserAndClass(id)!!
+        return findByIdWithUserAndClassInCurrentTransaction(id)
+            ?: throw IllegalStateException("Admin profile was created but could not be retrieved.")
     }
 
-    /** ✅ Get all Admin */
-    fun findAll(): List<AdminProfile> = transaction {
-        AdminTable
+    fun create(profile: AdminProfile): AdminProfileResponse = transaction {
+        createInCurrentTransaction(profile)
+    }
+
+    fun findAllInCurrentTransaction(): List<AdminProfile> {
+        return AdminTable
             .selectAll()
             .orderBy(AdminTable.id, SortOrder.DESC)
             .map { it.toAdminProfile() }
     }
 
-    /** ✅ Get by profile ID */
-    fun findById(id: Int): AdminProfile? = transaction {
-        AdminTable
+    fun findAll(): List<AdminProfile> = transaction {
+        findAllInCurrentTransaction()
+    }
+
+    fun findByIdInCurrentTransaction(id: Int): AdminProfile? {
+        return AdminTable
             .selectAll()
             .where { AdminTable.id eq id }
             .singleOrNull()
             ?.toAdminProfile()
     }
 
-    /** ✅ OneToOne lookup */
-    fun findByUserId(userId: Int): AdminProfile? = transaction {
-        AdminTable
+    fun findById(id: Int): AdminProfile? = transaction {
+        findByIdInCurrentTransaction(id)
+    }
+
+    fun findByUserIdInCurrentTransaction(userId: Int): AdminProfile? {
+        return AdminTable
             .selectAll()
             .where { AdminTable.user eq EntityID(userId, AccountTable) }
             .singleOrNull()
             ?.toAdminProfile()
     }
 
-    /** ✅ Delete */
-    fun delete(id: Int): Boolean = transaction {
-        AdminTable.deleteWhere { AdminTable.id eq id } > 0
+    fun findByUserId(userId: Int): AdminProfile? = transaction {
+        findByUserIdInCurrentTransaction(userId)
     }
 
-    /** ✅ Exists */
-    fun existsById(id: Int): Boolean = transaction {
-        AdminTable
+    fun deleteInCurrentTransaction(id: Int): Boolean {
+        return AdminTable.deleteWhere { AdminTable.id eq id } > 0
+    }
+
+    fun delete(id: Int): Boolean = transaction {
+        deleteInCurrentTransaction(id)
+    }
+
+    fun existsByIdInCurrentTransaction(id: Int): Boolean {
+        return AdminTable
             .selectAll()
             .where { AdminTable.id eq id }
             .count() > 0
     }
 
-    /**
-     * ✅ JOIN → Return nested response (LIKE Django serializer)
-     */
-    fun findAllWithUserAndClass(search: String?): List<AdminProfileResponse> = transaction {
+    fun existsById(id: Int): Boolean = transaction {
+        existsByIdInCurrentTransaction(id)
+    }
 
+    fun findAllWithUserAndClassInCurrentTransaction(
+        search: String?
+    ): List<AdminProfileResponse> {
         val query = AdminTable
             .join(AccountTable, JoinType.INNER, AdminTable.user, AccountTable.id)
             .selectAll()
@@ -90,13 +102,11 @@ object AdminRepository {
         if (!search.isNullOrBlank()) {
             val q = "%${search.lowercase()}%"
             query.andWhere {
-                (AccountTable.fullName.lowerCase() like q)
-
+                AccountTable.fullName.lowerCase() like q
             }
         }
 
-        query.map { row ->
-
+        return query.map { row ->
             val user = StudentUserResponse(
                 id = row[AccountTable.id].value,
                 userId = row[AccountTable.userId],
@@ -108,28 +118,27 @@ object AdminRepository {
                 dateOfBirth = row[AccountTable.dateOfBirth]
             )
 
-
             AdminProfileResponse(
                 id = row[AdminTable.id].value,
                 user = user,
-
                 tel = row[AdminTable.tel]
             )
         }
     }
 
-    /** ✅ Single with JOIN (like Django detail view) */
-    fun findByIdWithUserAndClass(id: Int): AdminProfileResponse? = transaction {
+    fun findAllWithUserAndClass(search: String?): List<AdminProfileResponse> = transaction {
+        findAllWithUserAndClassInCurrentTransaction(search)
+    }
 
+    fun findByIdWithUserAndClassInCurrentTransaction(id: Int): AdminProfileResponse? {
         val query = AdminTable
             .join(AccountTable, JoinType.INNER, AdminTable.user, AccountTable.id)
 
-        query
+        return query
             .selectAll()
             .where { AdminTable.id eq id }
             .singleOrNull()
             ?.let { row ->
-
                 val user = StudentUserResponse(
                     id = row[AccountTable.id].value,
                     userId = row[AccountTable.userId],
@@ -141,28 +150,30 @@ object AdminRepository {
                     dateOfBirth = row[AccountTable.dateOfBirth]
                 )
 
-
-
                 AdminProfileResponse(
                     id = row[AdminTable.id].value,
                     user = user,
-
                     tel = row[AdminTable.tel]
                 )
             }
     }
 
-    fun patchNested(id: Int, req: PatchAdminRequest): AdminProfileResponse? = transaction {
+    fun findByIdWithUserAndClass(id: Int): AdminProfileResponse? = transaction {
+        findByIdWithUserAndClassInCurrentTransaction(id)
+    }
 
+    fun patchNestedInCurrentTransaction(
+        id: Int,
+        req: PatchAdminRequest
+    ): AdminProfileResponse? {
         val row = AdminTable
             .selectAll()
             .where { AdminTable.id eq id }
             .singleOrNull()
-            ?: return@transaction null
+            ?: return null
 
         val accountId = row[AdminTable.user]?.value
 
-        // ✅ update Admin fields only if at least one admin field exists
         val hasAdminFieldsToUpdate = req.tel != null
 
         if (hasAdminFieldsToUpdate) {
@@ -171,10 +182,8 @@ object AdminRepository {
             }
         }
 
-        // ✅ update user only if present and has at least one field
         if (accountId != null) {
             req.user?.let { userPatch ->
-
                 val hasUserFieldsToUpdate =
                     userPatch.fullName != null ||
                             userPatch.gender != null ||
@@ -198,9 +207,10 @@ object AdminRepository {
             }
         }
 
-        // ✅ return updated data
-        findByIdWithUserAndClass(id)
+        return findByIdWithUserAndClassInCurrentTransaction(id)
     }
 
-
+    fun patchNested(id: Int, req: PatchAdminRequest): AdminProfileResponse? = transaction {
+        patchNestedInCurrentTransaction(id, req)
+    }
 }

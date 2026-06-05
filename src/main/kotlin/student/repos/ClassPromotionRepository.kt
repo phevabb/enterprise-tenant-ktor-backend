@@ -21,12 +21,12 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.transactions.transaction
 
+
+
 class ClassPromotionRepository {
 
-    /**
-     * Base query used by findById/findAll to return expanded DTO with
-     * currentStage + nextStage + promotionPath
-     */
+
+
     private fun baseSelect() = run {
         val currentStageAlias = NewGradeClassTable.alias("current_stage")
         val nextStageAlias = NewGradeClassTable.alias("next_stage")
@@ -49,16 +49,24 @@ class ClassPromotionRepository {
         Triple(query, currentStageAlias, nextStageAlias)
     }
 
-    /**
-     * CREATE
-     */
-    fun create(req: CreateClassPromotionRequest): ClassPromotionResponseDto = transaction {
-        // Optional validation (recommended):
-        // Ensure current stage exists; ensure next stage exists (if provided).
-        // If you already validate in service layer, you may remove these checks.
-        require(stageExists(req.currentStageId)) { "Current stage not found: ${req.currentStageId}" }
+
+    fun create(
+        tenantSchema: String,
+        req: CreateClassPromotionRequest
+    ): ClassPromotionResponseDto = transaction {
+
+
+
+        setTenantSchema(tenantSchema)
+
+        require(stageExists(req.currentStageId)) {
+            "Current stage not found: ${req.currentStageId}"
+        }
+
         if (req.nextStageId != null) {
-            require(stageExists(req.nextStageId)) { "Next stage not found: ${req.nextStageId}" }
+            require(stageExists(req.nextStageId)) {
+                "Next stage not found: ${req.nextStageId}"
+            }
         }
 
         val newId = NewClassPromotionTable.insert {
@@ -66,76 +74,107 @@ class ClassPromotionRepository {
             it[nextStageId] = req.nextStageId
         } get NewClassPromotionTable.id
 
-        // Return expanded view
-        findById(newId.value) ?: error("Failed to load created promotion with id=${newId.value}")
+        findById(
+            tenantSchema = tenantSchema,
+            id = newId.value
+        ) ?: error("Failed to load created promotion")
     }
 
-    /**
-     * FIND BY ID (expanded)
-     */
-    fun findById(id: Int): ClassPromotionResponseDto? = transaction {
+
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): ClassPromotionResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val (query, currentStageAlias, nextStageAlias) = baseSelect()
 
         query
             .andWhere { NewClassPromotionTable.id eq id }
             .limit(1)
             .firstOrNull()
-            ?.toClassPromotionResponseDto(currentStageAlias, nextStageAlias)
+            ?.toClassPromotionResponseDto(
+                currentStageAlias,
+                nextStageAlias
+            )
     }
 
-    /**
-     * FIND ALL (expanded)
-     */
-    fun findAll(): List<ClassPromotionResponseDto> = transaction {
+
+    fun findAll(
+        tenantSchema: String
+    ): List<ClassPromotionResponseDto> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         val (query, currentStageAlias, nextStageAlias) = baseSelect()
 
-        query.map { row ->
-            row.toClassPromotionResponseDto(currentStageAlias, nextStageAlias)
+        query.map {
+            it.toClassPromotionResponseDto(
+                currentStageAlias,
+                nextStageAlias
+            )
         }
     }
 
-    /**
-     * PATCH
-     *
-     * Patch semantics:
-     * - currentStageId != null => update current stage
-     * - setNextStage == true:
-     *      - nextStageId = Int => set next stage
-     *      - nextStageId = null => clear next stage (Graduated)
-     */
-    fun patch(id: Int, req: PatchClassPromotionRequest): ClassPromotionResponseDto? = transaction {
-        // If record doesn't exist, return null
-        if (!promotionExists(id)) return@transaction null
 
-        // Optional validation:
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchClassPromotionRequest
+    ): ClassPromotionResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        if (!promotionExists(id)) {
+            return@transaction null
+        }
+
         req.currentStageId?.let {
-            require(stageExists(it)) { "Current stage not found: $it" }
-        }
-        if (req.setNextStage && req.nextStageId != null) {
-            require(stageExists(req.nextStageId)) { "Next stage not found: ${req.nextStageId}" }
-        }
-
-        NewClassPromotionTable.update({ NewClassPromotionTable.id eq id }) { stmt ->
-            req.currentStageId?.let { stmt[currentStageId] = it }
-
-            if (req.setNextStage) {
-                stmt[nextStageId] = req.nextStageId // can be null (Graduated)
+            require(stageExists(it)) {
+                "Current stage not found: $it"
             }
         }
 
-        findById(id)
+        if (req.setNextStage && req.nextStageId != null) {
+            require(stageExists(req.nextStageId)) {
+                "Next stage not found: ${req.nextStageId}"
+            }
+        }
+
+        NewClassPromotionTable.update(
+            { NewClassPromotionTable.id eq id }
+        ) { stmt ->
+
+            req.currentStageId?.let {
+                stmt[currentStageId] = it
+            }
+
+            if (req.setNextStage) {
+                stmt[nextStageId] = req.nextStageId
+            }
+        }
+
+        findById(
+            tenantSchema = tenantSchema,
+            id = id
+        )
     }
 
-    /**
-     * DELETE
-     */
-    fun delete(id: Int): Boolean = transaction {
-        NewClassPromotionTable.deleteWhere { NewClassPromotionTable.id eq id } > 0
+
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        NewClassPromotionTable.deleteWhere {
+            NewClassPromotionTable.id eq id
+        } > 0
     }
 
-    // -------------------------
-    // Small helpers
-    // -------------------------
+
     private fun stageExists(stageId: Int): Boolean {
         return NewGradeClassTable
             .selectAll()

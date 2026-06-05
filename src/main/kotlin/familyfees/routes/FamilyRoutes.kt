@@ -14,24 +14,34 @@ import com.example.student.dtos.PaginatedResponse
 import io.ktor.server.auth.authenticate
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.put
+import com.example.tenant.currentTenant
 
 fun Route.familyRoutes() {
 
     authenticate("auth-jwt") {
         get {
-            val allFamilies = FamilyRepository.findAll()
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
+            val allFamilies = FamilyRepository.findAll(tenantSchema)
             call.respond(HttpStatusCode.OK, allFamilies)
         }
 
-
-
         get("/paginated") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
             val search = call.request.queryParameters["search"]?.trim()
 
             val (families, total) =
-                FamilyRepository.findAllPaginated(page, limit, search)
+                FamilyRepository.findAllPaginated(
+                    tenantSchema = tenantSchema,
+                    page = page,
+                    limit = limit,
+                    search = search
+                )
 
             val response = PaginatedResponse(
                 data = families,
@@ -46,32 +56,51 @@ fun Route.familyRoutes() {
             call.respond(HttpStatusCode.OK, response)
         }
 
-
         post {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val req = call.receive<CreateFamilyRequest>()
-            val created = FamilyRepository.create(req.name)
+
+            val created = FamilyRepository.create(
+                tenantSchema = tenantSchema,
+                name = req.name
+            )
+
             call.respond(HttpStatusCode.Created, created)
         }
 
         delete("{id}") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
+
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "invalid ID")
                 return@delete
             }
-            val ok = FamilyRepository.delete(id)
+
+            val ok = FamilyRepository.delete(
+                tenantSchema = tenantSchema,
+                id = id
+            )
+
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "Family not found")
                 return@delete
             } else {
                 call.respond(HttpStatusCode.NoContent)
             }
-
         }
 
         patch("{id}") {
 
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
+
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid id")
                 return@patch
@@ -79,7 +108,11 @@ fun Route.familyRoutes() {
 
             val req = call.receive<CreateFamilyRequest>()
 
-            val updated = FamilyRepository.update(id, req.name)
+            val updated = FamilyRepository.update(
+                tenantSchema = tenantSchema,
+                id = id,
+                name = req.name
+            )
 
             if (updated == null) {
                 call.respond(HttpStatusCode.NotFound, "Family not found")
@@ -87,7 +120,6 @@ fun Route.familyRoutes() {
                 call.respond(HttpStatusCode.OK, updated)
             }
         }
-
     }
 
 

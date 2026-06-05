@@ -15,6 +15,9 @@ import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
+import org.jetbrains.exposed.sql.transactions.transaction
+
+
 object StudentAcademicRecordRepository {
 
     /**
@@ -35,10 +38,11 @@ object StudentAcademicRecordRepository {
     }
 
     /**
-     * ✅ Equivalent of by_student(student_id)
+     * ✅mmmmmmmmmmmmmmmmmby_student(student_id)
      * GET all report cards for a student profile id
      */
-    fun findAllByStudentId(studentId: Int): List<StudentReportCardResponse> = transaction {
+    fun findAllByStudentId(tenantSchema: String, studentId: Int): List<StudentReportCardResponse> = transaction {
+        setTenantSchema(tenantSchema)
         val studentEid = EntityID(studentId, StudentsTable)
 
         val rows = baseQuery()
@@ -55,7 +59,8 @@ object StudentAcademicRecordRepository {
      * ✅ Equivalent of by_user(user_id) in Django
      * Here user_id is AccountTable.userId (string like "43227969")
      */
-    fun findAllByUserId(userId: String): List<StudentReportCardResponse> = transaction {
+    fun findAllByUserId( tenantSchema: String, userId: String): List<StudentReportCardResponse> = transaction {
+        setTenantSchema(tenantSchema)
         val rows = baseQuery()
             .selectAll()
             .where { AccountTable.userId eq userId }
@@ -69,7 +74,8 @@ object StudentAcademicRecordRepository {
     /**
      * ✅ Equivalent of get_record(pk)
      */
-    fun findOneByRecordId(recordId: Int): StudentReportCardResponse? = transaction {
+    fun findOneByRecordId(tenantSchema: String, recordId: Int): StudentReportCardResponse? = transaction {
+        setTenantSchema(tenantSchema)
         val rows = baseQuery()
             .selectAll()
             .where { AcademicRecordsTable.id eq recordId }

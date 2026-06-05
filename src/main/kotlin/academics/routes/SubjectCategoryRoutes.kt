@@ -4,6 +4,7 @@ package com.example.academics.routes
 
 import com.example.academics.dtos.requests.CreateSubjectCategoryRequest
 import com.example.academics.repos.SubjectCategoryRepository
+import com.example.tenant.currentTenant
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -11,21 +12,31 @@ import io.ktor.server.routing.*
 
 fun Route.subjectCategoryRoutes() {
 
-    // ✅ GET ALL
     get {
-        val data = SubjectCategoryRepository.findAll()
+
+        val tenant = call.currentTenant()
+
+        val data = SubjectCategoryRepository.findAll(
+            tenantSchema = tenant.tenantSchema
+        )
+
         call.respond(HttpStatusCode.OK, data)
     }
 
-    // ✅ CREATE
     post {
+
         val req = call.receive<CreateSubjectCategoryRequest>()
 
-        val result = SubjectCategoryRepository.create(req)
+        val tenant = call.currentTenant()
+
+        val result = SubjectCategoryRepository.create(
+            tenantSchema = tenant.tenantSchema,
+            req = req
+        )
+
         call.respond(HttpStatusCode.Created, result)
     }
 
-    // ✅ UPDATE SUBJECTS
     put("{id}/subjects") {
 
         val id = call.parameters["id"]?.toIntOrNull()
@@ -36,12 +47,17 @@ fun Route.subjectCategoryRoutes() {
             return@put
         }
 
-        SubjectCategoryRepository.updateSubjects(id, req.subjectIds)
+        val tenant = call.currentTenant()
+
+        SubjectCategoryRepository.updateSubjects(
+            tenantSchema = tenant.tenantSchema,
+            id = id,
+            subjectIds = req.subjectIds
+        )
 
         call.respond(HttpStatusCode.OK)
     }
 
-    // ✅ DELETE
     delete("{id}") {
 
         val id = call.parameters["id"]?.toIntOrNull()
@@ -51,9 +67,17 @@ fun Route.subjectCategoryRoutes() {
             return@delete
         }
 
-        val ok = SubjectCategoryRepository.delete(id)
+        val tenant = call.currentTenant()
 
-        if (!ok) call.respond(HttpStatusCode.NotFound)
-        else call.respond(HttpStatusCode.NoContent)
+        val ok = SubjectCategoryRepository.delete(
+            tenantSchema = tenant.tenantSchema,
+            id = id
+        )
+
+        if (!ok) {
+            call.respond(HttpStatusCode.NotFound)
+        } else {
+            call.respond(HttpStatusCode.NoContent)
+        }
     }
 }

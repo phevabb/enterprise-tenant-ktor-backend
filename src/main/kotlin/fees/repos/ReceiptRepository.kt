@@ -15,14 +15,19 @@ import java.time.format.DateTimeFormatter
 
 object ReceiptRepository {
 
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        val safeSchema = tenantSchema.replace("\"", "\"\"")
+        exec("""SET LOCAL search_path TO "$safeSchema"""")
+    }
+
     private fun generateReceiptNo(): String {
-        // Example: PSS-20260528-000123
         val date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
         val rand = (100000..999999).random()
         return "PSS-$date-$rand"
     }
 
     fun createReceipt(
+        tenantSchema: String,
         paymentId: Int,
         studentFeeRecordId: Int,
         studentId: Int,
@@ -34,6 +39,8 @@ object ReceiptRepository {
         balanceAfter: Int,
         paymentMethod: String?
     ): ReceiptResponse = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val receiptNo = generateReceiptNo()
 
@@ -73,7 +80,13 @@ object ReceiptRepository {
         )
     }
 
-    fun findById(id: Int): ReceiptResponse? = transaction {
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): ReceiptResponse? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         ReceiptsTable
             .selectAll()
             .where { ReceiptsTable.id eq id }

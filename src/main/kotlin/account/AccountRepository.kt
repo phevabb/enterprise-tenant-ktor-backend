@@ -1,13 +1,24 @@
 package com.example.account
 
+import com.example.tenant.tenantTransaction
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
+
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.insertAndGetId
+
+
+import org.jetbrains.exposed.sql.update
+
 object AccountRepository {
 
-    /** ✅ Create account (Django: User.objects.create + set_password) */
+    /**
+     * Create account inside a specific tenant schema.
+     */
     fun create(
+        tenantSchema: String,
         userId: String,
         pin: String,
         fullName: String,
@@ -17,8 +28,34 @@ object AccountRepository {
         role: String,
         isActive: Boolean,
         isStaff: Boolean
-    ): Account = transaction {
+    ): Account = tenantTransaction(tenantSchema) {
+        createInCurrentTransaction(
+            userId = userId,
+            pin = pin,
+            fullName = fullName,
+            gender = gender,
+            dateOfBirth = dateOfBirth,
+            nationality = nationality,
+            role = role,
+            isActive = isActive,
+            isStaff = isStaff
+        )
+    }
 
+    /**
+     * Use only when already inside tenantTransaction(tenantSchema) { ... }
+     */
+    fun createInCurrentTransaction(
+        userId: String,
+        pin: String,
+        fullName: String,
+        gender: String?,
+        dateOfBirth: String?,
+        nationality: String?,
+        role: String,
+        isActive: Boolean,
+        isStaff: Boolean
+    ): Account {
         val id = AccountTable.insertAndGetId {
             it[AccountTable.userId] = userId
             it[AccountTable.pin] = pin
@@ -32,82 +69,144 @@ object AccountRepository {
             it[AccountTable.passwordHash] = hashPassword(pin)
         }.value
 
-        findById(id)!!
+        return findByIdInCurrentTransaction(id)
+            ?: throw IllegalStateException("Account was created but could not be retrieved.")
     }
 
-    /** ✅ Check if a user_id exists */
-    fun existsByUserId(userId: String): Boolean = transaction {
-        AccountTable
+    fun existsByUserId(
+        tenantSchema: String,
+        userId: String
+    ): Boolean = tenantTransaction(tenantSchema) {
+        existsByUserIdInCurrentTransaction(userId)
+    }
+
+    fun existsByUserIdInCurrentTransaction(userId: String): Boolean {
+        return AccountTable
             .selectAll()
             .where { AccountTable.userId eq userId }
             .count() > 0
     }
 
-    /** ✅ Find by internal DB id */
-    fun findById(id: Int): Account? = transaction {
-        AccountTable
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): Account? = tenantTransaction(tenantSchema) {
+        findByIdInCurrentTransaction(id)
+    }
+
+    fun findByIdInCurrentTransaction(id: Int): Account? {
+        return AccountTable
             .selectAll()
             .where { AccountTable.id eq id }
             .singleOrNull()
             ?.toAccount()
     }
 
-    /** ✅ Find by public user_id */
-    fun findByUserId(userId: String): Account? = transaction {
-        AccountTable
+    fun findByUserId(
+        tenantSchema: String,
+        userId: String
+    ): Account? = tenantTransaction(tenantSchema) {
+        findByUserIdInCurrentTransaction(userId)
+    }
+
+    fun findByUserIdInCurrentTransaction(userId: String): Account? {
+        return AccountTable
             .selectAll()
             .where { AccountTable.userId eq userId }
             .singleOrNull()
             ?.toAccount()
     }
 
-    /** ✅ Enable / disable account */
-    fun setActive(id: Int, active: Boolean): Boolean = transaction {
-        AccountTable.update({ AccountTable.id eq id }) {
+    fun setActive(
+        tenantSchema: String,
+        id: Int,
+        active: Boolean
+    ): Boolean = tenantTransaction(tenantSchema) {
+        setActiveInCurrentTransaction(id, active)
+    }
+
+    fun setActiveInCurrentTransaction(
+        id: Int,
+        active: Boolean
+    ): Boolean {
+        return AccountTable.update({ AccountTable.id eq id }) {
             it[isActive] = active
         } > 0
     }
 
-    /** ✅ Update password / pin */
-    fun updatePassword(id: Int, rawPassword: String): Boolean = transaction {
-        AccountTable.update({ AccountTable.id eq id }) {
+    fun updatePassword(
+        tenantSchema: String,
+        id: Int,
+        rawPassword: String
+    ): Boolean = tenantTransaction(tenantSchema) {
+        updatePasswordInCurrentTransaction(id, rawPassword)
+    }
+
+    fun updatePasswordInCurrentTransaction(
+        id: Int,
+        rawPassword: String
+    ): Boolean {
+        return AccountTable.update({ AccountTable.id eq id }) {
             it[passwordHash] = hashPassword(rawPassword)
             it[pin] = rawPassword
         } > 0
     }
 
-    /** ⚠️ Replace with BCrypt/Argon2 later */
-    private fun hashPassword(raw: String): String {
-        return raw.reversed() // placeholder
-    }
-
     fun updateProfilePicture(
+        tenantSchema: String,
         accountId: Int,
         profilePictureUrl: String?,
         profilePicturePublicId: String?
-    ): Boolean = transaction {
-        AccountTable.update({ AccountTable.id eq accountId }) {
+    ): Boolean = tenantTransaction(tenantSchema) {
+        updateProfilePictureInCurrentTransaction(
+            accountId = accountId,
+            profilePictureUrl = profilePictureUrl,
+            profilePicturePublicId = profilePicturePublicId
+        )
+    }
+
+    fun updateProfilePictureInCurrentTransaction(
+        accountId: Int,
+        profilePictureUrl: String?,
+        profilePicturePublicId: String?
+    ): Boolean {
+        return AccountTable.update({ AccountTable.id eq accountId }) {
             it[AccountTable.profilePictureUrl] = profilePictureUrl
             it[AccountTable.profilePicturePublicId] = profilePicturePublicId
         } > 0
     }
 
+    fun getProfilePicturePublicId(
+        tenantSchema: String,
+        accountId: Int
+    ): String? = tenantTransaction(tenantSchema) {
+        getProfilePicturePublicIdInCurrentTransaction(accountId)
+    }
 
-
-
-    fun getProfilePicturePublicId(accountId: Int): String? = transaction {
-        AccountTable
+    fun getProfilePicturePublicIdInCurrentTransaction(accountId: Int): String? {
+        return AccountTable
             .selectAll()
             .where { AccountTable.id eq accountId }
             .singleOrNull()
             ?.get(AccountTable.profilePicturePublicId)
     }
 
-    fun clearProfilePicture(accountId: Int): Boolean = transaction {
-        AccountTable.update({ AccountTable.id eq accountId }) {
+    fun clearProfilePicture(
+        tenantSchema: String,
+        accountId: Int
+    ): Boolean = tenantTransaction(tenantSchema) {
+        clearProfilePictureInCurrentTransaction(accountId)
+    }
+
+    fun clearProfilePictureInCurrentTransaction(accountId: Int): Boolean {
+        return AccountTable.update({ AccountTable.id eq accountId }) {
             it[profilePictureUrl] = null
             it[profilePicturePublicId] = null
         } > 0
     }
 
+    private fun hashPassword(raw: String): String {
+        return raw.reversed()
+    }
 }
+

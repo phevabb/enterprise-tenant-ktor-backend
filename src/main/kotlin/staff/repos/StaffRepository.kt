@@ -1,93 +1,157 @@
 package com.example.staff.repos
 
-
-import com.example.staff.models.StaffProfile
-import com.example.staff.mappers.toStaffProfile
-import com.example.staff.dtos.response.StaffProfileResponse
-
+import com.example.academics.repos.setTenantSchema
 import com.example.account.AccountTable
 import com.example.staff.dtos.requests.PatchStaffRequest
-import com.example.staff.dtos.response.StudentLiteResponse
-import com.example.staff.tables.StaffTable
+
 import com.example.student.StudentsTable
 import com.example.student.dtos.response.GradeClassResponse
 import com.example.student.dtos.response.StudentUserResponse
 import com.example.student.tables.NewGradeClassTable
-
 import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+
+import com.example.staff.dtos.response.StaffProfileResponse
+import com.example.staff.dtos.response.StudentLiteResponse
+import com.example.staff.mappers.toStaffProfile
+import com.example.staff.models.StaffProfile
+import com.example.staff.tables.StaffTable
+import org.jetbrains.exposed.sql.or
 
 object StaffRepository {
 
-    /** ✅ Create staff profile */
-    fun create(profile: StaffProfile) = transaction {
-
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun createInCurrentTransaction(profile: StaffProfile): StaffProfileResponse {
         val id = StaffTable.insertAndGetId {
-
-            it[user] = profile.user?.let {
-                EntityID(it, AccountTable)
+            it[user] = profile.user?.let { userId ->
+                EntityID(userId, AccountTable)
             }
 
-            it[assignedClass] = profile.assignedClassId?.let {
-                EntityID(it, NewGradeClassTable)
+            it[assignedClass] = profile.assignedClassId?.let { classId ->
+                EntityID(classId, NewGradeClassTable)
             }
 
             it[tel] = profile.tel
-
         }.value
 
-        findByIdWithUserAndClass(id)!!
+        return findByIdWithUserAndClassInCurrentTransaction(id)
+            ?: throw IllegalStateException("Staff profile was created but could not be retrieved.")
     }
 
-    /** ✅ Get all staff */
-    fun findAll(): List<StaffProfile> = transaction {
-        StaffTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun create(profile: StaffProfile): StaffProfileResponse = transaction {
+        createInCurrentTransaction(profile)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllInCurrentTransaction(): List<StaffProfile> {
+        return StaffTable
             .selectAll()
             .orderBy(StaffTable.id, SortOrder.DESC)
             .map { it.toStaffProfile() }
     }
 
-    /** ✅ Get by profile ID */
-    fun findById(id: Int): StaffProfile? = transaction {
-        StaffTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findAll(): List<StaffProfile> = transaction {
+        findAllInCurrentTransaction()
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByIdInCurrentTransaction(id: Int): StaffProfile? {
+        return StaffTable
             .selectAll()
             .where { StaffTable.id eq id }
             .singleOrNull()
             ?.toStaffProfile()
     }
 
-    /** ✅ OneToOne lookup */
-    fun findByUserId(userId: Int): StaffProfile? = transaction {
-        StaffTable
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findById(id: Int): StaffProfile? = transaction {
+        findByIdInCurrentTransaction(id)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByUserIdInCurrentTransaction(userId: Int): StaffProfile? {
+        return StaffTable
             .selectAll()
             .where { StaffTable.user eq EntityID(userId, AccountTable) }
             .singleOrNull()
             ?.toStaffProfile()
     }
 
-    /** ✅ Delete */
-    fun delete(id: Int): Boolean = transaction {
-        StaffTable.deleteWhere { StaffTable.id eq id } > 0
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findByUserId(
+        tenantSchema: String,
+        userId: Int
+    ): StaffProfile? = transaction {
+
+        setTenantSchema(tenantSchema)
+        findByUserIdInCurrentTransaction(userId)
     }
 
-    /** ✅ Exists */
-    fun existsById(id: Int): Boolean = transaction {
-        StaffTable
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun deleteInCurrentTransaction(id: Int): Boolean {
+        return StaffTable.deleteWhere { StaffTable.id eq id } > 0
+    }
+
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun delete(id: Int): Boolean = transaction {
+        deleteInCurrentTransaction(id)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun existsByIdInCurrentTransaction(id: Int): Boolean {
+        return StaffTable
             .selectAll()
             .where { StaffTable.id eq id }
             .count() > 0
     }
 
     /**
-     * ✅ JOIN → Return nested response (LIKE Django serializer)
+     * Wrapper version if you want repository to open a transaction itself.
      */
-    fun findAllWithUserAndClass(search: String?): List<StaffProfileResponse> = transaction {
+    fun existsById(id: Int): Boolean = transaction {
+        existsByIdInCurrentTransaction(id)
+    }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllWithUserAndClassInCurrentTransaction(
+        search: String?
+    ): List<StaffProfileResponse> {
         val query = StaffTable
             .join(AccountTable, JoinType.INNER, StaffTable.user, AccountTable.id)
             .join(NewGradeClassTable, JoinType.LEFT, StaffTable.assignedClass, NewGradeClassTable.id)
@@ -101,8 +165,7 @@ object StaffRepository {
             }
         }
 
-        query.map { row ->
-
+        return query.map { row ->
             val user = StudentUserResponse(
                 id = row[AccountTable.id].value,
                 userId = row[AccountTable.userId],
@@ -127,19 +190,36 @@ object StaffRepository {
         }
     }
 
-    /** ✅ Single with JOIN (like Django detail view) */
-    fun findByIdWithUserAndClass(id: Int): StaffProfileResponse? = transaction {
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findAllWithUserAndClass(
+        tenantSchema: String,
+        search: String?
+    ): List<StaffProfileResponse> = transaction {
 
+        require(tenantSchema.matches(Regex("^[a-zA-Z0-9_]+$"))) {
+            "Invalid tenant schema"
+        }
+
+        setTenantSchema(tenantSchema)
+        findAllWithUserAndClassInCurrentTransaction(search)
+    }
+
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByIdWithUserAndClassInCurrentTransaction(id: Int): StaffProfileResponse? {
         val query = StaffTable
             .join(AccountTable, JoinType.INNER, StaffTable.user, AccountTable.id)
             .join(NewGradeClassTable, JoinType.LEFT, StaffTable.assignedClass, NewGradeClassTable.id)
 
-        query
+        return query
             .selectAll()
             .where { StaffTable.id eq id }
             .singleOrNull()
             ?.let { row ->
-
                 val user = StudentUserResponse(
                     id = row[AccountTable.id].value,
                     userId = row[AccountTable.userId],
@@ -164,22 +244,31 @@ object StaffRepository {
             }
     }
 
-    fun patchNested(id: Int, req: PatchStaffRequest): StaffProfileResponse? = transaction {
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findByIdWithUserAndClass(id: Int): StaffProfileResponse? = transaction {
+        findByIdWithUserAndClassInCurrentTransaction(id)
+    }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun patchNestedInCurrentTransaction(
+        id: Int,
+        req: PatchStaffRequest
+    ): StaffProfileResponse? {
         val row = StaffTable
             .selectAll()
             .where { StaffTable.id eq id }
             .singleOrNull()
-            ?: return@transaction null
+            ?: return null
 
         val accountId = row[StaffTable.user]?.value
 
-        // ✅ update staff fields
         StaffTable.update({ StaffTable.id eq id }) { u ->
-
             if (req.assignedClassId != null) {
-                u[StaffTable.assignedClass] =
-                    EntityID(req.assignedClassId, NewGradeClassTable)
+                u[StaffTable.assignedClass] = EntityID(req.assignedClassId, NewGradeClassTable)
             } else {
                 u[StaffTable.assignedClass] = null
             }
@@ -187,11 +276,9 @@ object StaffRepository {
             req.tel?.let { u[StaffTable.tel] = it }
         }
 
-        // ✅ update user (if present)
         if (accountId != null) {
             req.user?.let { userPatch ->
                 AccountTable.update({ AccountTable.id eq accountId }) { a ->
-
                     userPatch.fullName?.let { a[AccountTable.fullName] = it }
                     userPatch.gender?.let { a[AccountTable.gender] = it }
                     userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
@@ -203,33 +290,45 @@ object StaffRepository {
             }
         }
 
-        // ✅ return updated data
-        findByIdWithUserAndClass(id)
+        return findByIdWithUserAndClassInCurrentTransaction(id)
     }
 
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun patchNested(
+        tenantSchema: String,
+        id: Int,
+        req: PatchStaffRequest
+    ): StaffProfileResponse? = transaction {
 
+        setTenantSchema(tenantSchema)
+        patchNestedInCurrentTransaction(id, req)
+    }
 
-
-        fun findStudentsByClass(classId: Int): List<StudentLiteResponse> = transaction {
-
-            StudentsTable
-                .join(
-                    AccountTable,
-                    JoinType.INNER,
-                    StudentsTable.user,
-                    AccountTable.id
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findStudentsByClassInCurrentTransaction(classId: Int): List<StudentLiteResponse> {
+        return StudentsTable
+            .join(AccountTable, JoinType.INNER, StudentsTable.user, AccountTable.id)
+            .selectAll()
+            .where { StudentsTable.currentNewGradeClass eq classId }
+            .orderBy(AccountTable.fullName to SortOrder.ASC)
+            .map {
+                StudentLiteResponse(
+                    id = it[StudentsTable.id].value,
+                    full_name = it[AccountTable.fullName],
+                    indexNo = it[AccountTable.userId]
                 )
-                .selectAll()
-                .where { StudentsTable.currentNewGradeClass eq classId }
-                .orderBy(AccountTable.fullName to SortOrder.ASC)
-                .map {
+            }
+    }
 
-                    StudentLiteResponse(
-                        id = it[StudentsTable.id].value,
-                        full_name = it[AccountTable.fullName],
-                        indexNo = it[AccountTable.userId]
-                    )
-                }
-        }
-
+    /**
+     * Wrapper version if you want repository to open a transaction itself.
+     */
+    fun findStudentsByClass(classId: Int): List<StudentLiteResponse> = transaction {
+        findStudentsByClassInCurrentTransaction(classId)
+    }
 }
+

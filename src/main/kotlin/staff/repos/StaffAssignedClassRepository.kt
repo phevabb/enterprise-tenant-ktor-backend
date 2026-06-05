@@ -2,7 +2,7 @@ package com.example.staff.repos
 
 import com.example.academics.dtos.response.AssignedClassDto
 import com.example.academics.dtos.response.AssignedClassResponse
-
+import com.example.academics.repos.setTenantSchema
 
 
 import com.example.staff.tables.StaffTable
@@ -14,15 +14,18 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object StaffAssignedClassRepository {
 
-    fun findAssignedClassByUserId(userId: String): AssignedClassResponse? = transaction {
+    fun findAssignedClassByUserId(
+        tenantSchema: String,
+        userId: String
+    ): AssignedClassResponse? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val row = StaffTable
-            // join staff_profile.user -> accounts.id
             .join(AccountTable, JoinType.INNER, StaffTable.user, AccountTable.id)
-            // join assigned_class_id -> grade_classes.id (nullable)
             .join(NewGradeClassTable, JoinType.LEFT, StaffTable.assignedClass, NewGradeClassTable.id)
             .selectAll()
-            .where { AccountTable.userId eq userId }   // ✅ userId is the string "43227969"
+            .where { AccountTable.userId eq userId }
             .singleOrNull()
             ?: return@transaction null
 
@@ -37,6 +40,5 @@ object StaffAssignedClassRepository {
             userId = userId,
             assignedClass = assigned
         )
-    }
-}
+    }}
 

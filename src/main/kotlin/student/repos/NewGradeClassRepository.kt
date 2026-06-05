@@ -12,30 +12,48 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object NewGradeClassRepository {
 
-    // ✅ CREATE CLASS
     fun create(
+        tenantSchema: String,
         name: String,
         isActive: Boolean,
         categoryId: Int
     ): NewGradeClassModel = transaction {
 
+        setTenantSchema(tenantSchema)
+
         val id = NewGradeClassTable.insertAndGetId {
             it[NewGradeClassTable.name] = name.trim()
             it[NewGradeClassTable.isActive] = isActive
-            it[NewGradeClassTable.category] = EntityID(categoryId, CategoriesTable)
+            it[NewGradeClassTable.category] =
+                EntityID(categoryId, CategoriesTable)
         }.value
 
-        // ✅ return joined object with categoryName
-        findByIdWithCategory(id)!!
+        findByIdWithCategory(
+            tenantSchema = tenantSchema,
+            id = id
+        )!!
     }
 
-    // ✅ FIND BY ID (FIXED: join category)
-    fun findById(id: Int): NewGradeClassModel? = transaction {
-        findByIdWithCategory(id)
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): NewGradeClassModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        findByIdWithCategory(
+            tenantSchema = tenantSchema,
+            id = id
+        )
     }
 
-    // ✅ FIND ALL (already correct)
-    fun findAll(): List<NewGradeClassModel> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<NewGradeClassModel> = transaction {
+
+        setTenantSchema(tenantSchema)
+
+
         NewGradeClassTable
             .join(
                 CategoriesTable,
@@ -48,37 +66,61 @@ object NewGradeClassRepository {
             .map { it.toNewGradeClassModel() }
     }
 
-    // ✅ DELETE
-    fun delete(id: Int): Boolean = transaction {
-        NewGradeClassTable.deleteWhere { NewGradeClassTable.id eq id } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        NewGradeClassTable.deleteWhere {
+            NewGradeClassTable.id eq id
+        } > 0
     }
 
-    // ✅ PATCH / UPDATE (FIXED: return joined fetch)
-    fun patch(id: Int, req: PatchNewGradeClassRequest): NewGradeClassModel? = transaction {
+    fun patch(
+        tenantSchema: String,
+        id: Int,
+        req: PatchNewGradeClassRequest
+    ): NewGradeClassModel? = transaction {
 
-        val rowsUpdated = NewGradeClassTable.update({ NewGradeClassTable.id eq id }) { row ->
+        setTenantSchema(tenantSchema)
 
-            req.name?.let { row[NewGradeClassTable.name] = it.trim() }
-            req.isActive?.let { row[NewGradeClassTable.isActive] = it }
+        val rowsUpdated = NewGradeClassTable.update({
+            NewGradeClassTable.id eq id
+        }) { row ->
+
+            req.name?.let {
+                row[NewGradeClassTable.name] = it.trim()
+            }
+
+            req.isActive?.let {
+                row[NewGradeClassTable.isActive] = it
+            }
 
             req.categoryId?.let {
-                row[NewGradeClassTable.category] = EntityID(it, CategoriesTable)
+                row[NewGradeClassTable.category] =
+                    EntityID(it, CategoriesTable)
             }
         }
 
-        if (rowsUpdated == 0) null else findByIdWithCategory(id)
-    }
-
-    // ✅ ASSIGN SINGLE CLASS → CATEGORY (return updated model if you want)
-    fun assignToCategory(classId: Int, categoryId: Int): NewGradeClassModel? = transaction {
-        NewGradeClassTable.update({ NewGradeClassTable.id eq classId }) {
-            it[NewGradeClassTable.category] = EntityID(categoryId, CategoriesTable)
+        if (rowsUpdated == 0) {
+            null
+        } else {
+            findByIdWithCategory(
+                tenantSchema = tenantSchema,
+                id = id
+            )
         }
-        findByIdWithCategory(classId)
     }
 
-    // ✅ FIND BY ID WITH CATEGORY (already correct)
-    fun findByIdWithCategory(id: Int): NewGradeClassModel? = transaction {
+    fun findByIdWithCategory(
+        tenantSchema: String,
+        id: Int
+    ): NewGradeClassModel? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         NewGradeClassTable
             .join(
                 CategoriesTable,
@@ -90,12 +132,5 @@ object NewGradeClassRepository {
             .where { NewGradeClassTable.id eq id }
             .singleOrNull()
             ?.toNewGradeClassModel()
-    }
-
-    // ✅ ASSIGN MANY CLASSES → CATEGORY
-    fun assignManyToCategory(classIds: List<Int>, categoryId: Int): Int = transaction {
-        NewGradeClassTable.update({ NewGradeClassTable.id inList classIds }) {
-            it[NewGradeClassTable.category] = EntityID(categoryId, CategoriesTable)
-        }
     }
 }

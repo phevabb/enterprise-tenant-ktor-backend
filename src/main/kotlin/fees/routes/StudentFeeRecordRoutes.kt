@@ -8,6 +8,7 @@ import com.example.fees.dtos.responses.ArrearsResponse
 import com.example.fees.repos.StudentFeeRecordRepository
 import com.example.student.dtos.PaginatedResponse
 import com.example.student.dtos.PaginationMeta
+import com.example.tenant.currentTenant
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -23,21 +24,30 @@ fun Route.studentFeeRecordRoutes() {
          * Optional query: ?studentId=123  -> returns records for student
          */
         get {
-            val result = StudentFeeRecordRepository.findAll()
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
+            val result = StudentFeeRecordRepository.findAll(tenantSchema)
             call.respond(HttpStatusCode.OK, result)
         }
 
         get("/paginated") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
 
             val search = call.request.queryParameters["search"]?.trim()
             val feeStructureId = call.request.queryParameters["fee_structure_id"]?.toIntOrNull()
             val isFullyPaid =
-                call.request.queryParameters["is_fully_paid"]?.trim()?.lowercase()?.toBooleanStrictOrNull()
-            // is_fully_paid=true|false (anything else becomes null = ignore)
+                call.request.queryParameters["is_fully_paid"]
+                    ?.trim()
+                    ?.lowercase()
+                    ?.toBooleanStrictOrNull()
 
             val (records, total) = StudentFeeRecordRepository.findAllPaginated(
+                tenantSchema = tenantSchema,
                 page = page,
                 limit = limit,
                 search = search,
@@ -58,29 +68,33 @@ fun Route.studentFeeRecordRoutes() {
             call.respond(HttpStatusCode.OK, response)
         }
 
-
-
-
-
         get("{id}") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
                 ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid id")
 
-            val record = StudentFeeRecordRepository.findById(id)
-                ?: return@get call.respond(HttpStatusCode.NotFound, "Student fee record not found")
+            val record = StudentFeeRecordRepository.findById(
+                tenantSchema = tenantSchema,
+                id = id
+            ) ?: return@get call.respond(
+                HttpStatusCode.NotFound,
+                "Student fee record not found"
+            )
 
             call.respond(HttpStatusCode.OK, record)
         }
 
-        /**
-         * POST /api/student-fee-record
-         * Body: { "studentId": 1, "feeStructureId": 10 }
-         */
         post {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val req = call.receive<CreateStudentFeeRecordRequest>()
 
             val created = try {
                 StudentFeeRecordRepository.create(
+                    tenantSchema = tenantSchema,
                     studentId = req.studentId,
                     feeStructureId = req.feeStructureId
                 )
@@ -95,18 +109,23 @@ fun Route.studentFeeRecordRoutes() {
             call.respond(HttpStatusCode.Created, created)
         }
 
-        /**
-         * PATCH /api/student-fee-record/{id}/payment
-         * Body: { "payment": 100 }
-         */
         patch("{id}/payment") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
                 ?: return@patch call.respond(HttpStatusCode.BadRequest, "Invalid id")
 
             val req = call.receive<AddPaymentRequest>()
 
-            val updated = StudentFeeRecordRepository.addPayment(id, req.payment)
-                ?: return@patch call.respond(HttpStatusCode.NotFound, "Student fee record not found")
+            val updated = StudentFeeRecordRepository.addPayment(
+                tenantSchema = tenantSchema,
+                recordId = id,
+                payment = req.payment
+            ) ?: return@patch call.respond(
+                HttpStatusCode.NotFound,
+                "Student fee record not found"
+            )
 
             call.respond(HttpStatusCode.OK, updated)
         }
@@ -116,6 +135,9 @@ fun Route.studentFeeRecordRoutes() {
          * Optional: &excludeRecordId=12
          */
         get("arrears") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val studentId = call.request.queryParameters["studentId"]?.toIntOrNull()
                 ?: return@get call.respond(HttpStatusCode.BadRequest, "studentId is required")
 
@@ -125,22 +147,32 @@ fun Route.studentFeeRecordRoutes() {
             val excludeId = call.request.queryParameters["excludeRecordId"]?.toIntOrNull()
 
             val total = StudentFeeRecordRepository.totalArrears(
+                tenantSchema = tenantSchema,
                 studentId = studentId,
                 academicYearId = academicYearId,
                 excludeRecordId = excludeId
             )
 
-            call.respond(HttpStatusCode.OK, ArrearsResponse(studentId, academicYearId, total))
+            call.respond(
+                HttpStatusCode.OK,
+                ArrearsResponse(studentId, academicYearId, total)
+            )
         }
 
         /**
          * DELETE /api/student-fee-record/{id}
          */
         delete("{id}") {
+            val tenant = call.currentTenant()
+            val tenantSchema = tenant.tenantSchema
+
             val id = call.parameters["id"]?.toIntOrNull()
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid id")
 
-            val ok = StudentFeeRecordRepository.delete(id)
+            val ok = StudentFeeRecordRepository.delete(
+                tenantSchema = tenantSchema,
+                id = id
+            )
 
             if (!ok) {
                 call.respond(HttpStatusCode.NotFound, "Student fee record not found")

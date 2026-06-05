@@ -9,11 +9,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
+
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
+
+
+
 object StudentLiteRepo {
-    fun getStudentClassLevelId(studentId: Int): Int? = transaction {
+    fun getStudentClassLevelId(tenantSchema: String, studentId: Int): Int? = transaction {
+        setTenantSchema(tenantSchema)
         StudentsTable.selectAll()
             .where { StudentsTable.id eq studentId }
             .singleOrNull()
@@ -22,7 +26,8 @@ object StudentLiteRepo {
     }
 
 
-    fun getStudentProfileIdByAccountId(accountId: Int): Int? = transaction {
+    fun getStudentProfileIdByAccountId(tenantSchema: String, accountId: Int): Int? = transaction {
+        setTenantSchema(tenantSchema)
         StudentsTable
             .selectAll()
             .where { StudentsTable.user eq EntityID(accountId, AccountTable) }

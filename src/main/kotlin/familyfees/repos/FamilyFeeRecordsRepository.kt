@@ -12,17 +12,45 @@ import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object FamilyFeeRecordsRepository {
-    fun findById(id: Int): FamilyFeeRecordsResponseDto? = transaction {
+
+    private fun Transaction.setTenantSchema(tenantSchema: String) {
+        val safeSchema = tenantSchema.replace("\"", "\"\"")
+        exec("""SET LOCAL search_path TO "$safeSchema"""")
+    }
+
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): FamilyFeeRecordsResponseDto? = transaction {
+
+        setTenantSchema(tenantSchema)
+
         FamilyFeeRecordTable
-            .join(AcademicYearTable, JoinType.INNER, FamilyFeeRecordTable.academic_year, AcademicYearTable.id )
-            .join(FamilyTable, JoinType.INNER, FamilyFeeRecordTable.family, FamilyTable.id )
-            .join(TermTable, JoinType.INNER, FamilyFeeRecordTable.term, TermTable.id)
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                FamilyTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.family,
+                FamilyTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.term,
+                TermTable.id
+            )
             .selectAll()
             .where { FamilyFeeRecordTable.id eq id }
             .singleOrNull()
@@ -30,81 +58,128 @@ object FamilyFeeRecordsRepository {
     }
 
     fun create(
-        family : Int,
+        tenantSchema: String,
+        family: Int,
         academic_year: Int,
-        term : Int,
+        term: Int,
         amount_to_pay: Int,
-        amount_paid : Int,
+        amount_paid: Int,
+    ) = transaction {
 
-    )       = transaction {
+        setTenantSchema(tenantSchema)
+
         val id = FamilyFeeRecordTable.insertAndGetId {
-            it[FamilyFeeRecordTable.family] = EntityID(family, FamilyTable)
-            it[FamilyFeeRecordTable.academic_year] = EntityID(academic_year, AcademicYearTable)
-            it[FamilyFeeRecordTable.term] = EntityID(term, TermTable)
+            it[FamilyFeeRecordTable.family] =
+                EntityID(family, FamilyTable)
+
+            it[FamilyFeeRecordTable.academic_year] =
+                EntityID(academic_year, AcademicYearTable)
+
+            it[FamilyFeeRecordTable.term] =
+                EntityID(term, TermTable)
+
             it[FamilyFeeRecordTable.amount_to_pay] = amount_to_pay
             it[FamilyFeeRecordTable.amount_paid] = amount_paid
             it[FamilyFeeRecordTable.balance] = amount_to_pay
             it[FamilyFeeRecordTable.date_created] = System.currentTimeMillis()
-
         }.value
-        findById(id)?: error("record not found")
+
+        findById(tenantSchema, id)
+            ?: error("record not found")
     }
 
-    fun findAll(): List<FamilyFeeRecordsResponseDto> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<FamilyFeeRecordsResponseDto> = transaction {
+
+        setTenantSchema(tenantSchema)
+
         FamilyFeeRecordTable
-            .join(AcademicYearTable, JoinType.INNER, FamilyFeeRecordTable.academic_year, AcademicYearTable.id )
-            .join(FamilyTable, JoinType.INNER, FamilyFeeRecordTable.family, FamilyTable.id )
-            .join(TermTable, JoinType.INNER, FamilyFeeRecordTable.term, TermTable.id)
+            .join(
+                AcademicYearTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.academic_year,
+                AcademicYearTable.id
+            )
+            .join(
+                FamilyTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.family,
+                FamilyTable.id
+            )
+            .join(
+                TermTable,
+                JoinType.INNER,
+                FamilyFeeRecordTable.term,
+                TermTable.id
+            )
             .selectAll()
             .orderBy(FamilyFeeRecordTable.id, SortOrder.DESC)
             .map { it.toFamilyFeeRecordsResponseDto() }
     }
 
-    fun delete(id: Int): Boolean = transaction {
-        FamilyFeeRecordTable.deleteWhere { FamilyFeeRecordTable.id eq id } > 0
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        FamilyFeeRecordTable.deleteWhere {
+            FamilyFeeRecordTable.id eq id
+        } > 0
     }
 
 
     fun findAllPaginated(
+        tenantSchema: String,
         page: Int,
         limit: Int,
         search: String?
     ): Pair<List<FamilyFeeRecordsResponseDto>, Long> = transaction {
 
+        setTenantSchema(tenantSchema)
+
         val offset = ((page - 1) * limit).toLong()
 
-        // ✅ FETCH ALL (SAFE VERSION)
         val rows = FamilyFeeRecordTable
             .join(
                 FamilyTable,
                 JoinType.INNER,
-                additionalConstraint = { FamilyFeeRecordTable.family eq FamilyTable.id }
+                additionalConstraint = {
+                    FamilyFeeRecordTable.family eq FamilyTable.id
+                }
             )
             .join(
                 TermTable,
                 JoinType.INNER,
-                additionalConstraint = { FamilyFeeRecordTable.term eq TermTable.id }
+                additionalConstraint = {
+                    FamilyFeeRecordTable.term eq TermTable.id
+                }
             )
             .join(
                 AcademicYearTable,
                 JoinType.INNER,
-                additionalConstraint = { FamilyFeeRecordTable.academic_year eq AcademicYearTable.id }
+                additionalConstraint = {
+                    FamilyFeeRecordTable.academic_year eq AcademicYearTable.id
+                }
             )
             .selectAll()
             .orderBy(FamilyFeeRecordTable.id, SortOrder.DESC)
             .toList()
 
-        // ✅ CASE-INSENSITIVE SEARCH (KOTLIN SIDE)
         val filtered = if (!search.isNullOrBlank()) {
             val q = search.lowercase()
 
             rows.filter { r ->
-                val familyName = r.getOrNull(FamilyTable.name)?.lowercase() ?: ""
-                val studentName = r.getOrNull(AccountTable.fullName)?.lowercase() ?: ""
+                val familyName =
+                    r.getOrNull(FamilyTable.name)?.lowercase() ?: ""
 
-                familyName.contains(q) || studentName.contains(q)
+                familyName.contains(q)
             }
-        } else rows
+        } else {
+            rows
+        }
 
         val total = filtered.size.toLong()
 
@@ -112,11 +187,11 @@ object FamilyFeeRecordsRepository {
             .drop(offset.toInt())
             .take(limit)
 
-        val result = paginated.map { row ->
-            row.toFamilyFeeRecordsResponseDto()
+        val result = paginated.map {
+            it.toFamilyFeeRecordsResponseDto()
         }
 
-        return@transaction Pair(result, total)
+        Pair(result, total)
     }
 
 

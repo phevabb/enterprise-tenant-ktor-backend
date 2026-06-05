@@ -8,7 +8,13 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object NewAcademicYearRepository {
 
-    fun findAll(): List<AcademicYearResponse> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<AcademicYearResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
+
+
         AcademicYearTable
             .selectAll()
             .orderBy(AcademicYearTable.id, SortOrder.DESC)

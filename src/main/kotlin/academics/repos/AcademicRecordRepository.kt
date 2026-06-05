@@ -11,15 +11,25 @@ import com.example.student.repos.TermRepository
 import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
+import com.example.tenant.currentTenant
 import org.jetbrains.exposed.dao.id.EntityID
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
+
+
+
+
+
+
 object AcademicRecordRepository {
 
-    fun findAllWithScores(): List<AcademicRecordWithScoresResponse> = transaction {
+
+    fun findAllWithScores( tenantSchema: String ): List<AcademicRecordWithScoresResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val rows = AcademicRecordsTable
 
@@ -114,7 +124,12 @@ object AcademicRecordRepository {
         }
     }
 
-    fun findByIdWithScores(recordId: Int): AcademicRecordWithScoresResponse? = transaction {
+
+
+
+
+    fun findByIdWithScores(tenantSchema: String, recordId: Int): AcademicRecordWithScoresResponse? = transaction {
+        setTenantSchema(tenantSchema)
 
         val rows = AcademicRecordsTable
 
@@ -202,9 +217,11 @@ object AcademicRecordRepository {
     }
 
     fun updateRemarks(
+        tenantSchema: String,
         id: Int,
         req: PatchAcademicRecordRemarksRequest
     ): AcademicRecordWithScoresResponse = transaction {
+        setTenantSchema(tenantSchema)
 
         AcademicRecordsTable.update({ AcademicRecordsTable.id eq id }) {
 
@@ -221,11 +238,12 @@ object AcademicRecordRepository {
             req.nextTermBegins?.let { v -> it[nextTermBegins] = v }
         }
 
-        findByIdWithScores(id)
+        findByIdWithScores(tenantSchema, id)
             ?: throw IllegalStateException("Updated but not found")
     }
 
-    fun findByClass(classId: Int): List<AcademicRecordWithScoresResponse> = transaction {
+    fun findByClass(tenantSchema: String, classId: Int): List<AcademicRecordWithScoresResponse> = transaction {
+        setTenantSchema(tenantSchema)
 
         val rows = AcademicRecordsTable
 
@@ -315,7 +333,8 @@ object AcademicRecordRepository {
     }
 
 
-    fun deleteById(recordId: Int): Boolean = transaction {
+    fun deleteById(tenantSchema: String, recordId: Int): Boolean = transaction {
+        setTenantSchema(tenantSchema)
         // ✅ Delete children first to avoid FK constraint issues
         SubjectScoresTable.deleteWhere { SubjectScoresTable.academicRecord eq recordId }
 
@@ -325,10 +344,14 @@ object AcademicRecordRepository {
 
 
 
-    fun findByClassCurrent(classId: Int): List<AcademicRecordWithScoresResponse> = transaction {
+    fun findByClassCurrent(
+        tenantSchema: String,
+        classId: Int
+    ): List<AcademicRecordWithScoresResponse> = transaction {
 
-        // ✅ current term + its academic year (your rule: latest term id)
-        val current = TermRepository.getCurrent_()
+        setTenantSchema(tenantSchema)
+
+        val current = TermRepository.getCurrentt()
             ?: return@transaction emptyList()
 
         val currentTermId = current.id
@@ -419,6 +442,7 @@ object AcademicRecordRepository {
             )
         }
     }
+
 
 
 }

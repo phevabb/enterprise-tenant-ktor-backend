@@ -6,19 +6,26 @@ import com.example.academics.models.Subject
 import com.example.academics.tables.SubjectsTable
 import com.example.academics.tables.CategoriesTable
 
+
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.dao.id.EntityID
 
 
+fun Transaction.setTenantSchema(tenantSchema: String) {
+    val safeSchema = tenantSchema.replace("\"", "\"\"")
+    exec("""SET LOCAL search_path TO "$safeSchema"""")
+}
 
 
 
 
 object SubjectRepository {
 
-    // ✅ CREATE
+
+
+// ✅ CREATE
 
     fun assignManyToCategory(subjectIds: List<Int>, categoryId: Int) = transaction {
         SubjectsTable.update({ SubjectsTable.id inList subjectIds }) {
@@ -27,20 +34,27 @@ object SubjectRepository {
     }
 
 
-    fun create(req: CreateSubjectRequest): Subject = transaction {
+    fun create(
+        tenantSchema: String,
+        req: CreateSubjectRequest
+    ): Subject = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val id = SubjectsTable.insertAndGetId {
-            it[SubjectsTable.name] = req.name.trim()
-
-            it[SubjectsTable.category] =
-                EntityID(req.categoryId, CategoriesTable)
+            it[name] = req.name.trim()
+            it[category] = EntityID(req.categoryId, CategoriesTable)
         }.value
 
-        findById(id)!!
+        findById(tenantSchema, id)!!
     }
 
     // ✅ FIND ALL (FIXED: JOIN added)
-    fun findAll(): List<Subject> = transaction {
+    fun findAll(
+        tenantSchema: String
+    ): List<Subject> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         SubjectsTable
             .join(
@@ -55,7 +69,12 @@ object SubjectRepository {
     }
 
     // ✅ FIND BY ID (FIXED)
-    fun findById(id: Int): Subject? = transaction {
+    fun findById(
+        tenantSchema: String,
+        id: Int
+    ): Subject? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         SubjectsTable
             .join(
@@ -68,39 +87,26 @@ object SubjectRepository {
             .where { SubjectsTable.id eq id }
             .singleOrNull()
             ?.toSubject()
-    }
-
-    // ✅ FIND BY NAME (FIXED)
-    fun findByName(name: String): Subject? = transaction {
-
-        SubjectsTable
-            .join(
-                CategoriesTable,
-                JoinType.LEFT,
-                SubjectsTable.category,
-                CategoriesTable.id
-            )
-            .selectAll()
-            .where { SubjectsTable.name eq name.trim() }
-            .singleOrNull()
-            ?.toSubject()
-    }
-
-    // ✅ EXISTS
-    fun existsById(id: Int): Boolean = transaction {
-        SubjectsTable
-            .selectAll()
-            .where { SubjectsTable.id eq id }
-            .count() > 0
     }
 
     // ✅ DELETE
-    fun delete(id: Int): Boolean = transaction {
+    fun delete(
+        tenantSchema: String,
+        id: Int
+    ): Boolean = transaction {
+
+        setTenantSchema(tenantSchema)
+
         SubjectsTable.deleteWhere { SubjectsTable.id eq id } > 0
     }
 
     // ✅ FIND BY CATEGORY (FIXED)
-    fun findByCategory(categoryId: Int): List<Subject> = transaction {
+    fun findByCategory(
+        tenantSchema: String,
+        categoryId: Int
+    ): List<Subject> = transaction {
+
+        setTenantSchema(tenantSchema)
 
         SubjectsTable
             .join(
@@ -115,17 +121,21 @@ object SubjectRepository {
     }
 
     // ✅ UPDATE
-    fun update(id: Int, req: CreateSubjectRequest): Subject? = transaction {
+    fun update(
+        tenantSchema: String,
+        id: Int,
+        req: CreateSubjectRequest
+    ): Subject? = transaction {
+
+        setTenantSchema(tenantSchema)
 
         val updated = SubjectsTable.update(
             { SubjectsTable.id eq id }
         ) { row ->
-
-            row[SubjectsTable.name] = req.name.trim()
-            row[SubjectsTable.category] =
-                EntityID(req.categoryId, CategoriesTable)
+            row[name] = req.name.trim()
+            row[category] = EntityID(req.categoryId, CategoriesTable)
         }
 
-        if (updated == 0) null else findById(id)
+        if (updated == 0) null else findById(tenantSchema, id)
     }
 }

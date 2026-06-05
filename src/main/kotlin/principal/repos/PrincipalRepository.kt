@@ -1,6 +1,7 @@
 package com.example.principal.repos
 
 
+import com.example.academics.repos.setTenantSchema
 import com.example.account.AccountTable
 import com.example.admin.tables.AdminTable
 import com.example.principal.dtos.requests.PatchPrincipalRequest
@@ -16,62 +17,55 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
+
+import org.jetbrains.exposed.sql.JoinType
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+
 object PrincipalRepository {
 
-
-    fun create(userId: Int?): PrincipalProfileResponse = transaction {
-
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     * Example:
+     *   tenantTransaction(tenantSchema) {
+     *       PrincipalRepository.createInCurrentTransaction(accountId)
+     *   }
+     */
+    fun createInCurrentTransaction(userId: Int): PrincipalProfileResponse {
         val id = PrincipalTable.insertAndGetId {
-            it[user] = userId?.let { EntityID(it, AccountTable) }
+            it[user] = EntityID(userId, AccountTable)
         }.value
 
-        findByIdWithUser(id)!!
+        return findByIdWithUserInCurrentTransaction(id)
+            ?: throw IllegalStateException("Principal profile was created but could not be retrieved.")
     }
 
-
-    fun findAllWithUser(search: String?): List<PrincipalProfileResponse> = transaction {
-
-        val query = PrincipalTable
-            .join(AccountTable, JoinType.INNER, PrincipalTable.user, AccountTable.id)
-            .selectAll()
-
-        if (!search.isNullOrBlank()) {
-            val q = "%${search.lowercase()}%"
-            query.andWhere {
-                AccountTable.fullName.lowerCase() like q
-            }
-        }
-
-        query.map { row ->
-
-            val user = StudentUserResponse(
-                id = row[AccountTable.id].value,
-                userId = row[AccountTable.userId],
-                fullName = row[AccountTable.fullName],
-                gender = row[AccountTable.gender],
-                role = row[AccountTable.role],
-                isActive = row[AccountTable.isActive],
-                pin = row[AccountTable.pin],
-                dateOfBirth = row[AccountTable.dateOfBirth]
-            )
-
-            PrincipalProfileResponse(
-                id = row[PrincipalTable.id].value,
-                user = user
-            )
-        }
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     * For tenant-aware flows, prefer createInCurrentTransaction(...)
+     */
+    fun create(tenantSchema: String,  userId: Int): PrincipalProfileResponse = transaction {
+        setTenantSchema(tenantSchema)
+        createInCurrentTransaction(userId)
     }
 
-
-    fun findByIdWithUser(id: Int): PrincipalProfileResponse? = transaction {
-
-        PrincipalTable
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findByIdWithUserInCurrentTransaction(id: Int): PrincipalProfileResponse? {
+        return PrincipalTable
             .join(AccountTable, JoinType.INNER, PrincipalTable.user, AccountTable.id)
             .selectAll()
             .where { PrincipalTable.id eq id }
             .singleOrNull()
             ?.let { row ->
-
                 val user = StudentUserResponse(
                     id = row[AccountTable.id].value,
                     userId = row[AccountTable.userId],
@@ -90,14 +84,68 @@ object PrincipalRepository {
             }
     }
 
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun findByIdWithUser(tenantSchema: String, id: Int): PrincipalProfileResponse? = transaction {
+        setTenantSchema(tenantSchema)
+        findByIdWithUserInCurrentTransaction(id)
+    }
 
-    fun patchNested(id: Int, req: PatchPrincipalRequest): PrincipalProfileResponse? = transaction {
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun findAllWithUserInCurrentTransaction(search: String?): List<PrincipalProfileResponse> {
+        val query = PrincipalTable
+            .join(AccountTable, JoinType.INNER, PrincipalTable.user, AccountTable.id)
+            .selectAll()
 
+        if (!search.isNullOrBlank()) {
+            val q = "%${search.lowercase()}%"
+            query.andWhere {
+                AccountTable.fullName.lowerCase() like q
+            }
+        }
+
+        return query.map { row ->
+            val user = StudentUserResponse(
+                id = row[AccountTable.id].value,
+                userId = row[AccountTable.userId],
+                fullName = row[AccountTable.fullName],
+                gender = row[AccountTable.gender],
+                role = row[AccountTable.role],
+                isActive = row[AccountTable.isActive],
+                pin = row[AccountTable.pin],
+                dateOfBirth = row[AccountTable.dateOfBirth]
+            )
+
+            PrincipalProfileResponse(
+                id = row[PrincipalTable.id].value,
+                user = user
+            )
+        }
+    }
+
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun findAllWithUser(tenantSchema: String, search: String?): List<PrincipalProfileResponse> = transaction {
+        setTenantSchema(tenantSchema)
+        findAllWithUserInCurrentTransaction(search)
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun patchNestedInCurrentTransaction(
+        id: Int,
+        req: PatchPrincipalRequest
+    ): PrincipalProfileResponse? {
         val row = PrincipalTable
             .selectAll()
             .where { PrincipalTable.id eq id }
             .singleOrNull()
-            ?: return@transaction null
+            ?: return null
 
         val accountId = row[PrincipalTable.user]?.value
 
@@ -115,23 +163,64 @@ object PrincipalRepository {
             }
         }
 
-        findByIdWithUser(id)
+        return findByIdWithUserInCurrentTransaction(id)
     }
 
-
-    fun delete(id: Int): Boolean = transaction {
-        PrincipalTable.deleteWhere { PrincipalTable.id eq id } > 0
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun patchNested(
+        tenantSchema: String,
+        id: Int,
+        req: PatchPrincipalRequest
+    ): PrincipalProfileResponse? = transaction {
+        setTenantSchema(tenantSchema)
+        patchNestedInCurrentTransaction(id, req)
     }
 
-
-    fun countStaff(): Int = transaction {
-        StaffTable.selectAll().count().toInt()
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun deleteInCurrentTransaction(id: Int): Boolean {
+        return PrincipalTable.deleteWhere { PrincipalTable.id eq id } > 0
     }
 
-
-    fun countAdmins(): Int = transaction {
-        AdminTable.selectAll().count().toInt()
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun delete(tenantSchema: String,  id: Int): Boolean = transaction {
+        setTenantSchema(tenantSchema)
+        deleteInCurrentTransaction(id)
     }
 
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun countStaffInCurrentTransaction(): Int {
+        return StaffTable.selectAll().count().toInt()
+    }
 
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun countStaff(tenantSchema: String): Int = transaction {
+        setTenantSchema(tenantSchema)
+        countStaffInCurrentTransaction()
+    }
+
+    /**
+     * Use this when you are already inside the correct tenant transaction/schema.
+     */
+    fun countAdminsInCurrentTransaction(): Int {
+        return AdminTable.selectAll().count().toInt()
+    }
+
+    /**
+     * Wrapper version if you want the repository to open a transaction itself.
+     */
+    fun countAdmins(tenantSchema: String): Int = transaction {
+        setTenantSchema(tenantSchema)
+        countAdminsInCurrentTransaction()
+    }
 }
+
