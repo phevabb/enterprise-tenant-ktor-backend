@@ -33,11 +33,9 @@ val TenantPlugin = createApplicationPlugin(
         val tenantCodeHeader = call.request.headers["X-Tenant-Code"]
         val host = call.request.local.serverHost
 
-        val tenant = when {
-            tenantSlugHeader != null -> resolver.resolveByTenantSlug(tenantSlugHeader)
-            tenantCodeHeader != null -> resolver.resolveByTenantCode(tenantCodeHeader)
-            else -> resolver.resolveByHost(host)
-        }
+        val tenant = tenantSlugHeader?.let {
+            resolver.resolveByTenantSlug(it)
+        } ?: resolver.resolveByHost(host)
 
         if (tenant == null) {
             call.respond(HttpStatusCode.NotFound, "Tenant not found")

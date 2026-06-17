@@ -212,3 +212,5 @@ route:
 
 
     /// exec("SET LOCAL search_path TO \"$tenantSchema\"")///
+    //////////////////////////////////////
+    1. auto create year
