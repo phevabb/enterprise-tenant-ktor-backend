@@ -8,15 +8,17 @@ import io.ktor.server.plugins.cors.routing.CORS
 
 fun Application.configureCors() {
     install(CORS) {
-        // Frontend dev origins
+
+        // ✅ Allow your production frontend (VERY IMPORTANT)
+        allowHost("enterprise-tenant-vue-frontend.vercel.app", schemes = listOf("https"))
+        allowHost("www.kogschool.com", schemes = listOf("https"))
+        allowHost("kogschool.com", schemes = listOf("https"))
+
+        // ✅ Local development
         allowHost("localhost:3000", schemes = listOf("http"))
         allowHost("127.0.0.1:3000", schemes = listOf("http"))
 
-        // If you later switch back to Vite default
-        allowHost("localhost:5173", schemes = listOf("http"))
-        allowHost("127.0.0.1:5173", schemes = listOf("http"))
-
-        // Allowed methods
+        // ✅ Methods
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
@@ -24,20 +26,16 @@ fun Application.configureCors() {
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)
 
-        // Allowed headers
+        // ✅ Headers
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.Accept)
         allowHeader("X-Tenant-Slug")
         allowHeader("X-Tenant-Code")
 
-        // If you need cookies/session later
         allowCredentials = true
 
-        // Cache preflight response
-        maxAgeInSeconds = 3600
-
-        // Do NOT use anyHost() here since you already allow explicit hosts
-         anyHost()
+        // ⚠️ REMOVE THIS LINE
+        // anyHost()
     }
 }
