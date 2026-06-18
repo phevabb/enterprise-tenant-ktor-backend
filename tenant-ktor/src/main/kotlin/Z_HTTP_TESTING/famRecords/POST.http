@@ -1,0 +1,9 @@
+POST http://127.0.0.1:8080/api/family-fee-record
+Content-Type: application/json
+
+{
+  "family": 5,
+  "amount_to_pay":955 ,
+  "term": 5,
+  "academic_year": 4
+}

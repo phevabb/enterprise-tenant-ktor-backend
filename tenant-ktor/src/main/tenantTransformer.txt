@@ -1,0 +1,17 @@
+studentFeerecord DONE
+feeStructure DONE
+payment DONE
+
+family Done
+Family Fee Records DONE
+Family Payments DONE
+
+Staff profiles DONE
+student profile DONE
+
+academic year DONE
+CLASSES DONE
+subjects done
+terms done
+categories done #
+promotion DONE

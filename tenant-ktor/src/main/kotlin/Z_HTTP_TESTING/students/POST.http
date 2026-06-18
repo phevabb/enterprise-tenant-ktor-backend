@@ -1,0 +1,32 @@
+##
+POST http://127.0.0.1:8080/api/student
+Content-Type: application/json
+
+{
+  "user": {
+    "fullName": "KINSTON AIDOO",
+    "gender": "male",
+    "role": "student",
+    "isActive": true,
+    "isStaff": false
+  },
+  "currentNewGradeClassId": 18,
+  "family": 1,
+  "classSeekingAdmissionTo": "",
+  "isDiscountedStudent": false,
+  "isImmunized": false,
+  "hasAllergies": false,
+  "allergicFoods": "",
+  "lastSchoolAttended": "",
+  "otherRelatedInfo": "",
+  "nameOfFather": "",
+  "occupationOfFather": "",
+  "nationalityOfFather": "",
+  "contactOfFather": "024",
+  "nameOfMother": "",
+  "occupationOfMother": "",
+  "nationalityOfMother": "",
+  "contactOfMother": "023",
+  "houseNumber": "",
+  "deactivationReason": ""
+}
