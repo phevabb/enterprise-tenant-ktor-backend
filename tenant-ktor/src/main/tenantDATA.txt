@@ -1,0 +1,25 @@
+first, always insert :
+localStorage.setItem('tenantSlug', 't-afxca9ox')
+#Tenant  1
+schoolName=Golden Gate School,
+tenantCode=goldengate,
+tenantSlug=t-afxca9ox,
+tenantSchema=tenant_goldengate,
+defaultDomain=t-afxca9ox.phena.app,
+status=active,
+features=[students, fees, staff, academics, principal, family])
+administrator = 71832909 6198
+principal =   93949234 2065
+  student 3122  62155019
+
+add to api:
+X-Tenant-Slug: t-afxca9ox
+
+
+####
+tenant 2
+localStorage.setItem('tenantSlug', 't-go5wojau')
+school: Accra Academy
+"tenantSlug": "t-go5wojau",
+principal 26287032 3307
+admin: 45955860	5374
