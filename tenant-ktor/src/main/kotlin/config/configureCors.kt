@@ -35,7 +35,7 @@ fun Application.configureCors() {
 
         allowCredentials = true
 
-        // ⚠️ REMOVE THIS LINE
-        // anyHost()
+
+         anyHost()
     }
 }
