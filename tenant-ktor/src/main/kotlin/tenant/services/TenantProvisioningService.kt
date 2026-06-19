@@ -5,11 +5,12 @@ import com.example.principal.dtos.requests.CreateUserPart
 import com.example.principal.dtos.responses.BootstrapPrincipalResponse
 import com.example.principal.service.PrincipalBootstrapService
 import com.example.tenant.PlatformDomainConfig
-
 import com.example.tenant.dto.requests.CreateTenantRequest
 import com.example.tenant.dto.response.CreateTenantResponse
+
 import com.example.tenant.tables.TenantFeaturesTable
 import com.example.tenant.tables.TenantsTable
+
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.insert
@@ -18,10 +19,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.Instant
 
-object TenantProvisioningService {
-
-
-
+class TenantProvisioningService {
 
     fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
 
@@ -35,11 +33,6 @@ object TenantProvisioningService {
         }
 
         val tenantSchema = "tenant_$normalizedTenantCode"
-
-        println("🔹 [PROVISION] Starting tenant creation")
-        println("🔹 [PROVISION] schoolName = ${request.schoolName}")
-        println("🔹 [PROVISION] tenantCode = $normalizedTenantCode")
-        println("🔹 [PROVISION] tenantSchema = $tenantSchema")
 
         // ✅ 1. Validate tenantCode uniqueness
         transaction {
@@ -58,22 +51,26 @@ object TenantProvisioningService {
             }
         }
 
-        // ✅ 2. Generate slug (CTKA style)
+        // ✅ 2. Generate slug
         val baseSlug = generateInitialSlug(request.schoolName)
         val tenantSlug = ensureUniqueTenantSlug(baseSlug)
 
-        val baseDomain = PlatformDomainConfig.BASE_DOMAIN // e.g. phena.app
-        val localPort = "3000"
+        // ✅ 3. Build login URLs using query-param tenancy
+        val baseUrl = PlatformDomainConfig.BASE_DOMAIN.trimEnd('/')
+        val loginPath = PlatformDomainConfig.LOGIN_PATH
 
-        val defaultDomain = "$tenantSlug.$baseDomain"
-        val defaultLocalDomain = "http://$tenantSlug.localhost:$localPort"
-        val fallbackLocalUrl = "http://localhost:$localPort?t=$tenantSlug"
+        // These now all point to query-param-based login URLs
+        val defaultDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
+        val defaultLocalDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
+        val fallbackLocalUrl = "$baseUrl$loginPath?tenant=$tenantSlug"
 
         println("🔹 [PROVISION] tenantSlug = $tenantSlug")
         println("🔹 [PROVISION] defaultDomain = $defaultDomain")
         println("🔹 [PROVISION] defaultLocalDomain = $defaultLocalDomain")
+        println("🔹 [PROVISION] fallbackLocalUrl = $fallbackLocalUrl")
+        println("🔹 [PROVISION] tenantSchema = $tenantSchema")
 
-        // ✅ 3. Insert tenant into public schema
+        // ✅ 4. Insert tenant into public schema
         val tenantId = transaction {
             addLogger(StdOutSqlLogger)
 
@@ -84,7 +81,10 @@ object TenantProvisioningService {
                 it[tenantCode] = normalizedTenantCode
                 it[TenantsTable.tenantSchema] = tenantSchema
                 it[TenantsTable.tenantSlug] = tenantSlug
+
+                // Store login-style URL or base domain, depending on your table meaning
                 it[TenantsTable.defaultDomain] = defaultDomain
+
                 it[schoolType] = request.schoolType
                 it[location] = request.location
                 it[contactEmail] = request.contactEmail
@@ -99,12 +99,12 @@ object TenantProvisioningService {
         println("✅ [PROVISION] Tenant inserted with id = $tenantId")
 
         try {
-            // ✅ 4. Create schema
+            // ✅ 5. Create schema
             println("🏗️ [PROVISION] Creating tenant schema: $tenantSchema")
             TenantSchemaService.createTenantSchema(tenantSchema)
             println("✅ [PROVISION] Schema created successfully")
 
-            // ✅ 5. Insert features
+            // ✅ 6. Insert features
             transaction {
                 addLogger(StdOutSqlLogger)
 
@@ -123,7 +123,7 @@ object TenantProvisioningService {
 
             println("✅ [PROVISION] Features inserted successfully")
 
-            // ✅ 6. Create bootstrap principal
+            // ✅ 7. Create bootstrap principal
             val bootstrapPrincipalName = when {
                 !request.accountOwnerName.isNullOrBlank() -> request.accountOwnerName
                 else -> "${request.schoolName} Principal"
@@ -148,7 +148,7 @@ object TenantProvisioningService {
             println("🔐 [PROVISION] Principal loginUserId = ${principalBootstrap.loginUserId}")
             println("🔐 [PROVISION] Principal pin = ${principalBootstrap.pin}")
 
-            // ✅ 7. Activate tenant
+            // ✅ 8. Activate tenant
             transaction {
                 addLogger(StdOutSqlLogger)
 
@@ -161,7 +161,7 @@ object TenantProvisioningService {
 
             println("🎉 [PROVISION] Tenant provisioning completed successfully")
 
-            // ✅ ✅ FINAL RETURN (WITH LOCAL + PROD URLS)
+            // ✅ 9. Final response — PASS EVERYTHING
             return CreateTenantResponse(
                 tenantId = tenantId,
                 schoolName = request.schoolName,
@@ -195,59 +195,30 @@ object TenantProvisioningService {
         }
     }
 
+    private fun generateInitialSlug(name: String): String {
+        return name
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9]"), "")
+            .ifBlank { "school" }
+    }
 
+    private fun ensureUniqueTenantSlug(baseSlug: String): String {
+        var candidate = baseSlug
+        var counter = 1
 
-
-    private fun generateUniqueTenantSlug(): String {
-        repeat(20) {
-            val candidate = TenantSlugGenerator.generate()
-
-            val exists = transaction {
+        while (transaction {
                 TenantsTable
                     .selectAll()
                     .where { TenantsTable.tenantSlug eq candidate }
                     .limit(1)
                     .singleOrNull() != null
             }
-
-            if (!exists) {
-                return candidate
-            }
-        }
-
-        throw IllegalStateException(
-            "Unable to generate unique tenant slug after multiple attempts."
-        )
-    }
-
-
-    fun generateInitialSlug(schoolName: String): String {
-        return schoolName
-            .trim()
-            .lowercase()
-            .split(Regex("\\s+"))          // split by spaces
-            .filter { it.isNotBlank() }
-            .mapNotNull { it.firstOrNull()?.toString() }
-            .joinToString("")
-    }
-
-    fun ensureUniqueTenantSlug(baseSlug: String): String {
-        var slug = baseSlug
-        var counter = 1
-
-        while (true) {
-            val exists = transaction {
-                TenantsTable
-                    .selectAll()
-                    .where { TenantsTable.tenantSlug eq slug }
-                    .limit(1)
-                    .count() > 0
-            }
-
-            if (!exists) return slug
-
-            slug = "$baseSlug$counter"
+        ) {
+            candidate = "$baseSlug$counter"
             counter++
         }
+
+        return candidate
     }
 }

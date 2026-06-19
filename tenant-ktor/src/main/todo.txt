@@ -1,4 +1,8 @@
+links to comment
+-----------------
 
+Database.kt in config
+PlatforDomainConfig.kt  found in /tenant
 
 
 
