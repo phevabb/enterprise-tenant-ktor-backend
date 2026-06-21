@@ -22,6 +22,7 @@ import com.example.fees.feeModule
 import com.example.principal.principalModule
 import com.example.staff.staffModule
 import com.example.student.studentModule
+import com.example.superadmin.superAdminModule
 import com.example.tenant.routes.tenantRoutes
 import com.example.tenant.TenantPlugin
 import com.example.tenant.TenantResolver
@@ -106,6 +107,7 @@ fun Application.module() {
     configureSerialization()
     configureCors()
     tenantModule()
+    superAdminModule()
 
 
     install(TenantPlugin) {

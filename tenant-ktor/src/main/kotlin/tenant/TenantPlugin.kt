@@ -6,9 +6,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.*
 
-
-
-
 val TenantKey = AttributeKey<TenantContext>("tenant-context")
 
 class TenantPluginConfig {
@@ -24,8 +21,21 @@ val TenantPlugin = createApplicationPlugin(
     onCall { call ->
         val path = call.request.path()
 
-        // Skip internal/platform routes
-        if (path.startsWith("/internal/")) {
+        /**
+         * IMPORTANT:
+         * These routes are platform/internal routes.
+         * They must NOT require tenant resolution.
+         */
+        val excludedPaths = listOf(
+            "/api/internal/",
+            "/api/superadmin/",
+
+            "/api/auth",
+            "/health",
+            "/metrics"
+        )
+
+        if (excludedPaths.any { path.startsWith(it) }) {
             return@onCall
         }
 
@@ -35,6 +45,8 @@ val TenantPlugin = createApplicationPlugin(
 
         val tenant = tenantSlugHeader?.let {
             resolver.resolveByTenantSlug(it)
+        } ?: tenantCodeHeader?.let {
+            resolver.resolveByTenantCode(it)
         } ?: resolver.resolveByHost(host)
 
         if (tenant == null) {

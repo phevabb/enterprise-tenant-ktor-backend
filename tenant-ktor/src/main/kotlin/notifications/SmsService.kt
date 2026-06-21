@@ -31,7 +31,9 @@ object SmsService {
 
     private val apiKey = "CelTN4i2JFPI2ZpknqYl0azod"
     private val endpoint = "https://api.mnotify.com/api/sms/quick"
-    private val senderId = "KingOfGlory"
+    private val senderId = "phenasystem"
+
+//    KingOfGlory
 
     fun sendAsync(phone: String, message: String) {
         if (apiKey.isBlank()) {

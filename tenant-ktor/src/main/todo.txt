@@ -218,3 +218,13 @@ route:
     /// exec("SET LOCAL search_path TO \"$tenantSchema\"")///
     //////////////////////////////////////
     1. auto create year
+
+
+
+
+
+  variables
+  ---------
+  1. tenantModule.kt    in ktolin/tenants/module/
+  2. SmsService.kt      in kotlin/notifications/
+

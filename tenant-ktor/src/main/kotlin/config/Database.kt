@@ -13,30 +13,30 @@ object DatabaseFactory {
 
     fun init() {
 
-//        val hikariConfig = HikariConfig().apply {
-//            jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
-//            username = "postgres"
-//            password = "postgres"
-//            driverClassName = "org.postgresql.Driver"
-//            maximumPoolSize = 10
-//            minimumIdle = 2
-//            isAutoCommit = false
-//            initializationFailTimeout = -1
-//            validate()
-//        } // local
-
-
         val hikariConfig = HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://ep-silent-field-abbmlq7g-pooler.eu-west-2.aws.neon.tech:5432/neondb?sslmode=require"
-            username = "neondb_owner"
-            password = "npg_OB8isfFHRGb0"
+            jdbcUrl = "jdbc:postgresql://localhost:5432/ktphena"
+            username = "postgres"
+            password = "postgres"
             driverClassName = "org.postgresql.Driver"
             maximumPoolSize = 10
             minimumIdle = 2
             isAutoCommit = false
             initializationFailTimeout = -1
             validate()
-        } // NEON
+        } // local
+
+
+//        val hikariConfig = HikariConfig().apply {
+//            jdbcUrl = "jdbc:postgresql://ep-silent-field-abbmlq7g-pooler.eu-west-2.aws.neon.tech:5432/neondb?sslmode=require"
+//            username = "neondb_owner"
+//            password = "npg_OB8isfFHRGb0"
+//            driverClassName = "org.postgresql.Driver"
+//            maximumPoolSize = 10
+//            minimumIdle = 2
+//            isAutoCommit = false
+//            initializationFailTimeout = -1
+//            validate()
+//        } // NEON
 
         val dataSource = HikariDataSource(hikariConfig)
         Database.connect(dataSource)
