@@ -18,16 +18,16 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 
 object AdminRepository {
 
-    fun createInCurrentTransaction(profile: AdminProfile): AdminProfileResponse {
+    fun createInCurrentTransaction(
+        userId: Int?,
+        telValue: String? = null
+    ): AdminProfileResponse {
         val id = AdminTable.insertAndGetId {
-            it[user] = profile.user?.let { userId ->
-                EntityID(userId, AccountTable)
-            }
-            it[tel] = profile.tel
+            it[AdminTable.user] = userId
+            it[AdminTable.tel] = telValue
         }.value
 
         return findByIdWithUserAndClassInCurrentTransaction(id)
@@ -35,8 +35,64 @@ object AdminRepository {
     }
 
     fun create(profile: AdminProfile): AdminProfileResponse = transaction {
-        createInCurrentTransaction(profile)
+        createInCurrentTransaction(
+            userId = profile.user,
+            telValue = profile.tel
+        )
     }
+
+    fun patchNestedInCurrentTransaction(
+        id: Int,
+        req: PatchAdminRequest
+    ): AdminProfileResponse? {
+        val row = AdminTable
+            .selectAll()
+            .where { AdminTable.id eq id }
+            .singleOrNull()
+            ?: return null
+
+        val accountId = row[AdminTable.user]?.value
+
+        val hasAdminFieldsToUpdate = req.tel != null
+
+        if (hasAdminFieldsToUpdate) {
+            AdminTable.update({ AdminTable.id eq id }) { u ->
+                req.tel?.let { u[AdminTable.tel] = it }
+            }
+        }
+
+        if (accountId != null) {
+            req.user?.let { userPatch ->
+                val hasUserFieldsToUpdate =
+                    userPatch.fullName != null ||
+                            userPatch.gender != null ||
+                            userPatch.dateOfBirth != null ||
+                            userPatch.nationality != null ||
+                            userPatch.role != null ||
+                            userPatch.isActive != null ||
+                            userPatch.isStaff != null
+
+                if (hasUserFieldsToUpdate) {
+                    AccountTable.update({ AccountTable.id eq accountId }) { a ->
+                        userPatch.fullName?.let { a[AccountTable.fullName] = it }
+                        userPatch.gender?.let { a[AccountTable.gender] = it }
+                        userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
+                        userPatch.nationality?.let { a[AccountTable.nationality] = it }
+                        userPatch.role?.let { a[AccountTable.role] = it.lowercase() }
+                        userPatch.isActive?.let { a[AccountTable.isActive] = it }
+                        userPatch.isStaff?.let { a[AccountTable.isStaff] = it }
+                    }
+                }
+            }
+        }
+
+        return findByIdWithUserAndClassInCurrentTransaction(id)
+    }
+
+
+
+
+
 
     fun findAllInCurrentTransaction(): List<AdminProfile> {
         return AdminTable
@@ -162,55 +218,28 @@ object AdminRepository {
         findByIdWithUserAndClassInCurrentTransaction(id)
     }
 
-    fun patchNestedInCurrentTransaction(
+
+    fun patchNested(
         id: Int,
         req: PatchAdminRequest
-    ): AdminProfileResponse? {
-        val row = AdminTable
-            .selectAll()
-            .where { AdminTable.id eq id }
-            .singleOrNull()
-            ?: return null
-
-        val accountId = row[AdminTable.user]?.value
-
-        val hasAdminFieldsToUpdate = req.tel != null
-
-        if (hasAdminFieldsToUpdate) {
-            AdminTable.update({ AdminTable.id eq id }) { u ->
-                req.tel?.let { u[AdminTable.tel] = it }
-            }
-        }
-
-        if (accountId != null) {
-            req.user?.let { userPatch ->
-                val hasUserFieldsToUpdate =
-                    userPatch.fullName != null ||
-                            userPatch.gender != null ||
-                            userPatch.dateOfBirth != null ||
-                            userPatch.nationality != null ||
-                            userPatch.role != null ||
-                            userPatch.isActive != null ||
-                            userPatch.isStaff != null
-
-                if (hasUserFieldsToUpdate) {
-                    AccountTable.update({ AccountTable.id eq accountId }) { a ->
-                        userPatch.fullName?.let { a[AccountTable.fullName] = it }
-                        userPatch.gender?.let { a[AccountTable.gender] = it }
-                        userPatch.dateOfBirth?.let { a[AccountTable.dateOfBirth] = it }
-                        userPatch.nationality?.let { a[AccountTable.nationality] = it }
-                        userPatch.role?.let { a[AccountTable.role] = it.lowercase() }
-                        userPatch.isActive?.let { a[AccountTable.isActive] = it }
-                        userPatch.isStaff?.let { a[AccountTable.isStaff] = it }
-                    }
-                }
-            }
-        }
-
-        return findByIdWithUserAndClassInCurrentTransaction(id)
-    }
-
-    fun patchNested(id: Int, req: PatchAdminRequest): AdminProfileResponse? = transaction {
+    ): AdminProfileResponse? = transaction {
         patchNestedInCurrentTransaction(id, req)
     }
-}
+
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+

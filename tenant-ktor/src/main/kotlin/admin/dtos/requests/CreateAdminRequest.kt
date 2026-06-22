@@ -31,7 +31,6 @@ data class CreateAdminRequest(
 @Serializable
 data class CreateUserPart(
     val fullName: String,
-
     val gender: String? = null,
     val dateOfBirth: String? = null,   // ISO‑8601 (YYYY‑MM‑DD)
     val nationality: String? = null,

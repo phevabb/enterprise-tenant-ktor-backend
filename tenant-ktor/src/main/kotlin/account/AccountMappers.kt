@@ -1,14 +1,40 @@
 package com.example.account
 
 import org.jetbrains.exposed.sql.ResultRow
-import java.time.Instant
 import java.time.LocalDate
 
-private fun roleFromDb(value: String): Role =
-    Role.entries.first { it.name.equals(value, ignoreCase = true) }
+private fun roleFromDb(value: String): Role {
+    return when (value.trim().lowercase()) {
+        "student" -> Role.student
+        "staff" -> Role.staff
+        "principal" -> Role.principal
+        "administrator" -> Role.administrator
 
-private fun genderFromDb(value: String): Gender =
-    Gender.entries.first { it.name.equals(value, ignoreCase = true) }
+        // Optional fallback for old/failed records saved as "admin"
+        "admin" -> Role.administrator
+
+        else -> throw IllegalArgumentException("Unknown account role from database: '$value'")
+    }
+}
+
+private fun genderFromDb(value: String): Gender? {
+    return when (value.trim().lowercase()) {
+        "" -> null
+        "male" -> Gender.male
+        "female" -> Gender.female
+        else -> throw IllegalArgumentException("Unknown gender from database: '$value'")
+    }
+}
+
+private fun parseDateOfBirth(value: String?): LocalDate? {
+    if (value.isNullOrBlank()) return null
+
+    return try {
+        LocalDate.parse(value)
+    } catch (e: Exception) {
+        null
+    }
+}
 
 fun ResultRow.toAccount(): Account = Account(
     id = this[AccountTable.id].value,
@@ -18,12 +44,11 @@ fun ResultRow.toAccount(): Account = Account(
     fullName = this[AccountTable.fullName],
     isActive = this[AccountTable.isActive],
     isStaff = this[AccountTable.isStaff],
+
     gender = this[AccountTable.gender]?.let { genderFromDb(it) },
 
-    // Your table currently stores dateOfBirth as VARCHAR; parse it if present.
-    dateOfBirth = this[AccountTable.dateOfBirth]?.let(LocalDate::parse),
+    dateOfBirth = parseDateOfBirth(this[AccountTable.dateOfBirth]),
 
-    // Your table does NOT have createdAt yet; keep it null for now.
     createdAt = null,
 
     nationality = this[AccountTable.nationality],

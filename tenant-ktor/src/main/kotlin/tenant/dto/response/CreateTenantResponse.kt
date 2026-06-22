@@ -1,6 +1,8 @@
 package com.example.tenant.dto.response
 
 
+
+
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -16,5 +18,7 @@ data class CreateTenantResponse(
     val status: String,
     val message: String,
     val principalLoginUserId: String,
-    val principalPin: String
+    val principalPin: String,
+    val adminLoginUserId: String,
+    val adminPin: String
 )

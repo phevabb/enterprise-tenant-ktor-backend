@@ -52,12 +52,18 @@ fun createAdmin(
         println("Creating new admin profile for accountId=${user.id}")
 
         AdminRepository.createInCurrentTransaction(
-            AdminProfile(
-                id = 0,
-                user = user.id,
-                tel = request.tel
-            )
+            userId = user.id,
+            telValue = request.tel
+
         )
+
+//        AdminRepository.createInCurrentTransaction(
+//            AdminProfile(
+//                id = 0,
+//                user = user.id,
+//                tel = request.tel
+//            )
+//        )
     }
 }
 

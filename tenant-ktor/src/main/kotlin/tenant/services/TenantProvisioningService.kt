@@ -1,5 +1,6 @@
 package com.example.tenant.services
 
+import com.example.admin.dtos.requests.CreateAdminRequest
 import com.example.principal.dtos.requests.CreatePrincipalRequest
 import com.example.principal.dtos.requests.CreateUserPart
 import com.example.principal.dtos.responses.BootstrapPrincipalResponse
@@ -18,6 +19,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.Instant
+import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
 
 class TenantProvisioningService {
 
@@ -148,6 +150,31 @@ class TenantProvisioningService {
             println("🔐 [PROVISION] Principal loginUserId = ${principalBootstrap.loginUserId}")
             println("🔐 [PROVISION] Principal pin = ${principalBootstrap.pin}")
 
+            // ✅ Create bootstrap administrator
+            val bootstrapAdminName = when {
+                !request.accountOwnerName.isNullOrBlank() -> request.accountOwnerName
+                else -> "${request.schoolName} Administrator"
+            }
+
+            println("👤 [PROVISION] Creating bootstrap administrator in schema: $tenantSchema")
+
+            val adminBootstrap =
+                AdminBootstrapService.createBootstrapAdminInSchema(
+                    tenantSchema = tenantSchema,
+                    req = CreateAdminRequest(
+                        user = CreateAdminUserPart(
+                            fullName = "defaultadmin",
+                            role = "administrator",
+                            isActive = true,
+                            isStaff = true
+                        )
+                    )
+                )
+
+            println("✅ [PROVISION] Bootstrap administrator created")
+            println("🔐 [PROVISION] Admin loginUserId = ${adminBootstrap.loginUserId}")
+            println("🔐 [PROVISION] Admin pin = ${adminBootstrap.pin}")
+
             // ✅ 8. Activate tenant
             transaction {
                 addLogger(StdOutSqlLogger)
@@ -174,7 +201,12 @@ class TenantProvisioningService {
                 status = "active",
                 message = "School created successfully",
                 principalLoginUserId = principalBootstrap.loginUserId,
-                principalPin = principalBootstrap.pin
+                principalPin = principalBootstrap.pin,
+                adminLoginUserId = adminBootstrap.loginUserId,
+                adminPin = adminBootstrap.pin
+
+
+
             )
 
         } catch (e: Exception) {

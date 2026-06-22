@@ -3,7 +3,9 @@ package com.example.tenant
 
 
 
+import com.example.admin.dtos.requests.CreateAdminRequest
 import com.example.principal.dtos.requests.CreatePrincipalRequest
+import com.example.tenant.services.AdminBootstrapService
 import com.example.principal.dtos.requests.CreateUserPart
 import com.example.principal.dtos.responses.BootstrapPrincipalResponse
 import com.example.principal.service.PrincipalBootstrapService
@@ -11,19 +13,9 @@ import com.example.tenant.dto.requests.CreateTenantRequest
 import com.example.tenant.dto.response.CreateTenantResponse
 import com.example.tenant.services.TenantSchemaService
 import com.example.tenant.tables.TenantFeaturesTable
-import com.example.tenant.tables.TenantFeaturesTable.featureCode
-import com.example.tenant.tables.TenantFeaturesTable.isEnabled
+
 import com.example.tenant.tables.TenantsTable
-import com.example.tenant.tables.TenantsTable.academicYear
-import com.example.tenant.tables.TenantsTable.accountOwnerName
-import com.example.tenant.tables.TenantsTable.contactEmail
-import com.example.tenant.tables.TenantsTable.createdAt
-import com.example.tenant.tables.TenantsTable.location
-import com.example.tenant.tables.TenantsTable.primaryDomain
-import com.example.tenant.tables.TenantsTable.schoolName
-import com.example.tenant.tables.TenantsTable.schoolType
-import com.example.tenant.tables.TenantsTable.status
-import com.example.tenant.tables.TenantsTable.tenantCode
+
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -36,6 +28,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.Instant
+import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
 
 fun Application.tenantAdminModule() {
     routing {
@@ -192,9 +185,35 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
                 )
             )
 
+
         println("✅ [PROVISION] Bootstrap principal created")
         println("🔐 [PROVISION] Principal loginUserId = ${principalBootstrap.loginUserId}")
         println("🔐 [PROVISION] Principal pin = ${principalBootstrap.pin}")
+
+        // ✅ 8. Create bootstrap administrator
+        val bootstrapAdminName = when {
+            !request.accountOwnerName.isNullOrBlank() -> request.accountOwnerName
+            else -> "${request.schoolName} Administrator"
+        }
+
+        println("👤 [PROVISION] Creating bootstrap administrator in schema: $tenantSchema")
+
+        val adminBootstrap =
+            AdminBootstrapService.createBootstrapAdminInSchema(
+                tenantSchema = tenantSchema,
+                req = CreateAdminRequest(
+                    user = CreateAdminUserPart(
+                        fullName = bootstrapAdminName,
+                        role = "admin",
+                        isActive = true,
+                        isStaff = true
+                    )
+                )
+            )
+
+        println("✅ [PROVISION] Bootstrap administrator created")
+        println("🔐 [PROVISION] Admin loginUserId = ${adminBootstrap.loginUserId}")
+        println("🔐 [PROVISION] Admin pin = ${adminBootstrap.pin}")
 
         // ✅ 8. Activate tenant
         transaction {
@@ -222,7 +241,10 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
             status = "active",
             message = "School created successfully",
             principalLoginUserId = principalBootstrap.loginUserId,
-            principalPin = principalBootstrap.pin
+            principalPin = principalBootstrap.pin,
+            adminLoginUserId = adminBootstrap.loginUserId,
+            adminPin = adminBootstrap.pin
+
         )
 
     } catch (e: Exception) {

@@ -29,8 +29,7 @@ val TenantPlugin = createApplicationPlugin(
         val excludedPaths = listOf(
             "/api/internal/",
             "/api/superadmin/",
-
-            "/api/auth",
+            "/internal/",
             "/health",
             "/metrics"
         )
