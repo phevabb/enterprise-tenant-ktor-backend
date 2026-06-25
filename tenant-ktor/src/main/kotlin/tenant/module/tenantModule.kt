@@ -4,6 +4,7 @@ package com.example.tenant.module
 
 
 
+import com.example.tenant.routes.publicTenantRoutes
 import com.example.tenant.routes.tenantRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
@@ -18,6 +19,12 @@ fun Application.tenantModule() {
             route("/tenant") {
                 tenantRoutes()
             }
+
+
+            route("/public") {
+                publicTenantRoutes()
+            }
+
 
 
 

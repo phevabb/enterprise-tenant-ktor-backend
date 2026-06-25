@@ -3,6 +3,7 @@ package com.example.tenant.repository
 
 
 import com.example.tenant.dto.SuperAdminTenantResponse
+import com.example.tenant.dto.response.PublicTenantLoginResponse
 import com.example.tenant.tables.TenantsTable
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.selectAll
@@ -87,12 +88,51 @@ object SuperAdminTenantRepository {
         tenantCode: String,
         status: String
     ): Boolean = transaction {
+        val normalizedTenantCode = normalizeTenantCode(tenantCode)
+        val normalizedStatus = status.trim().lowercase()
+
         val updatedRows = TenantsTable.update({
-            TenantsTable.tenantCode eq tenantCode
+            TenantsTable.tenantCode eq normalizedTenantCode
         }) {
-            it[TenantsTable.status] = status
+            it[TenantsTable.status] = normalizedStatus
         }
 
         updatedRows > 0
+    }
+
+
+    fun findPublicTenantBySlug(
+        tenantSlug: String
+    ): PublicTenantLoginResponse? = transaction {
+        val normalizedSlug = tenantSlug
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9]"), "")
+
+        if (normalizedSlug.isBlank()) {
+            return@transaction null
+        }
+
+        TenantsTable
+            .selectAll()
+            .where { TenantsTable.tenantSlug eq normalizedSlug }
+            .limit(1)
+            .singleOrNull()
+            ?.let { row ->
+                PublicTenantLoginResponse(
+                    schoolName = row[TenantsTable.schoolName],
+                    tenantCode = row[TenantsTable.tenantCode],
+                    tenantSlug = row[TenantsTable.tenantSlug],
+                    status = row[TenantsTable.status]
+                )
+            }
+    }
+
+
+    private fun normalizeTenantCode(value: String): String {
+        return value
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9_]"), "")
     }
 }
