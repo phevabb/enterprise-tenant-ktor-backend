@@ -30,6 +30,7 @@ val TenantPlugin = createApplicationPlugin(
             "/api/internal/",
             "/api/superadmin/",
             "/internal/",
+            "/api/met/",
             "/health",
             "/metrics"
         )

@@ -228,3 +228,7 @@ route:
   1. tenantModule.kt    in ktolin/tenants/module/
   2. SmsService.kt      in kotlin/notifications/
 
+number of students
+-----------------
+1. search for /monitor"... generate url and add tenant code
+

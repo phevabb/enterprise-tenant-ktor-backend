@@ -2,13 +2,24 @@ package com.example.tenant
 
 
 
-
+import kotlinx.serialization.Serializable
+import com.example.academics.tables.SubjectsTable
 import com.example.admin.dtos.requests.CreateAdminRequest
+import com.example.admin.tables.AdminTable
+import com.example.fees.tables.FeeStructureTable
+import com.example.fees.tables.PaymentTable
+import com.example.fees.tables.ReceiptsTable
 import com.example.principal.dtos.requests.CreatePrincipalRequest
 import com.example.tenant.services.AdminBootstrapService
 import com.example.principal.dtos.requests.CreateUserPart
 import com.example.principal.dtos.responses.BootstrapPrincipalResponse
 import com.example.principal.service.PrincipalBootstrapService
+import com.example.staff.tables.StaffTable
+import com.example.student.StudentsTable
+import com.example.student.repos.AcademicYearRepository
+import com.example.student.repos.setTenantSchema
+import com.example.student.tables.AcademicYearTable
+import com.example.student.tables.TermTable
 import com.example.tenant.dto.requests.CreateTenantRequest
 import com.example.tenant.dto.response.CreateTenantResponse
 import com.example.tenant.services.TenantSchemaService
@@ -34,28 +45,161 @@ fun Application.tenantAdminModule() {
     routing {
         post("/internal/tenants/create") {
             try {
+                println("========== START /internal/tenants/create ==========")
+
                 val request = call.receive<CreateTenantRequest>()
+                println("✅ Request received successfully")
+                println("📦 Full request payload: $request")
 
-                println("Reached /internal/tenants/create")
-                println("Request payload: $request")
+                val academicYearName = request.academicCalendar.academicYearName
+                println("📅 Extracted academicYearName: $academicYearName")
 
-
+                println("🚧 Calling createTenant()...")
                 val response = createTenant(request)
-                println("Calling createTenant...")
-                println("Tenant created: $response")
+                println("✅ Tenant created successfully")
+                println("📦 Tenant response: $response")
 
+                // ✅ DO NOT USE call.currentTenant()
+                val tenantSchema = response.tenantSchema
+                println("🏷️ Using tenantSchema from response: $tenantSchema")
+
+                println("🚧 Creating academic year...")
+                AcademicYearRepository.create(
+                    tenantSchema = tenantSchema,
+                    name = academicYearName
+                )
+                println("✅ Academic year created successfully")
+
+                println("🎉 ALL OPERATIONS COMPLETED SUCCESSFULLY")
 
                 call.respond(HttpStatusCode.Created, response)
+
+                println("========== END /internal/tenants/create ==========")
+
             } catch (e: IllegalArgumentException) {
+                println("❌ IllegalArgumentException occurred")
+                println("Message: ${e.message}")
+                e.printStackTrace()
+
                 call.respond(
                     HttpStatusCode.BadRequest,
                     mapOf("error" to (e.message ?: "Invalid request"))
                 )
+
             } catch (e: Exception) {
+                println("💥 Unexpected Exception occurred")
+                println("Message: ${e.message}")
+                e.printStackTrace()
+
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     mapOf("error" to (e.message ?: "Unable to create tenant"))
                 )
+            }
+        }
+
+
+
+
+        get("/api/internal/tenants/{tenantCode}/students/count") {
+            try {
+                val tenantCode = call.parameters["tenantCode"]!!
+                println("📥 Student count request: tenantCode=$tenantCode")
+
+                val tenant = TenantResolver().resolveByTenantCode(tenantCode)
+                    ?: throw IllegalArgumentException("Tenant not found")
+
+                println("✅ Tenant resolved: ${tenant.tenantSchema}")
+
+                val count = transaction {
+                    setTenantSchema(tenant.tenantSchema)
+
+                    val c = StudentsTable.selectAll().count()
+                    println("📊 Students count inside DB: $c")
+                    c
+                }
+
+                println("✅ Final student count response: $count")
+
+                call.respond(
+                    mapOf(
+                        "tenantCode" to tenantCode,
+                        "tenantSchema" to tenant.tenantSchema,
+                        "studentCount" to count
+                    )
+                )
+
+            } catch (e: Exception) {
+                println("💥 Error in student count API: ${e.message}")
+                e.printStackTrace()
+
+                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Error")
+            }
+        }
+
+
+
+        get("/api/met/{tenantCode}/monitor") {
+            try {
+                println("got hereeeeee")
+                val tenantCode = call.parameters["tenantCode"]!!
+                println("📥 Monitor request: tenantCode=$tenantCode")
+
+                val tenant = TenantResolver().resolveByTenantCode(tenantCode)
+                    ?: throw IllegalArgumentException("Tenant not found")
+
+                println("✅ Tenant resolved: ${tenant.tenantSchema}")
+
+                val response = transaction {
+                    setTenantSchema(tenant.tenantSchema)
+
+                    println("🔄 Fetching all grouped data...")
+
+                    // ✅ PEOPLE
+                    val studentCount = StudentsTable.selectAll().count()
+                    val staffCount = StaffTable.selectAll().count()
+                    val adminCount = AdminTable.selectAll().count()
+
+                    // ✅ ACADEMICS
+                    val academicYearCount = AcademicYearTable.selectAll().count()
+                    val termCount = TermTable.selectAll().count()
+                    val subjectCount = SubjectsTable.selectAll().count()
+
+                    // ✅ FINANCE
+                    val paymentCount = PaymentTable.selectAll().count()
+                    val feeStructures = FeeStructureTable.selectAll().count()
+                    val receiptsCount = ReceiptsTable.selectAll().count()
+
+                    println("✅ Data aggregation complete")
+
+                    TenantMonitorResponse(
+                        people = mapOf(
+                            "students" to studentCount,
+                            "staff" to staffCount,
+                            "admins" to adminCount
+                        ),
+                        academics = mapOf(
+                            "academicYears" to academicYearCount,
+                            "terms" to termCount,
+                            "subjects" to subjectCount
+                        ),
+                        finance = mapOf(
+                            "payments" to paymentCount,
+                            "feeStructures" to feeStructures,
+                            "receipts" to receiptsCount
+                        )
+                    )
+                }
+
+                println("✅ Monitor response ready")
+
+                call.respond(response)
+
+            } catch (e: Exception) {
+                println("💥 Error in monitor API: ${e.message}")
+                e.printStackTrace()
+
+                call.respond(HttpStatusCode.InternalServerError, e.message ?: "Error")
             }
         }
     }
@@ -291,3 +435,13 @@ private fun ensureUniqueTenantSlug(baseSlug: String): String {
 
     return candidate
 }
+
+
+
+
+@Serializable
+data class TenantMonitorResponse(
+    val people: Map<String, Long>,
+    val academics: Map<String, Long>,
+    val finance: Map<String, Long>
+)
