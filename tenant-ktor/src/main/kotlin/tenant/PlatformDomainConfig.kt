@@ -7,6 +7,9 @@ object PlatformDomainConfig {
     // ✅ Production frontend base
      const val BASE_DOMAIN = "https://enterprise-tenant-vue-frontend.vercel.app"
 
+//    // ✅ final future
+//    const val BASE_DOMAIN = "phenasms.online"
+
     // ✅ Vue login hash route
     const val LOGIN_PATH = "/#/login"
 }
