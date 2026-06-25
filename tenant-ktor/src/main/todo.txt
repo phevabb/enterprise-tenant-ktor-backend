@@ -1,239 +1,34 @@
-links to comment
+TO production / environment
 -----------------
+1. Database.kt in config
+2. PlatforDomainConfig.kt  found in /tenant
+3. search result.sms? uncomment sms in (paymentroute ) \    (familypaymentroute)
 
-Database.kt in config
-PlatforDomainConfig.kt  found in /tenant
 
 
+TODO
+------
+ fix search and pagination                   DONE
+ fix unable to deassign familiy to a student DONE
+ remove cloudinary secret codes
+ auto create year                 DONE
 
 
-error: Failed to convert request body to class com.example.student.dtos.requests.CreateTermRequest
-fix:
-1. first do this:
-    val rawbody =call.receiveText()
-    println("rawbody is $rawbody")
 
-   3. checke the rawbody and create something like this for it
 
 
-@Serializable
-data class CreateTermIncoming(
-    val name: String,
-    val academic_year_id: String
-)
+ secrets to put into .envs
+  ---------------------------
+1. SmsService.kt      in kotlin/notifications/
 
 
-then use it
 
- val incoming = call.receive<CreateTermIncoming>()
-
- val req = CreateTermRequest(
-             name = incoming.name,
-             academic_year = incoming.academic_year_id.toInt()
-         )
-
-
- to create datetime: it[dateCreated] = System.currentTimeMillis()
-
- to run: mvn clean package
-
- export students: java -cp .\target\ktor-sample-marvin-0.0.1-jar-with-dependencies.jar com.example.ApplicationKt import-students
-
-
- fix search and pagination
-
- fix unable to deassign familiy to a student
-
-fixed search, and filters for payments, records and feeStructure
-
- to deploy.
-
- 1. First Check DB in config
-
- //  result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
-
-
- 2.search result.sms? uncomment sms in (paymentroute )
- 3. search result.sms? uncomment sms in (familypaymentroute)
-
- 5. RUN mvn clean package
- 6. Push to github
-
-
-
-///////////////////////////////////////////////////////////////
-
-GET http://127.0.0.1:8080/api/admin/raw
-locals:
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjcsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzc5NjYzMDIzfQ.6SZddUKFSbvh0lcVAUw91Fn_TAT9UjyAgVVvUqoakgc
-
-for staff use:
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjQzNywicm9sZSI6InN0YWZmIiwiZXhwIjoxNzc5NjQwMTI0fQ.ZLfAB1ZTj-A6KLXWeFkaIuQkS5f6caF2hG7wtuueo3k
-
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJrdG9yLXVzZXJzIiwiaXNzIjoia3Rvci1hcGkiLCJ1c2VySWQiOjQzNywicm9sZSI6InN0YWZmIiwiZXhwIjoxNzc5NjM4MzY2fQ.id40xuhFYWtZD1QIP9D_xZJDKA1BBMJv2TfzXZeFjMg
-
-//////////////////////////////////////////////////////////////
-
-
-
-users: students/staff/admins
-
-
-
-
-
-
-//////////////////////////////////////////////////
-Admins:
-local admin: 85940393  4248
-official admin: 6709    91538726
-
-students:
-local student:  1624 34481562
-
-principal:
-principal local: 7163 82929083
-official principal: 4269 19368894
-
-staff:
-local staff: class 1: 43227969   3551
-
-///////////////////////////////////////////////////
-
-
-import and: import org.jetbrains.exposed.sql.and
-
-the error: com.example.student.tables.NewGradeClassTable.name is not in record set
-
- the solution:
-the error means:
-You are trying to read:
-
-[NewGradeClassTable.name]
-…but you NEVER joined NewGradeClassTable in your query ❌
-
-so just join:
-.join(NewGradeClassTable, JoinType.INNER, AcademicRecordsTable.classLevel, NewGradeClassTable.id)
-
-
-////////////////////////////////////////
-
-
-
-
-todo
-remove cloudinary secret codes
-
-////////////////////////////////////
-
-Ktor resolves the tenant
-Ktor attaches tenant context to each request
-each module reads the current tenant
-every business table/query is filtered by tenantId
-feature access is enforced per tenant
-
-
-        OR
-
-Summary: how the whole thing works now
-With your chosen DB strategy:
-one PostgreSQL database
-many schemas
-same set of tables inside each schema
-The correct flow is:
-1. Ktor resolves tenant
-By host/header → gets tenantSchema
-2. Ktor attaches tenant context
-Stored in request attributes
-3. Each module reads current tenant
-Using call.currentTenant()
-4. Database queries are scoped by schema
-Using:
-
-KotlintenantTransaction(tenant.tenantSchema) { ... }Show more lines
-5. Feature access is enforced per tenant
-Using:
-KotlinrequireTenantFeature("students")requireTenantFeature("fees")Show more lines
-6. New school onboarding triggers new schema
-Using:
-KotlinTenantSchemaService.createTenantSchema("tenant_schoola")
-
-//////////////////////////////////////////////////
-insert tenantslug into console:
-Press F12 (or Ctrl + Shift + I)
-Open the Console tab
-Run this:
-
-localStorage.setItem('tenantSlug', 't-afxca9ox')
-
-////////////////////////////////
-
-93949234 2065
-
-//////////////
-tenant error
-val tenant = call.currentTenant()
-        val tenantSchema = tenant.tenantSchema
-//////////////////////
-make all routes tenant aware
-/////////////
-
-route:
- get {
-        val tenant = call.currentTenant() ##
-
-        val grades = GradeRepository.findAll(
-            tenantSchema = tenant.tenantSchema,   ##
-        )
-
-        call.respond(HttpStatusCode.OK, grades)
-    }
-
-
-
-
- repo:
-            import org.jetbrains.exposed.sql.transactions.transaction
-
-            fun Transaction.setTenantSchema(tenantSchema: String) {
-                val safeSchema = tenantSchema.replace("\"", "\"\"")
-                exec("""SET LOCAL search_path TO "$safeSchema"""")
-            }
-
-
-
-    fun findAll(
-        tenantSchema: String,    ##
-    ): List<Grade> = transaction {
-
-        setTenantSchema(tenantSchema) ##
-
-        GradesTable
-            .selectAll()
-            .orderBy(GradesTable.order to SortOrder.ASC)
-            .map { it.toGrade() }
-    }
-
-
-    /// exec("SET LOCAL search_path TO \"$tenantSchema\"")///
-    //////////////////////////////////////
-    1. auto create year
-
-
-
-
-
-  variables
-  ---------
-  1. tenantModule.kt    in ktolin/tenants/module/
-  2. SmsService.kt      in kotlin/notifications/
-
-number of students
+# actions to perform via api level
 -----------------
-1. search for /monitor"... generate url and add tenant code
+1. (search num of students) search for /monitor"... generate url and add tenant code
 
 
-tenant not found
+how to fix tenant not found
 -----------------
 
 search for: val excludedPaths
