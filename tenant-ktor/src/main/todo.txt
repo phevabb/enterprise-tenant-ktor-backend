@@ -1,8 +1,11 @@
 TO production / environment
 -----------------
+
+you may search // locally or  // production
 1. Database.kt in config
-2. PlatforDomainConfig.kt  found in /tenant
+
 3. search result.sms? uncomment sms in (paymentroute ) \    (familypaymentroute)
+
 
 
 

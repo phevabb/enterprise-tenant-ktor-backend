@@ -45,23 +45,13 @@ fun Application.tenantAdminModule() {
     routing {
         post("/internal/tenants/create") {
             try {
-                println("========== START /internal/tenants/create ==========")
-
                 val request = call.receive<CreateTenantRequest>()
-                println("✅ Request received successfully")
-                println("📦 Full request payload: $request")
-
                 val academicYearName = request.academicCalendar.academicYearName
-                println("📅 Extracted academicYearName: $academicYearName")
-
-                println("🚧 Calling createTenant()...")
                 val response = createTenant(request)
-                println("✅ Tenant created successfully")
-                println("📦 Tenant response: $response")
 
-                // ✅ DO NOT USE call.currentTenant()
+
                 val tenantSchema = response.tenantSchema
-                println("🏷️ Using tenantSchema from response: $tenantSchema")
+
 
                 println("🚧 Creating academic year...")
                 AcademicYearRepository.create(
@@ -240,14 +230,23 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
     val baseSlug = generateInitialSlug(request.schoolName)
     val tenantSlug = ensureUniqueTenantSlug(baseSlug)
 
-    // ✅ 3. Build login URLs using query-param tenancy
-    val baseUrl = PlatformDomainConfig.BASE_DOMAIN.trimEnd('/')
-    val loginPath = PlatformDomainConfig.LOGIN_PATH
+    // ✅ 3. Build login URLs using wildcard subdomain tenancy
 
-    // These now all point to query-param-based login URLs
-    val defaultDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
-    val defaultLocalDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
-    val fallbackLocalUrl = "$baseUrl$loginPath?tenant=$tenantSlug"
+    val defaultDomain = PlatformDomainConfig.buildTenantLoginUrl(tenantSlug)
+
+
+    val defaultLocalDomain = PlatformDomainConfig.buildTenantLocalLoginUrl(tenantSlug)
+
+// Fallback URL should be local/testing URL
+    val fallbackLocalUrl = defaultLocalDomain
+
+    println("🔹 [PROVISION] tenantSlug = $tenantSlug")
+    println("🔹 [PROVISION] defaultDomain = $defaultDomain")
+    println("🔹 [PROVISION] defaultLocalDomain = $defaultLocalDomain")
+    println("🔹 [PROVISION] fallbackLocalUrl = $fallbackLocalUrl")
+    println("🔹 [PROVISION] tenantSchema = $tenantSchema")
+
+
 
     println("🔹 [PROVISION] tenantSlug = $tenantSlug")
     println("🔹 [PROVISION] defaultDomain = $defaultDomain")
@@ -267,7 +266,11 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
             it[TenantsTable.tenantSchema] = tenantSchema
             it[TenantsTable.tenantSlug] = tenantSlug
 
-            // Store login-style URL or base domain, depending on your table meaning
+            /**
+             * Store production wildcard-subdomain login URL.
+             * Example:
+             * https://kingofgloryacademy.phenaschool.com/#/login
+             */
             it[TenantsTable.defaultDomain] = defaultDomain
 
             it[schoolType] = request.schoolType
@@ -283,11 +286,15 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
 
     println("✅ [PROVISION] Tenant inserted with id = $tenantId")
 
+    // keep the rest of your try/catch provisioning code unchanged...
+
+
+
     try {
         // ✅ 5. Create schema
-        println("🏗️ [PROVISION] Creating tenant schema: $tenantSchema")
+
         TenantSchemaService.createTenantSchema(tenantSchema)
-        println("✅ [PROVISION] Schema created successfully")
+
 
         // ✅ 6. Insert features
         transaction {

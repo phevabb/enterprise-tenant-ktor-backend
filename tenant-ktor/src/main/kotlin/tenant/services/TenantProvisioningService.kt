@@ -58,14 +58,15 @@ class TenantProvisioningService {
         val tenantSlug = ensureUniqueTenantSlug(baseSlug)
 
         // ✅ 3. Build login URLs using query-param tenancy
-        val baseUrl = PlatformDomainConfig.BASE_DOMAIN.trimEnd('/')
-        val loginPath = PlatformDomainConfig.LOGIN_PATH
+        // ✅ 3. Build login URLs using subdomain tenancy
+        val defaultDomain = PlatformDomainConfig.buildTenantLoginUrl(tenantSlug)
 
-        // These now all point to query-param-based login URLs
-        val defaultDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
-        val defaultLocalDomain = "$baseUrl$loginPath?tenant=$tenantSlug"
-        val fallbackLocalUrl = "$baseUrl$loginPath?tenant=$tenantSlug"
+// Local development URL:
+// Example: http://kingofgloryacademy.localhost:3000/#/login
+        val defaultLocalDomain = PlatformDomainConfig.buildTenantLocalLoginUrl(tenantSlug)
 
+// Fallback URL should be local/testing URL
+        val fallbackLocalUrl = defaultLocalDomain
         println("🔹 [PROVISION] tenantSlug = $tenantSlug")
         println("🔹 [PROVISION] defaultDomain = $defaultDomain")
         println("🔹 [PROVISION] defaultLocalDomain = $defaultLocalDomain")
