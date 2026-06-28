@@ -62,6 +62,7 @@ fun Application.configureCors() {
         }
 
         // Methods
+        anyHost()
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)

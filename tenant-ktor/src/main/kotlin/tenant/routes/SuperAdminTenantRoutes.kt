@@ -14,7 +14,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.route
 
 fun Route.superAdminTenantRoutes() {
-    route("/api/superadmin/tenants") {
+    route("superadmin/tenants") {
 
         patch("/{tenantCode}/status") {
             val tenantCode = call.parameters["tenantCode"]
