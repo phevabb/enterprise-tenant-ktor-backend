@@ -9,3 +9,11 @@ data class TenantResponse(
     val tenantCode: String,
     val tenantSlug: String
 )
+
+
+
+@Serializable
+data class TenantStatusUpdateResponse(
+    val success: Boolean,
+    val message: String
+)

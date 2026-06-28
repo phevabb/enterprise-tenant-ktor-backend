@@ -14,7 +14,7 @@ import io.ktor.server.routing.*
 
 
 fun Application.superAdminModule() {
-    val INTERNAL_API_KEY = "change-this-to-a-long-random-secret"
+    val INTERNAL_API_KEY = "change-this-secret-key"
     routing {
         route("/api") {
 
