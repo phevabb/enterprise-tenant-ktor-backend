@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class CreateFamilyPaymentRequest(
     val family_fee_record: Int,
     val amount: Int,
+    val schoolName: String? = null
 )

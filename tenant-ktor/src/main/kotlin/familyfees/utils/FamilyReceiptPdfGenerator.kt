@@ -1,20 +1,32 @@
 package com.example.familyfees.utils
 
-
-
 import com.example.familyfees.dtos.responses.FamilyReceiptDto
-import com.lowagie.text.*
-import com.lowagie.text.pdf.*
+import com.lowagie.text.Chunk
+import com.lowagie.text.Document
+import com.lowagie.text.Element
+import com.lowagie.text.Font
+import com.lowagie.text.PageSize
+import com.lowagie.text.Paragraph
+import com.lowagie.text.Phrase
+import com.lowagie.text.Rectangle
+import com.lowagie.text.pdf.PdfPCell
+import com.lowagie.text.pdf.PdfPTable
+import com.lowagie.text.pdf.PdfWriter
 import java.awt.Color
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 object FamilyReceiptPdfGenerator {
 
-    fun buildPdf(r: FamilyReceiptDto): ByteArray {
+    fun buildPdf(
+        r: FamilyReceiptDto,
+        schoolName: String = "School"
+    ): ByteArray {
         val out = ByteArrayOutputStream()
         val doc = Document(PageSize.A4, 36f, 36f, 36f, 36f)
+
         PdfWriter.getInstance(doc, out)
         doc.open()
 
@@ -31,13 +43,20 @@ object FamilyReceiptPdfGenerator {
         val bigFont = Font(Font.HELVETICA, 12f, Font.BOLD, Color.BLACK)
 
         // ✅ Header
-        doc.add(Paragraph("PHENA SOFTWARE SYSTEMS", titleFont))
+        val receiptSchoolName = schoolName
+            .trim()
+            .take(120)
+            .ifBlank { "School" }
+            .uppercase(Locale.getDefault())
+
+        doc.add(Paragraph(receiptSchoolName, titleFont))
         doc.add(Paragraph("Family Fees Payment Receipt", subFont))
         doc.add(Chunk.NEWLINE)
 
-        val dateStr = SimpleDateFormat("dd MMM yyyy, HH:mm").format(Date(r.createdAt))
+        val dateStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+            .format(Date(r.createdAt))
 
-        // ✅ Meta row (Receipt No + Date aligned right)
+        // ✅ Meta row
         val meta = PdfPTable(2)
         meta.widthPercentage = 100f
         meta.setWidths(floatArrayOf(70f, 30f))
@@ -69,39 +88,58 @@ object FamilyReceiptPdfGenerator {
         table.addCell(vCell(r.paymentMethod, valueFont, borderGray))
 
         table.addCell(kCell("Amount Paid", labelFont, lightGray, borderGray))
-        table.addCell(vCell("GH₵ ${r.amountPaid}", bigFont, borderGray))
+        table.addCell(vCell("GHS ${r.amountPaid}", bigFont, borderGray))
 
         table.addCell(kCell("Balance After", labelFont, lightGray, borderGray))
-        table.addCell(vCell("GH₵ ${r.balanceAfter}", bigFont, borderGray))
+        table.addCell(vCell("GHS ${r.balanceAfter}", bigFont, borderGray))
 
         doc.add(table)
 
         doc.add(Chunk.NEWLINE)
-        doc.add(Paragraph("This receipt was generated electronically. No signature required.", subFont))
+        doc.add(
+            Paragraph(
+                "This receipt was generated electronically. No signature required.",
+                subFont
+            )
+        )
 
         doc.close()
+
         return out.toByteArray()
     }
 
-    private fun noBorderCell(text: String, font: Font, align: Int = Element.ALIGN_LEFT): PdfPCell {
+    private fun noBorderCell(
+        text: String,
+        font: Font,
+        align: Int = Element.ALIGN_LEFT
+    ): PdfPCell {
         val cell = PdfPCell(Phrase(text, font))
         cell.border = Rectangle.NO_BORDER
         cell.horizontalAlignment = align
         return cell
     }
 
-    private fun kCell(text: String, font: Font, bg: Color, border: Color): PdfPCell {
+    private fun kCell(
+        text: String,
+        font: Font,
+        bg: Color,
+        border: Color
+    ): PdfPCell {
         val cell = PdfPCell(Phrase(text, font))
         cell.setBackgroundColor(bg)
         cell.borderColor = border
-        cell.setPadding(8f) // ✅ OpenPDF safe
+        cell.setPadding(8f)
         return cell
     }
 
-    private fun vCell(text: String, font: Font, border: Color): PdfPCell {
+    private fun vCell(
+        text: String,
+        font: Font,
+        border: Color
+    ): PdfPCell {
         val cell = PdfPCell(Phrase(text, font))
         cell.borderColor = border
-        cell.setPadding(8f) // ✅ OpenPDF safe
+        cell.setPadding(8f)
         return cell
     }
 }

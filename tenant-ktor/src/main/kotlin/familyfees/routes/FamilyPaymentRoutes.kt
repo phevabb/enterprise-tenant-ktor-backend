@@ -36,7 +36,8 @@ fun Route.familyPaymentRoutes() {
             tenantSchema = tenantSchema,
             familyFeeRecordId = req.family_fee_record,
             amount = req.amount,
-            paymentMethod = "cash"
+            paymentMethod = "cash",
+            schoolName = req.schoolName ?: "School"
         )
 
     result.sms?.let { SmsService.sendAsync(it.phone, it.message) }

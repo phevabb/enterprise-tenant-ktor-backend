@@ -2,6 +2,7 @@ package com.example.familyfees.repos
 
 import com.example.familyfees.dtos.responses.FamilyReceiptDto
 import com.example.familyfees.tables.FamilyReceiptsTable
+import io.ktor.server.plugins.BadRequestException
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -20,7 +21,15 @@ object FamilyReceiptRepository {
     }
 
     private fun Transaction.setTenantSchema(tenantSchema: String) {
-        setTenantSchema(tenantSchema)
+        println("DEBUG FamilyReceiptRepository.setTenantSchema called with tenantSchema = $tenantSchema")
+
+        if (!tenantSchema.matches(Regex("^[a-zA-Z0-9_]+$"))) {
+            throw BadRequestException("Invalid tenant schema")
+        }
+
+        exec("""SET search_path TO "$tenantSchema", public""")
+
+        println("DEBUG FamilyReceiptRepository.setTenantSchema completed successfully")
     }
 
     fun createReceipt(
@@ -33,6 +42,7 @@ object FamilyReceiptRepository {
         balanceAfter: Int,
         paymentMethod: String,
         termName: String?,
+        schoolName: String,
         academicYearName: String?
     ): FamilyReceiptDto = transaction {
 
