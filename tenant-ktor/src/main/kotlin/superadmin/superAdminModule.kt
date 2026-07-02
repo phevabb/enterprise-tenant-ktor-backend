@@ -5,6 +5,7 @@ package com.example.superadmin
 
 
 
+import com.example.superadmin.routes.superRoutes
 import com.example.tenant.routes.internalSuperAdminTenantRoutes
 import com.example.tenant.routes.superAdminTenantRoutes
 import com.example.tenant.routes.tenantRoutes
@@ -25,6 +26,12 @@ fun Application.superAdminModule() {
             route("/") {
                 superAdminTenantRoutes()
             }
+
+            route("/internal/superadmin") {
+                superRoutes()
+            }
+
+
 
 
 

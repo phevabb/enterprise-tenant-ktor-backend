@@ -13,6 +13,9 @@ import io.ktor.server.routing.*
 fun Application.studentModule() {
     routing {
         route("/api") {
+
+
+
             route("/student") {
                 studentRoutes()
             }
