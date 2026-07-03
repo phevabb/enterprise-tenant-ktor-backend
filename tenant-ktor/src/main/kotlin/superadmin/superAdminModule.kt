@@ -5,6 +5,7 @@ package com.example.superadmin
 
 
 
+import com.example.superadmin.routes.superAdminTransactionRoutes
 import com.example.superadmin.routes.superRoutes
 import com.example.tenant.routes.internalSuperAdminTenantRoutes
 import com.example.tenant.routes.superAdminTenantRoutes
@@ -30,6 +31,13 @@ fun Application.superAdminModule() {
             route("/internal/superadmin") {
                 superRoutes()
             }
+
+                route("/internal/super/transactions") {
+                    superAdminTransactionRoutes()
+                }
+
+                // existing routes...
+
 
 
 
