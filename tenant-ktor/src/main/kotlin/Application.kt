@@ -14,6 +14,7 @@ import com.example.academics.subjectScoreModule
 import com.example.account.accountModule
 import com.example.admin.adminModule
 import com.example.auth.authModule
+import com.example.billing.billingModule
 import com.example.commands.ImportStudentsFromCsv
 import com.example.config.DatabaseFactory
 import com.example.config.configureCors
@@ -122,6 +123,8 @@ fun Application.module() {
     familyModule()
     staffModule()
     adminModule()
+    billingModule()
+
 
     authModule()
     subjectModule()
