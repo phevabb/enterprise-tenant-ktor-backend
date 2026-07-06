@@ -34,6 +34,7 @@ fun Application.configureCors() {
          *
          * http://localhost:3000
          * http://127.0.0.1:3000
+         * http://phevabacademy.localhost:3000
          * http://kingofgloryacademy.localhost:3000
          * http://accraacademy.localhost:3000
          */
@@ -61,8 +62,13 @@ fun Application.configureCors() {
                     parsed.host.endsWith(".vercel.app")
         }
 
-        // Methods
+        /**
+         * Methods
+         */
         anyHost()
+        allowHeader("X-Tenant-Slug")
+        allowHeader("X-Tenant-Code")
+        allowHeader("X-School-Name")
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
@@ -70,25 +76,48 @@ fun Application.configureCors() {
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)
 
-        // Standard headers
+        /**
+         * Standard headers
+         */
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.Accept)
-
-        // Tenant headers
-        allowHeader("X-Tenant-Slug")
-        allowHeader("X-Tenant-Code")
-
-        // Useful for Axios / AJAX
-        allowHeader("X-Requested-With")
-
-        // Useful for file downloads like Excel template
-        exposeHeader(HttpHeaders.ContentDisposition)
-
-        allowCredentials = true
+        allowHeader(HttpHeaders.Origin)
 
         /**
-         * Do NOT enable this in production.
+         * Tenant / school headers
+         */
+        allowHeader("X-Tenant-Slug")
+        allowHeader("X-Tenant-Code")
+        allowHeader("X-Tenant-Schema")
+        allowHeader("X-School-Name")
+
+        /**
+         * Useful for Axios / AJAX
+         */
+        allowHeader("X-Requested-With")
+
+        /**
+         * Useful for PDF/file downloads
+         */
+        exposeHeader(HttpHeaders.ContentDisposition)
+
+        /**
+         * Needed for JSON/PDF requests with custom headers.
+         */
+        allowNonSimpleContentTypes = true
+
+        /**
+         * Keep true if you ever use cookies/credentials.
+         * It is okay with explicit allowOrigins above.
+         */
+        allowCredentials = true
+
+        maxAgeInSeconds = 3600
+
+        /**
+         * Do NOT use anyHost() together with allowCredentials = true.
+         * Do NOT enable anyHost() in production.
          */
         // anyHost()
     }

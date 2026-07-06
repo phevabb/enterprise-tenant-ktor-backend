@@ -4,6 +4,7 @@ import com.example.student.routes.academicYearRoutes
 import com.example.student.routes.classPromotionRoutes
 import com.example.student.routes.gradeClassRoutes
 import com.example.student.routes.studentImportRoutes
+import com.example.student.routes.studentReportPdfRoutes
 import com.example.student.routes.studentRoutes
 import com.example.student.routes.termRoutes
 
@@ -13,6 +14,14 @@ import io.ktor.server.routing.*
 fun Application.studentModule() {
     routing {
         route("/api") {
+
+
+
+
+
+            route("/report") {
+                studentReportPdfRoutes()
+            }
 
 
 
