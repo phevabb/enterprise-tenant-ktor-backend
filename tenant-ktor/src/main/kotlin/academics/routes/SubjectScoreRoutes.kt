@@ -1,7 +1,9 @@
 package com.example.academics.routes
 
+import com.example.academics.dtos.requests.CreateBulkSubjectScoreBySubjectRequest
 import com.example.academics.dtos.requests.CreateOrUpdateSubjectScoreRequest
 import com.example.academics.dtos.requests.CreateSubjectScoreByStudentRequest
+import com.example.academics.dtos.requests.CreateSubjectScoresByStudentRequest
 import com.example.academics.dtos.requests.PatchSubjectScoreRequest
 import com.example.academics.repos.SubjectRepoLite
 import com.example.academics.repos.SubjectScoreRepository
@@ -152,27 +154,69 @@ fun Route.subjectScoreRoutes() {
         }
 
 
-        post("by-staff") {
+//        post("by-staff") {
+//            val tenant = call.currentTenant()
+//
+//            try {
+//                // ✅ 1. Read raw JSON body
+//                val raw = call.receiveText()
+//
+//                // ✅ 2. Deserialize manually
+//                val req = kotlinx.serialization.json.Json.decodeFromString(
+//                    CreateSubjectScoreByStudentRequest.serializer(),
+//                    raw
+//                )
+//
+//                // ✅ 3. Process request
+//                val result = SubjectScoreService.createOrUpdateByStudent(
+//                    tenantSchema = tenant.tenantSchema,
+//                    req = req
+//                )
+//
+//                call.respond(HttpStatusCode.OK, result)
+//
+//            } catch (e: IllegalArgumentException) {
+//                call.respond(
+//                    HttpStatusCode.BadRequest,
+//                    mapOf("detail" to (e.message ?: "Invalid request"))
+//                )
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//                call.respond(
+//                    HttpStatusCode.InternalServerError,
+//                    mapOf("detail" to "Server error")
+//                )
+//            }
+//        }
+
+
+
+        post("by-staff/bulk") {
+            val start = System.currentTimeMillis()
             val tenant = call.currentTenant()
 
             try {
-                // ✅ 1. Read raw JSON body
-                val raw = call.receiveText()
+                val receiveStart = System.currentTimeMillis()
 
-                // ✅ 2. Deserialize manually
-                val req = kotlinx.serialization.json.Json.decodeFromString(
-                    CreateSubjectScoreByStudentRequest.serializer(),
-                    raw
-                )
+                val req = call.receive<CreateBulkSubjectScoreBySubjectRequest>()
 
-                // ✅ 3. Process request
-                val result = SubjectScoreService.createOrUpdateByStudent(
+                val receiveMs = System.currentTimeMillis() - receiveStart
+
+                val serviceStart = System.currentTimeMillis()
+
+                val result = SubjectScoreService.createOrUpdateManyStudentsBySubject(
                     tenantSchema = tenant.tenantSchema,
                     req = req
                 )
 
-                call.respond(HttpStatusCode.OK, result)
+                val serviceMs = System.currentTimeMillis() - serviceStart
+                val totalMs = System.currentTimeMillis() - start
 
+                println(
+                    "createOrUpdateManyStudentsBySubject timing: receive=${receiveMs}ms, service=${serviceMs}ms, total=${totalMs}ms"
+                )
+
+                call.respond(HttpStatusCode.OK, result)
             } catch (e: IllegalArgumentException) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -180,6 +224,45 @@ fun Route.subjectScoreRoutes() {
                 )
             } catch (e: Exception) {
                 e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf("detail" to "Server error")
+                )
+            }
+        }
+
+        post("by-staff") {
+            val start = System.currentTimeMillis()
+            val tenant = call.currentTenant()
+
+            try {
+                val receiveStart = System.currentTimeMillis()
+                val req = call.receive<CreateSubjectScoreByStudentRequest>()
+                val receiveMs = System.currentTimeMillis() - receiveStart
+
+                val serviceStart = System.currentTimeMillis()
+                val result = SubjectScoreService.createOrUpdateByStudent(
+                    tenantSchema = tenant.tenantSchema,
+                    req = req
+                )
+                val serviceMs = System.currentTimeMillis() - serviceStart
+
+                val totalMs = System.currentTimeMillis() - start
+
+                println(
+                    "createOrUpdateByStudent timing: receive=${receiveMs}ms, service=${serviceMs}ms, total=${totalMs}ms"
+                )
+
+                call.respond(HttpStatusCode.OK, result)
+            } catch (e: IllegalArgumentException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("detail" to (e.message ?: "Invalid request"))
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     mapOf("detail" to "Server error")
