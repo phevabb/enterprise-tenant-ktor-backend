@@ -58,9 +58,13 @@ class StudentReportPdfService {
         PDPageContentStream(document, page).use { content ->
             drawPageBackground(content, page)
 
+            val displaySchoolName = schoolName
+                .ifBlank { "School Name" }
+                .uppercase()
+
             writeText(
                 content = content,
-                text = schoolName.ifBlank { "School Name" },
+                text = displaySchoolName,
                 x = 40f,
                 y = 760f,
                 font = PDType1Font.HELVETICA_BOLD,
@@ -206,7 +210,9 @@ class StudentReportPdfService {
 
         writeText(
             content = content,
-            text = schoolName.ifBlank { "School Name" },
+            text = schoolName
+                .ifBlank { "School Name" }
+                .uppercase(),
             x = margin + 15f,
             y = y - 18f,
             font = PDType1Font.HELVETICA_BOLD,
