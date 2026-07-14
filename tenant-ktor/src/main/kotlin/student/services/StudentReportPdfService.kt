@@ -16,6 +16,7 @@ import java.util.Locale
 
 class StudentReportPdfService {
 
+
     fun generateReportPack(
         schoolName: String,
         records: List<StudentReportCardResponse>
@@ -661,6 +662,13 @@ class StudentReportPdfService {
 
         var currentY = y - 40f
 
+        val labelWidth = rows.maxOfOrNull { row ->
+            PDType1Font.HELVETICA_BOLD
+                .getStringWidth("${row.first}:") / 1000f * 8.2f
+        } ?: 0f
+
+        val valueX = x + labelWidth + 18f
+
         rows.forEach { row ->
             content.setNonStrokingColor(71, 85, 105)
 
@@ -678,9 +686,9 @@ class StudentReportPdfService {
             currentY = writeWrappedLine(
                 content = content,
                 text = row.second,
-                x = x + 118f,
+                x = valueX,
                 y = currentY,
-                maxWidth = width - 128f,
+                maxWidth = width - (valueX - x) - 10f,
                 font = PDType1Font.HELVETICA,
                 fontSize = 8.2f,
                 lineHeight = 10f
@@ -690,6 +698,8 @@ class StudentReportPdfService {
         }
 
         content.setNonStrokingColor(15, 23, 42)
+
+
     }
 
     private fun drawFooter(
