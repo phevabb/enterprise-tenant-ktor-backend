@@ -244,6 +244,9 @@ class StudentReportPdfService {
             size = avatarSize
         )
 
+        // Ensure right-side text is black
+        content.setNonStrokingColor(0f, 0f, 0f)
+
         writeRightText(
             content = content,
             text = record.student.name,
@@ -262,15 +265,6 @@ class StudentReportPdfService {
             y = y - 45f,
             font = PDType1Font.HELVETICA,
             fontSize = 9f
-        )
-
-        writeRightText(
-            content = content,
-            text = "Student ID: ${record.student.id}",
-            rightX = avatarX - 10f,
-            y = y - 63f,
-            font = PDType1Font.HELVETICA,
-            fontSize = 8.5f
         )
     }
 
