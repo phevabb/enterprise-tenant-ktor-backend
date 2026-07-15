@@ -617,10 +617,17 @@ class StudentReportPdfService {
         y: Float,
         pageWidth: Float
     ): Float {
+
         val gap = 14f
-        val leftWidth = ((pageWidth - (margin * 2)) * 0.64f) - (gap / 2)
-        val rightWidth = ((pageWidth - (margin * 2)) * 0.36f) - (gap / 2)
-        val boxHeight = 118f
+
+        val leftWidth =
+            ((pageWidth - (margin * 2)) * 0.64f) - (gap / 2)
+
+        val rightWidth =
+            ((pageWidth - (margin * 2)) * 0.36f) - (gap / 2)
+
+        val remarksHeight = 220f
+        val promotionHeight = 190f
 
         val leftX = margin
         val rightX = margin + leftWidth + gap
@@ -637,7 +644,7 @@ class StudentReportPdfService {
             x = leftX,
             y = y,
             width = leftWidth,
-            height = boxHeight
+            height = remarksHeight
         )
 
         drawInfoPanel(
@@ -650,10 +657,10 @@ class StudentReportPdfService {
             x = rightX,
             y = y,
             width = rightWidth,
-            height = boxHeight
+            height = promotionHeight
         )
 
-        return y - boxHeight
+        return y - remarksHeight
     }
 
     private fun drawInfoPanel(
@@ -720,10 +727,10 @@ class StudentReportPdfService {
                 maxWidth = width - (valueX - x) - 10f,
                 font = PDType1Font.HELVETICA,
                 fontSize = 8.2f,
-                lineHeight = 10f
+                lineHeight = 12f
             )
 
-            currentY -= 3f
+            currentY -= 8f
         }
 
         content.setNonStrokingColor(15, 23, 42)
