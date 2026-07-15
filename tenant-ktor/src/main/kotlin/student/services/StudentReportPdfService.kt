@@ -108,7 +108,7 @@ class StudentReportPdfService {
                 y = y
             )
 
-            y -= 122f
+            y -= 160f
 
             writeText(
                 content = content,
@@ -180,12 +180,12 @@ class StudentReportPdfService {
         margin: Float,
         y: Float
     ) {
-        val headerHeight = 98f
+        val headerHeight = 135f
         val headerX = margin
         val headerY = y - headerHeight + 4f
         val headerWidth = pageWidth - (margin * 2)
 
-        // White header background
+        // Card background
         content.setNonStrokingColor(255, 255, 255)
         content.addRect(
             headerX,
@@ -195,7 +195,7 @@ class StudentReportPdfService {
         )
         content.fill()
 
-// Soft premium border
+        // Border
         content.setStrokingColor(226, 232, 240)
         content.setLineWidth(0.8f)
         content.addRect(
@@ -206,40 +206,9 @@ class StudentReportPdfService {
         )
         content.stroke()
 
-        content.setNonStrokingColor(15, 23, 42)
-
-        writeText(
-            content = content,
-            text = schoolName
-                .ifBlank { "School Name" }
-                .uppercase(),
-            x = margin + 15f,
-            y = y - 18f,
-            font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 18f
-        )
-
-        writeText(
-            content = content,
-            text = "ACADEMIC REPORT",
-            x = margin + 15f,
-            y = y - 39f,
-            font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 10f
-        )
-
-        writeText(
-            content = content,
-            text = "Academic Year: ${record.academicYear.name} | Term: ${record.term.name} | Class: ${record.classLevel.name}",
-            x = margin + 15f,
-            y = y - 59f,
-            font = PDType1Font.HELVETICA,
-            fontSize = 9f
-        )
-
-        val avatarSize = 48f
-        val avatarX = pageWidth - margin - 72f
-        val avatarY = y - 62f
+        val avatarSize = 58f
+        val avatarX = pageWidth - margin - 78f
+        val avatarY = y - 85f
 
         drawStudentAvatar(
             document = document,
@@ -251,25 +220,79 @@ class StudentReportPdfService {
             size = avatarSize
         )
 
-        // Ensure right-side text is black
-        content.setNonStrokingColor(0f, 0f, 0f)
+        // Reserve space for avatar area
+        val textWidth = headerWidth - avatarSize - 50f
 
-        writeRightText(
+        content.setNonStrokingColor(15, 23, 42)
+
+        var currentY = y - 18f
+
+        currentY = writeWrappedLine(
             content = content,
-            text = record.student.name,
-            rightX = avatarX - 10f,
-            y = y - 23f,
+            text = schoolName
+                .ifBlank { "School Name" }
+                .uppercase(),
+            x = margin + 15f,
+            y = currentY,
+            maxWidth = textWidth,
             font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 12f
+            fontSize = 16f,
+            lineHeight = 18f
         )
+
+        currentY -= 4f
+
+        writeText(
+            content = content,
+            text = "ACADEMIC REPORT",
+            x = margin + 15f,
+            y = currentY,
+            font = PDType1Font.HELVETICA_BOLD,
+            fontSize = 10f
+        )
+
+        currentY -= 20f
+
+        writeText(
+            content = content,
+            text = "Student: ${record.student.name}",
+            x = margin + 15f,
+            y = currentY,
+            font = PDType1Font.HELVETICA_BOLD,
+            fontSize = 11f
+        )
+
+        currentY -= 18f
+
+        writeText(
+            content = content,
+            text = "Academic Year: ${record.academicYear.name} | Term: ${record.term.name}",
+            x = margin + 15f,
+            y = currentY,
+            font = PDType1Font.HELVETICA,
+            fontSize = 9f
+        )
+
+        currentY -= 14f
+
+        writeText(
+            content = content,
+            text = "Class: ${record.classLevel.name}",
+            x = margin + 15f,
+            y = currentY,
+            font = PDType1Font.HELVETICA,
+            fontSize = 9f
+        )
+
+        currentY -= 14f
 
         val position = record.overallPosition?.let { ordinal(it) } ?: "-"
 
-        writeRightText(
+        writeText(
             content = content,
             text = "Overall Position: $position / ${record.numberOnRoll}",
-            rightX = avatarX - 10f,
-            y = y - 45f,
+            x = margin + 15f,
+            y = currentY,
             font = PDType1Font.HELVETICA,
             fontSize = 9f
         )
