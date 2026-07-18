@@ -14,45 +14,110 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object CategoryRepository {
 
+//    fun findAll(
+//        tenantSchema: String
+//    ): List<CategoryResponse> = transaction {
+//
+//        setTenantSchema(tenantSchema)
+//
+//        CategoriesTable.selectAll().map { catRow ->
+//
+//            val categoryId = catRow[CategoriesTable.id].value
+//            val categoryName = catRow[CategoriesTable.name]
+//
+//            val classes = NewGradeClassTable
+//                .selectAll()
+//                .where { NewGradeClassTable.category eq categoryId }
+//                .orderBy(NewGradeClassTable.name to SortOrder.ASC)
+//                .map {
+//                    GradeClassResponse(
+//                        id = it[NewGradeClassTable.id].value,
+//                        name = it[NewGradeClassTable.name]
+//                    )
+//                }
+//
+//            val subjects = SubjectsTable
+//                .selectAll()
+//                .where { SubjectsTable.category eq categoryId }
+//                .orderBy(SubjectsTable.name to SortOrder.ASC)
+//                .map {
+//                    SubjectResponse(
+//                        id = it[SubjectsTable.id].value,
+//                        name = it[SubjectsTable.name]
+//                    )
+//                }
+//
+//            CategoryResponse(
+//                id = categoryId,
+//                name = categoryName,
+//                specific_classes = classes,
+//                subjects = subjects
+//            )
+//        }
+//    }
+
+
+
     fun findAll(
         tenantSchema: String
-    ): List<CategoryResponse> = transaction {
+    ): List<CategoryResponse> {
 
-        setTenantSchema(tenantSchema)
+        val start = System.currentTimeMillis()
 
-        CategoriesTable.selectAll().map { catRow ->
+        println("findAll START")
 
-            val categoryId = catRow[CategoriesTable.id].value
-            val categoryName = catRow[CategoriesTable.name]
+        return transaction {
 
-            val classes = NewGradeClassTable
-                .selectAll()
-                .where { NewGradeClassTable.category eq categoryId }
-                .orderBy(NewGradeClassTable.name to SortOrder.ASC)
-                .map {
-                    GradeClassResponse(
-                        id = it[NewGradeClassTable.id].value,
-                        name = it[NewGradeClassTable.name]
-                    )
-                }
+            println("transaction START")
 
-            val subjects = SubjectsTable
-                .selectAll()
-                .where { SubjectsTable.category eq categoryId }
-                .orderBy(SubjectsTable.name to SortOrder.ASC)
-                .map {
-                    SubjectResponse(
-                        id = it[SubjectsTable.id].value,
-                        name = it[SubjectsTable.name]
-                    )
-                }
+            setTenantSchema(tenantSchema)
 
-            CategoryResponse(
-                id = categoryId,
-                name = categoryName,
-                specific_classes = classes,
-                subjects = subjects
+            println("schema set")
+
+            val result = CategoriesTable.selectAll().map { catRow ->
+
+                val categoryId = catRow[CategoriesTable.id].value
+                val categoryName = catRow[CategoriesTable.name]
+
+                println("processing category $categoryId")
+
+                val classes = NewGradeClassTable
+                    .selectAll()
+                    .where { NewGradeClassTable.category eq categoryId }
+                    .orderBy(NewGradeClassTable.name to SortOrder.ASC)
+                    .map {
+                        GradeClassResponse(
+                            id = it[NewGradeClassTable.id].value,
+                            name = it[NewGradeClassTable.name]
+                        )
+                    }
+
+                val subjects = SubjectsTable
+                    .selectAll()
+                    .where { SubjectsTable.category eq categoryId }
+                    .orderBy(SubjectsTable.name to SortOrder.ASC)
+                    .map {
+                        SubjectResponse(
+                            id = it[SubjectsTable.id].value,
+                            name = it[SubjectsTable.name]
+                        )
+                    }
+
+                CategoryResponse(
+                    id = categoryId,
+                    name = categoryName,
+                    specific_classes = classes,
+                    subjects = subjects
+                )
+            }
+
+            println(
+                "transaction END took ${
+                    System.currentTimeMillis() - start
+                } ms"
             )
+
+            result
         }
     }
 

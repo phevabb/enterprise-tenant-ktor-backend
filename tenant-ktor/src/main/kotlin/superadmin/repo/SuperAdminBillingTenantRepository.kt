@@ -51,18 +51,47 @@ object SuperAdminBillingTenantRepository {
                     matchesSearch && matchesStatus
                 }
 
+            println("[BILLING SUMMARY] TOTAL TENANTS = ${tenants.size}")
+
+
+            println("[BILLING SUMMARY] START PROCESSING")
+            val overallStart = System.currentTimeMillis()
+
             tenants.map { tenant ->
+
+                val start = System.currentTimeMillis()
+
                 val studentCount = try {
+
+                    println(
+                        "[BILLING SUMMARY] START tenantCode=${tenant.tenantCode}, schema=${tenant.tenantSchema}"
+                    )
+
                     setTenantSchema(tenant.tenantSchema)
 
-                    StudentsTable
+                    println(
+                        "[BILLING SUMMARY] SCHEMA SET tenantCode=${tenant.tenantCode}"
+                    )
+
+                    val count = StudentsTable
                         .selectAll()
                         .count()
                         .toInt()
-                } catch (e: Exception) {
+
                     println(
-                        "[BILLING SUMMARY] Failed to count students for tenantCode=${tenant.tenantCode}, schema=${tenant.tenantSchema}. Error=${e.message}"
+                        "[BILLING SUMMARY] END tenantCode=${tenant.tenantCode}, count=$count, took=${
+                            System.currentTimeMillis() - start
+                        }ms"
                     )
+
+                    count
+
+                } catch (e: Exception) {
+
+                    println(
+                        "[BILLING SUMMARY] FAILED tenantCode=${tenant.tenantCode}, schema=${tenant.tenantSchema}, error=${e.message}"
+                    )
+
                     0
                 }
 
@@ -74,6 +103,12 @@ object SuperAdminBillingTenantRepository {
                     academicYear = tenant.academicYear,
                     status = tenant.status,
                     studentCount = studentCount
+                )
+            }.also {
+                println(
+                    "[BILLING SUMMARY] FINISHED ALL TENANTS IN ${
+                        System.currentTimeMillis() - overallStart
+                    } ms"
                 )
             }
         }
