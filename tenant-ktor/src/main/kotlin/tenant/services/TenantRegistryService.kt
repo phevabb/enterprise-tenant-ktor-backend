@@ -96,18 +96,57 @@ object TenantRegistryService {
             .substringBefore("/")
     }
 
-    fun resolveByTenantSlug(slug: String): TenantContext? {
+    fun resolveByTenantSlug(
+        slug: String
+    ): TenantContext? {
+
+        val overallStart = System.currentTimeMillis()
+
         val normalizedSlug = slug.trim().lowercase()
 
-        return transaction {
+        println(
+            "[TENANT RESOLUTION] START slug=$normalizedSlug"
+        )
+
+        val result = transaction {
+
+            val transactionStart = System.currentTimeMillis()
+
+            println(
+                "[TENANT RESOLUTION] TRANSACTION START slug=$normalizedSlug"
+            )
+
+            val tenantQueryStart = System.currentTimeMillis()
+
             val tenantRow = TenantsTable
                 .selectAll()
-                .where { TenantsTable.tenantSlug eq normalizedSlug }
+                .where {
+                    TenantsTable.tenantSlug eq normalizedSlug
+                }
                 .limit(1)
                 .singleOrNull()
-                ?: return@transaction null
+
+            println(
+                "[TENANT RESOLUTION] TENANT QUERY TOOK ${
+                    System.currentTimeMillis() - tenantQueryStart
+                } ms"
+            )
+
+            if (tenantRow == null) {
+                println(
+                    "[TENANT RESOLUTION] TENANT NOT FOUND slug=$normalizedSlug"
+                )
+
+                return@transaction null
+            }
 
             val tenantId = tenantRow[TenantsTable.id]
+
+            println(
+                "[TENANT RESOLUTION] TENANT FOUND id=$tenantId slug=$normalizedSlug"
+            )
+
+            val featuresStart = System.currentTimeMillis()
 
             val features = TenantFeaturesTable
                 .selectAll()
@@ -115,10 +154,22 @@ object TenantRegistryService {
                     (TenantFeaturesTable.tenantId eq tenantId) and
                             (TenantFeaturesTable.isEnabled eq true)
                 }
-                .map { it[TenantFeaturesTable.featureCode] }
+                .map {
+                    it[TenantFeaturesTable.featureCode]
+                }
                 .toSet()
 
-            TenantContext(
+            println(
+                "[TENANT RESOLUTION] FEATURES QUERY TOOK ${
+                    System.currentTimeMillis() - featuresStart
+                } ms"
+            )
+
+            println(
+                "[TENANT RESOLUTION] FEATURES COUNT=${features.size}"
+            )
+
+            val context = TenantContext(
                 tenantId = tenantId,
                 schoolName = tenantRow[TenantsTable.schoolName],
                 tenantCode = tenantRow[TenantsTable.tenantCode],
@@ -128,7 +179,23 @@ object TenantRegistryService {
                 status = tenantRow[TenantsTable.status],
                 features = features
             )
+
+            println(
+                "[TENANT RESOLUTION] TRANSACTION COMPLETE IN ${
+                    System.currentTimeMillis() - transactionStart
+                } ms"
+            )
+
+            context
         }
+
+        println(
+            "[TENANT RESOLUTION] METHOD COMPLETE IN ${
+                System.currentTimeMillis() - overallStart
+            } ms"
+        )
+
+        return result
     }
 
 

@@ -16,19 +16,23 @@ val TenantPlugin = createApplicationPlugin(
     name = "TenantPlugin",
     createConfiguration = ::TenantPluginConfig
 ) {
+
     val resolver = pluginConfig.resolver
 
     onCall { call ->
+
+        val overallStart = System.currentTimeMillis()
+
         val path = call.request.path()
 
-        /**
-         * IMPORTANT:
-         * These routes are platform/internal routes.
-         * They must NOT require tenant resolution.
-         */
+        println("======================================================")
+        println("[TENANT PLUGIN] REQUEST START")
+        println("[TENANT PLUGIN] PATH = $path")
+        println("[TENANT PLUGIN] METHOD = ${call.request.httpMethod.value}")
+        println("======================================================")
+
         val excludedPaths = listOf(
             "/api/internal/",
-
             "/api/public/",
             "/api/superadmin/",
             "/internal/",
@@ -38,29 +42,163 @@ val TenantPlugin = createApplicationPlugin(
         )
 
         if (excludedPaths.any { path.startsWith(it) }) {
+
+            println(
+                "[TENANT PLUGIN] SKIPPED TENANT RESOLUTION FOR PATH=$path"
+            )
+
+            println(
+                "[TENANT PLUGIN] FINISHED IN ${
+                    System.currentTimeMillis() - overallStart
+                } ms"
+            )
+
             return@onCall
         }
 
-        val tenantSlugHeader = call.request.headers["X-Tenant-Slug"]
-        val tenantCodeHeader = call.request.headers["X-Tenant-Code"]
-        val host = call.request.local.serverHost
+        val tenantSlugHeader =
+            call.request.headers["X-Tenant-Slug"]
+
+        val tenantCodeHeader =
+            call.request.headers["X-Tenant-Code"]
+
+        val host =
+            call.request.local.serverHost
+
+        println("[TENANT PLUGIN] HOST = $host")
+        println("[TENANT PLUGIN] X-Tenant-Slug = $tenantSlugHeader")
+        println("[TENANT PLUGIN] X-Tenant-Code = $tenantCodeHeader")
+
+        val resolutionStart = System.currentTimeMillis()
 
         val tenant = tenantSlugHeader?.let {
-            resolver.resolveByTenantSlug(it)
+
+            println(
+                "[TENANT PLUGIN] RESOLVING BY TENANT SLUG = $it"
+            )
+
+            val start = System.currentTimeMillis()
+
+            val result = resolver.resolveByTenantSlug(it)
+
+            println(
+                "[TENANT PLUGIN] RESOLVE BY SLUG TOOK ${
+                    System.currentTimeMillis() - start
+                } ms"
+            )
+
+            result
+
         } ?: tenantCodeHeader?.let {
-            resolver.resolveByTenantCode(it)
-        } ?: resolver.resolveByHost(host)
+
+            println(
+                "[TENANT PLUGIN] RESOLVING BY TENANT CODE = $it"
+            )
+
+            val start = System.currentTimeMillis()
+
+            val result = resolver.resolveByTenantCode(it)
+
+            println(
+                "[TENANT PLUGIN] RESOLVE BY CODE TOOK ${
+                    System.currentTimeMillis() - start
+                } ms"
+            )
+
+            result
+
+        } ?: run {
+
+            println(
+                "[TENANT PLUGIN] RESOLVING BY HOST = $host"
+            )
+
+            val start = System.currentTimeMillis()
+
+            val result = resolver.resolveByHost(host)
+
+            println(
+                "[TENANT PLUGIN] RESOLVE BY HOST TOOK ${
+                    System.currentTimeMillis() - start
+                } ms"
+            )
+
+            result
+        }
+
+        println(
+            "[TENANT PLUGIN] TOTAL RESOLUTION TIME = ${
+                System.currentTimeMillis() - resolutionStart
+            } ms"
+        )
 
         if (tenant == null) {
-            call.respond(HttpStatusCode.NotFound, "Tenant not found")
+
+            println(
+                "[TENANT PLUGIN] TENANT NOT FOUND"
+            )
+
+            call.respond(
+                HttpStatusCode.NotFound,
+                "Tenant not found"
+            )
+
             return@onCall
         }
+
+        println(
+            "[TENANT PLUGIN] TENANT FOUND"
+        )
+
+        println(
+            "[TENANT PLUGIN] tenantId=${tenant.tenantId}"
+        )
+
+        println(
+            "[TENANT PLUGIN] tenantCode=${tenant.tenantCode}"
+        )
+
+        println(
+            "[TENANT PLUGIN] tenantSlug=${tenant.tenantSlug}"
+        )
+
+        println(
+            "[TENANT PLUGIN] tenantSchema=${tenant.tenantSchema}"
+        )
+
+        println(
+            "[TENANT PLUGIN] schoolName=${tenant.schoolName}"
+        )
 
         if (!tenant.isActive()) {
-            call.respond(HttpStatusCode.PaymentRequired, "Tenant is not active")
+
+            println(
+                "[TENANT PLUGIN] TENANT INACTIVE"
+            )
+
+            call.respond(
+                HttpStatusCode.PaymentRequired,
+                "Tenant is not active"
+            )
+
             return@onCall
         }
 
-        call.attributes.put(TenantKey, tenant)
+        println(
+            "[TENANT PLUGIN] STORING TENANT IN REQUEST ATTRIBUTES"
+        )
+
+        call.attributes.put(
+            TenantKey,
+            tenant
+        )
+
+        println(
+            "[TENANT PLUGIN] REQUEST FINISHED IN ${
+                System.currentTimeMillis() - overallStart
+            } ms"
+        )
+
+        println("======================================================")
     }
 }
