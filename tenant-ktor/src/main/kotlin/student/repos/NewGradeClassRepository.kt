@@ -49,21 +49,71 @@ object NewGradeClassRepository {
 
     fun findAll(
         tenantSchema: String
-    ): List<NewGradeClassModel> = transaction {
+    ): List<NewGradeClassModel> {
 
-        setTenantSchema(tenantSchema)
+        println("========================================")
+        println("[GRADE CLASS REPO] START")
+        println("[GRADE CLASS REPO] tenantSchema=$tenantSchema")
+        println("========================================")
 
+        println("[GRADE CLASS REPO] BEFORE TRANSACTION")
 
-        NewGradeClassTable
-            .join(
-                CategoriesTable,
-                JoinType.LEFT,
-                NewGradeClassTable.category,
-                CategoriesTable.id
+        val result = transaction {
+
+            println("[GRADE CLASS REPO] ENTERED TRANSACTION")
+
+            val schemaStart = System.currentTimeMillis()
+
+            setTenantSchema(tenantSchema)
+
+            println(
+                "[GRADE CLASS REPO] AFTER SET SCHEMA (${System.currentTimeMillis() - schemaStart} ms)"
             )
-            .selectAll()
-            .orderBy(NewGradeClassTable.id, SortOrder.DESC)
-            .map { it.toNewGradeClassModel() }
+
+            val queryStart = System.currentTimeMillis()
+
+            val rows = NewGradeClassTable
+                .join(
+                    CategoriesTable,
+                    JoinType.LEFT,
+                    NewGradeClassTable.category,
+                    CategoriesTable.id
+                )
+                .selectAll()
+                .orderBy(
+                    NewGradeClassTable.id,
+                    SortOrder.DESC
+                )
+                .toList()
+
+            println(
+                "[GRADE CLASS REPO] QUERY TOOK ${
+                    System.currentTimeMillis() - queryStart
+                } ms"
+            )
+
+            val mapStart = System.currentTimeMillis()
+
+            val models = rows.map {
+                it.toNewGradeClassModel()
+            }
+
+            println(
+                "[GRADE CLASS REPO] MAPPING TOOK ${
+                    System.currentTimeMillis() - mapStart
+                } ms"
+            )
+
+            println(
+                "[GRADE CLASS REPO] TOTAL RECORDS=${models.size}"
+            )
+
+            models
+        }
+
+        println("[GRADE CLASS REPO] TRANSACTION COMPLETE")
+
+        return result
     }
 
     fun delete(

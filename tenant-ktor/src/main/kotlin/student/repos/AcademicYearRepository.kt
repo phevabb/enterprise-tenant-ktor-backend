@@ -40,16 +40,41 @@ object AcademicYearRepository {
 
     fun findAll(
         tenantSchema: String
-    ): List<AcademicYearModel> = transaction {
+    ): List<AcademicYearModel> {
 
-        setTenantSchema(tenantSchema)
+        println("[YEAR REPO] BEFORE TRANSACTION")
 
+        val result = transaction {
 
-        AcademicYearTable
-            .selectAll()
-            .orderBy(AcademicYearTable.id, SortOrder.DESC)
-            .map { it.toAcademicYearModel() }
+            println("[YEAR REPO] ENTERED TRANSACTION")
+
+            setTenantSchema(tenantSchema)
+
+            println("[YEAR REPO] AFTER SET SCHEMA")
+
+            val years = AcademicYearTable
+                .selectAll()
+                .orderBy(
+                    AcademicYearTable.id,
+                    SortOrder.DESC
+                )
+                .map {
+                    it.toAcademicYearModel()
+                }
+
+            println(
+                "[YEAR REPO] QUERY RETURNED ${years.size} YEARS"
+            )
+
+            years
+        }
+
+        println("[YEAR REPO] TRANSACTION COMPLETE")
+
+        return result
     }
+
+
 
     fun getCurrentId(
         tenantSchema: String

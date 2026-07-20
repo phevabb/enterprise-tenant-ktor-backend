@@ -21,9 +21,36 @@ import org.jetbrains.exposed.sql.update
 
 
 
-fun Transaction.setTenantSchema(tenantSchema: String) {
-    val safeSchema = tenantSchema.replace("\"", "\"\"")
-    exec("""SET LOCAL search_path TO "$safeSchema"""")
+fun Transaction.setTenantSchema(
+    tenantSchema: String
+) {
+
+    val start = System.currentTimeMillis()
+
+    println(
+        "[SCHEMA] START tenantSchema=$tenantSchema"
+    )
+
+    val safeSchema =
+        tenantSchema.replace("\"", "\"\"")
+
+    val execStart = System.currentTimeMillis()
+
+    exec(
+        """SET LOCAL search_path TO "$safeSchema""""
+    )
+
+    println(
+        "[SCHEMA] EXEC TOOK ${
+            System.currentTimeMillis() - execStart
+        } ms"
+    )
+
+    println(
+        "[SCHEMA] COMPLETE IN ${
+            System.currentTimeMillis() - start
+        } ms"
+    )
 }
 
 
@@ -76,33 +103,73 @@ object TermRepository {
     fun findByIdWithYearName(
         tenantSchema: String,
         id: Int
-    ): TermResponseDto? = transaction {
+    ): TermResponseDto? {
 
-        setTenantSchema(tenantSchema)
+        println("========================================")
+        println("[TERM REPO] START")
+        println("[TERM REPO] tenantSchema=$tenantSchema")
+        println("[TERM REPO] id=$id")
+        println("========================================")
 
-        TermTable
-            .join(
-                AcademicYearTable,
-                JoinType.INNER,
-                TermTable.academic_year,
-                AcademicYearTable.id
+        println("[TERM REPO] BEFORE TRANSACTION")
+
+        val result = transaction {
+
+            println("[TERM REPO] ENTERED TRANSACTION")
+
+            val schemaStart = System.currentTimeMillis()
+
+            setTenantSchema(tenantSchema)
+
+            println(
+                "[TERM REPO] AFTER SET SCHEMA (${System.currentTimeMillis() - schemaStart} ms)"
             )
-            .selectAll()
-            .where { TermTable.id eq id }
-            .singleOrNull()
-            ?.let { row ->
 
-                val academicYear = AcademicYearResponse(
+            val queryStart = System.currentTimeMillis()
+
+            val row = TermTable
+                .join(
+                    AcademicYearTable,
+                    JoinType.INNER,
+                    TermTable.academic_year,
+                    AcademicYearTable.id
+                )
+                .selectAll()
+                .where {
+                    TermTable.id eq id
+                }
+                .singleOrNull()
+
+            println(
+                "[TERM REPO] QUERY TOOK ${
+                    System.currentTimeMillis() - queryStart
+                } ms"
+            )
+
+            if (row == null) {
+                println("[TERM REPO] NO RECORD FOUND")
+                return@transaction null
+            }
+
+            println("[TERM REPO] RECORD FOUND")
+
+            val response = TermResponseDto(
+                id = row[TermTable.id].value,
+                name = row[TermTable.name],
+                academic_year = AcademicYearResponse(
                     id = row[AcademicYearTable.id].value,
                     name = row[AcademicYearTable.name]
                 )
+            )
 
-                TermResponseDto(
-                    id = row[TermTable.id].value,
-                    name = row[TermTable.name],
-                    academic_year = academicYear
-                )
-            }
+            println("[TERM REPO] DTO CREATED")
+
+            response
+        }
+
+        println("[TERM REPO] TRANSACTION COMPLETE")
+
+        return result
     }
 
     fun findAllWithYearName(
