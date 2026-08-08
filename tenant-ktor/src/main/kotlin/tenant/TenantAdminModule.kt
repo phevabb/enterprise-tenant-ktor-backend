@@ -2,6 +2,7 @@ package com.example.tenant
 
 
 
+import account.dto.UpdateSchoolBrandingRequest
 import kotlinx.serialization.Serializable
 import com.example.academics.tables.SubjectsTable
 import com.example.admin.dtos.requests.CreateAdminRequest
@@ -21,8 +22,12 @@ import com.example.student.repos.setTenantSchema
 import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.TermTable
 import com.example.tenant.dto.requests.CreateTenantRequest
+import com.example.tenant.dto.requests.UpdateTenantPinsRequest
+import com.example.tenant.dto.requests.UpdateTenantRequest
 import com.example.tenant.dto.response.CreateTenantResponse
+import com.example.tenant.dto.response.UpdatePinsResponse
 import com.example.tenant.services.TenantSchemaService
+import com.example.tenant.services.UpdateTenantPinsService
 import com.example.tenant.tables.TenantFeaturesTable
 
 import com.example.tenant.tables.TenantsTable
@@ -38,9 +43,11 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import tenant.services.UpdateSchoolBrandingService
 import java.time.Instant
 import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
 
+// this is the routing for tenants... it mostly uses services instead of repos
 fun Application.tenantAdminModule() {
     routing {
         post("/internal/tenants/create") {
@@ -88,6 +95,92 @@ fun Application.tenantAdminModule() {
             }
         }
 
+        put("/internal/tenants/update-school-branding") {
+
+            try {
+
+                val request =
+                    call.receive<UpdateSchoolBrandingRequest>()
+
+                UpdateSchoolBrandingService
+                    .updateSchoolBranding(
+                        tenantCode = request.tenantCode,
+                        schoolName = request.schoolName,
+                        schoolLogoUrl = request.schoolLogoUrl,
+                        schoolMotto = request.schoolMotto,
+                        location = request.location
+                    )
+
+                call.respond(
+                    HttpStatusCode.OK
+                )
+
+            } catch (e: Exception) {
+
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError
+                )
+            }
+        }
+
+
+        put("/internal/tenants/update-pins") {
+
+            try {
+
+                val request =
+                    call.receive<UpdateTenantPinsRequest>()
+
+                UpdateTenantPinsService.updatePins(
+                    tenantCode = request.tenantCode,
+                    adminPin = request.adminPin,
+                    principalPin = request.principalPin
+                )
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    UpdatePinsResponse(
+                        success = true,
+                        message = "Pins updated successfully"
+                    )
+                )
+
+            } catch (e: Exception) {
+
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf(
+                        "error" to (
+                                e.message
+                                    ?: "Unable to update pins"
+                                )
+                    )
+                )
+            }
+        }
+
+
+
+        put("/internal/tenants/update") {
+
+            val request =
+                call.receive<UpdateTenantRequest>()
+
+            updateTenant(
+                request = request
+            )
+
+            call.respond(
+                HttpStatusCode.OK,
+                mapOf(
+                    "success" to true
+                )
+            )
+        }
 
 
 
@@ -240,19 +333,11 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
 // Fallback URL should be local/testing URL
     val fallbackLocalUrl = defaultLocalDomain
 
-    println("🔹 [PROVISION] tenantSlug = $tenantSlug")
-    println("🔹 [PROVISION] defaultDomain = $defaultDomain")
-    println("🔹 [PROVISION] defaultLocalDomain = $defaultLocalDomain")
-    println("🔹 [PROVISION] fallbackLocalUrl = $fallbackLocalUrl")
-    println("🔹 [PROVISION] tenantSchema = $tenantSchema")
 
 
 
-    println("🔹 [PROVISION] tenantSlug = $tenantSlug")
-    println("🔹 [PROVISION] defaultDomain = $defaultDomain")
-    println("🔹 [PROVISION] defaultLocalDomain = $defaultLocalDomain")
-    println("🔹 [PROVISION] fallbackLocalUrl = $fallbackLocalUrl")
-    println("🔹 [PROVISION] tenantSchema = $tenantSchema")
+
+
 
     // ✅ 4. Insert tenant into public schema
     val tenantId = transaction {
@@ -416,6 +501,45 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
     }
 }
 
+
+fun updateTenant(
+    request: UpdateTenantRequest
+): Boolean = transaction {
+
+    val updated = TenantsTable.update(
+        {
+            TenantsTable.tenantCode eq request.tenantCode
+        }
+    ) {
+
+        it[schoolName] =
+            request.schoolName
+
+        request.schoolMotto?.let { motto ->
+            it[schoolMotto] = motto
+        }
+
+        request.schoolLogoUrl?.let { logo ->
+            it[schoolLogoUrl] = logo
+        }
+
+
+
+        request.schoolLocation?.let { location ->
+            it[TenantsTable.location] = location
+        }
+
+        request.fullName?.let { name ->
+            it[accountOwnerName] = name
+        }
+
+
+
+       
+    }
+
+    updated > 0
+}
 private fun generateInitialSlug(name: String): String {
     return name
         .trim()
