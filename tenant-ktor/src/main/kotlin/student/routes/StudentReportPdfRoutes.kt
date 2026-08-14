@@ -20,6 +20,26 @@ import io.ktor.server.routing.route
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
+
+private data class SchoolBrandingInfo(
+    val schoolName: String,
+    val schoolLogoUrl: String?,
+    val schoolMotto: String?
+)
+
+private fun normalizeTenantCode(
+    tenantCode: String
+): String {
+    return tenantCode
+        .trim()
+        .lowercase()
+        .replace(
+            Regex("[^a-z0-9_]"),
+            ""
+        )
+}
+
+
 fun Route.studentReportPdfRoutes() {
     val pdfService = StudentReportPdfService()
 
@@ -124,12 +144,15 @@ fun Route.studentReportPdfRoutes() {
                 return@get
             }
 
-            val schoolName = call.resolveSchoolNameOrDefault(
+            val schoolBranding =
+                call.resolveSchoolBrandingOrDefault(
                 defaultName = "School Name"
             )
 
             val pdfBytes = pdfService.generateReportPack(
-                schoolName = schoolName,
+                schoolName = schoolBranding.schoolName,
+                schoolLogoUrl = schoolBranding.schoolLogoUrl,
+                schoolMotto = schoolBranding.schoolMotto,
                 records = reportCards
             )
 
@@ -195,12 +218,15 @@ fun Route.studentReportPdfRoutes() {
                 return@get
             }
 
-            val schoolName = call.resolveSchoolNameOrDefault(
+            val schoolBranding =
+                call.resolveSchoolBrandingOrDefault(
                 defaultName = "School Name"
             )
 
             val pdfBytes = pdfService.generateReportPack(
-                schoolName = schoolName,
+                schoolName = schoolBranding.schoolName,
+                schoolLogoUrl = schoolBranding.schoolLogoUrl,
+                schoolMotto = schoolBranding.schoolMotto,
                 records = listOf(selectedReport)
             )
 
@@ -279,25 +305,35 @@ private fun ApplicationCall.resolveTenantSchemaByCodeOrSlug(): String? {
     }
 }
 
-private fun ApplicationCall.resolveSchoolNameOrDefault(
+private fun ApplicationCall.resolveSchoolBrandingOrDefault(
     defaultName: String = "School Name"
-): String {
-    val schoolNameHeader = request.header("X-School-Name")
+): SchoolBrandingInfo {
 
-    if (!schoolNameHeader.isNullOrBlank()) {
-        return schoolNameHeader
-    }
+    val schoolNameHeader =
+        request.header("X-School-Name")
 
-    val tenantSchemaHeader = request.header("X-Tenant-Schema")
-    val tenantCode = request.header("X-Tenant-Code")
-    val tenantSlug = request.header("X-Tenant-Slug")
+    val tenantSchemaHeader =
+        request.header("X-Tenant-Schema")
+
+    val tenantCodeHeader =
+        request.header("X-Tenant-Code")
+
+    val tenantSlugHeader =
+        request.header("X-Tenant-Slug")
 
     return transaction {
+
         setTenantSchema("public")
+
+        val normalizedTenantCode =
+            tenantCodeHeader
+                ?.takeIf { it.isNotBlank() }
+                ?.let { normalizeTenantCode(it) }
 
         val tenantRow = TenantsTable
             .selectAll()
             .firstOrNull { row ->
+
                 val schemaMatches =
                     !tenantSchemaHeader.isNullOrBlank() &&
                             row[TenantsTable.tenantSchema].equals(
@@ -306,25 +342,34 @@ private fun ApplicationCall.resolveSchoolNameOrDefault(
                             )
 
                 val codeMatches =
-                    !tenantCode.isNullOrBlank() &&
+                    !normalizedTenantCode.isNullOrBlank() &&
                             row[TenantsTable.tenantCode].equals(
-                                tenantCode,
+                                normalizedTenantCode,
                                 ignoreCase = true
                             )
 
                 val slugMatches =
-                    !tenantSlug.isNullOrBlank() &&
+                    !tenantSlugHeader.isNullOrBlank() &&
                             row[TenantsTable.tenantSlug].equals(
-                                tenantSlug,
+                                tenantSlugHeader,
                                 ignoreCase = true
                             )
 
                 schemaMatches || codeMatches || slugMatches
             }
 
-        /**
-         * If your TenantsTable uses another column, change this line.
-         */
-        tenantRow?.get(TenantsTable.schoolName) ?: defaultName
+        SchoolBrandingInfo(
+            schoolName =
+                schoolNameHeader
+                    ?.takeIf { it.isNotBlank() }
+                    ?: tenantRow?.get(TenantsTable.schoolName)
+                    ?: defaultName,
+
+            schoolLogoUrl =
+                tenantRow?.get(TenantsTable.schoolLogoUrl),
+
+            schoolMotto =
+                tenantRow?.get(TenantsTable.schoolMotto)
+        )
     }
 }

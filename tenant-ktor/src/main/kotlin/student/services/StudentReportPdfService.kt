@@ -19,21 +19,33 @@ class StudentReportPdfService {
 
     fun generateReportPack(
         schoolName: String,
+        schoolLogoUrl: String?,
+        schoolMotto: String?,
         records: List<StudentReportCardResponse>
     ): ByteArray {
+
         val document = PDDocument()
 
         try {
+
             if (records.isEmpty()) {
+
                 addEmptyPage(
                     document = document,
-                    schoolName = schoolName
+                    schoolName = schoolName,
+                    schoolLogoUrl = schoolLogoUrl,
+                    schoolMotto = schoolMotto
                 )
+
             } else {
+
                 records.forEach { record ->
+
                     addReportPage(
                         document = document,
                         schoolName = schoolName,
+                        schoolLogoUrl = schoolLogoUrl,
+                        schoolMotto = schoolMotto,
                         record = record
                     )
                 }
@@ -43,29 +55,49 @@ class StudentReportPdfService {
             document.save(output)
 
             return output.toByteArray()
+
         } finally {
+
             document.close()
         }
     }
 
     private fun addEmptyPage(
         document: PDDocument,
-        schoolName: String
+        schoolName: String,
+        schoolLogoUrl: String?,
+        schoolMotto: String?
     ) {
+
         val page = PDPage(PDRectangle.A4)
         document.addPage(page)
 
         PDPageContentStream(document, page).use { content ->
-            drawPageBackground(content, page)
 
-            val displaySchoolName = schoolName
-                .ifBlank { "School Name" }
-                .uppercase()
+            drawPageBackground(
+                content = content,
+                page = page
+            )
+
+            val pageWidth =
+                page.mediaBox.width
+
+            drawSchoolLogo(
+                document = document,
+                content = content,
+                imageUrl = schoolLogoUrl,
+                schoolName = schoolName,
+                x = 40f,
+                y = 735f,
+                size = 48f
+            )
 
             writeText(
                 content = content,
-                text = displaySchoolName,
-                x = 40f,
+                text = schoolName
+                    .ifBlank { "School Name" }
+                    .uppercase(),
+                x = 100f,
                 y = 760f,
                 font = PDType1Font.HELVETICA_BOLD,
                 fontSize = 18f
@@ -75,9 +107,16 @@ class StudentReportPdfService {
                 content = content,
                 text = "No report card records found.",
                 x = 40f,
-                y = 720f,
+                y = 700f,
                 font = PDType1Font.HELVETICA,
                 fontSize = 12f
+            )
+
+            drawFooter(
+                content = content,
+                margin = 40f,
+                pageWidth = pageWidth,
+                schoolMotto = schoolMotto
             )
         }
     }
@@ -85,30 +124,44 @@ class StudentReportPdfService {
     private fun addReportPage(
         document: PDDocument,
         schoolName: String,
+        schoolLogoUrl: String?,
+        schoolMotto: String?,
         record: StudentReportCardResponse
     ) {
+
         val page = PDPage(PDRectangle.A4)
         document.addPage(page)
 
         PDPageContentStream(document, page).use { content ->
-            val pageWidth = page.mediaBox.width
-            val pageHeight = page.mediaBox.height
-            val margin = 36f
-            var y = pageHeight - 38f
 
-            drawPageBackground(content, page)
+            val pageWidth =
+                page.mediaBox.width
+
+            val pageHeight =
+                page.mediaBox.height
+
+            val margin = 36f
+
+            var y =
+                pageHeight - 38f
+
+            drawPageBackground(
+                content = content,
+                page = page
+            )
 
             drawHeader(
                 document = document,
                 content = content,
                 schoolName = schoolName,
+                schoolLogoUrl = schoolLogoUrl,
                 record = record,
                 pageWidth = pageWidth,
                 margin = margin,
                 y = y
             )
 
-            y -= 160f
+            y -= 170f
 
             writeText(
                 content = content,
@@ -151,7 +204,8 @@ class StudentReportPdfService {
             drawFooter(
                 content = content,
                 margin = margin,
-                pageWidth = pageWidth
+                pageWidth = pageWidth,
+                schoolMotto = schoolMotto
             )
         }
     }
@@ -175,17 +229,18 @@ class StudentReportPdfService {
         document: PDDocument,
         content: PDPageContentStream,
         schoolName: String,
+        schoolLogoUrl: String?,
         record: StudentReportCardResponse,
         pageWidth: Float,
         margin: Float,
         y: Float
     ) {
-        val headerHeight = 135f
+
+        val headerHeight = 145f
         val headerX = margin
         val headerY = y - headerHeight + 4f
         val headerWidth = pageWidth - (margin * 2)
 
-        // Card background
         content.setNonStrokingColor(255, 255, 255)
         content.addRect(
             headerX,
@@ -195,7 +250,6 @@ class StudentReportPdfService {
         )
         content.fill()
 
-        // Border
         content.setStrokingColor(226, 232, 240)
         content.setLineWidth(0.8f)
         content.addRect(
@@ -206,9 +260,23 @@ class StudentReportPdfService {
         )
         content.stroke()
 
+        val logoSize = 58f
+        val logoX = margin + 15f
+        val logoY = y - 78f
+
+        drawSchoolLogo(
+            document = document,
+            content = content,
+            imageUrl = schoolLogoUrl,
+            schoolName = schoolName,
+            x = logoX,
+            y = logoY,
+            size = logoSize
+        )
+
         val avatarSize = 58f
         val avatarX = pageWidth - margin - 78f
-        val avatarY = y - 85f
+        val avatarY = y - 88f
 
         drawStudentAvatar(
             document = document,
@@ -220,24 +288,28 @@ class StudentReportPdfService {
             size = avatarSize
         )
 
-        // Reserve space for avatar area
-        val textWidth = headerWidth - avatarSize - 50f
+        val textX =
+            logoX + logoSize + 14f
+
+        val textMaxWidth =
+            avatarX - textX - 16f
 
         content.setNonStrokingColor(15, 23, 42)
 
-        var currentY = y - 18f
+        var currentY =
+            y - 18f
 
         currentY = writeWrappedLine(
             content = content,
             text = schoolName
                 .ifBlank { "School Name" }
                 .uppercase(),
-            x = margin + 15f,
+            x = textX,
             y = currentY,
-            maxWidth = textWidth,
+            maxWidth = textMaxWidth,
             font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 16f,
-            lineHeight = 18f
+            fontSize = 15f,
+            lineHeight = 17f
         )
 
         currentY -= 4f
@@ -245,29 +317,29 @@ class StudentReportPdfService {
         writeText(
             content = content,
             text = "ACADEMIC REPORT",
-            x = margin + 15f,
+            x = textX,
             y = currentY,
             font = PDType1Font.HELVETICA_BOLD,
             fontSize = 10f
         )
 
-        currentY -= 20f
+        currentY -= 19f
 
         writeText(
             content = content,
             text = "Student: ${record.student.name}",
-            x = margin + 15f,
+            x = textX,
             y = currentY,
             font = PDType1Font.HELVETICA_BOLD,
             fontSize = 11f
         )
 
-        currentY -= 18f
+        currentY -= 17f
 
         writeText(
             content = content,
             text = "Academic Year: ${record.academicYear.name} | Term: ${record.term.name}",
-            x = margin + 15f,
+            x = textX,
             y = currentY,
             font = PDType1Font.HELVETICA,
             fontSize = 9f
@@ -278,7 +350,7 @@ class StudentReportPdfService {
         writeText(
             content = content,
             text = "Class: ${record.classLevel.name}",
-            x = margin + 15f,
+            x = textX,
             y = currentY,
             font = PDType1Font.HELVETICA,
             fontSize = 9f
@@ -286,12 +358,13 @@ class StudentReportPdfService {
 
         currentY -= 14f
 
-        val position = record.overallPosition?.let { ordinal(it) } ?: "-"
+        val position =
+            record.overallPosition?.let { ordinal(it) } ?: "-"
 
         writeText(
             content = content,
             text = "Overall Position: $position / ${record.numberOnRoll}",
-            x = margin + 15f,
+            x = textX,
             y = currentY,
             font = PDType1Font.HELVETICA,
             fontSize = 9f
@@ -299,7 +372,100 @@ class StudentReportPdfService {
     }
 
 
+    private fun drawSchoolLogo(
+        document: PDDocument,
+        content: PDPageContentStream,
+        imageUrl: String?,
+        schoolName: String,
+        x: Float,
+        y: Float,
+        size: Float
+    ) {
 
+        content.setNonStrokingColor(255, 255, 255)
+        content.addRect(
+            x,
+            y,
+            size,
+            size
+        )
+        content.fill()
+
+        content.setStrokingColor(226, 232, 240)
+        content.setLineWidth(1f)
+        content.addRect(
+            x,
+            y,
+            size,
+            size
+        )
+        content.stroke()
+
+        val imageBytes =
+            imageUrl
+                ?.takeIf { it.isNotBlank() }
+                ?.let { downloadImageBytes(it) }
+
+        if (imageBytes != null) {
+
+            try {
+
+                val image =
+                    PDImageXObject.createFromByteArray(
+                        document,
+                        imageBytes,
+                        "school-logo"
+                    )
+
+                content.drawImage(
+                    image,
+                    x + 4f,
+                    y + 4f,
+                    size - 8f,
+                    size - 8f
+                )
+
+                content.setNonStrokingColor(15, 23, 42)
+
+                return
+
+            } catch (_: Exception) {
+                // fall back to initials
+            }
+        }
+
+        content.setNonStrokingColor(245, 213, 140)
+        content.addRect(
+            x + 4f,
+            y + 4f,
+            size - 8f,
+            size - 8f
+        )
+        content.fill()
+
+        val initials =
+            schoolName
+                .split(" ")
+                .filter { it.isNotBlank() }
+                .take(2)
+                .joinToString("") {
+                    it.first().uppercase()
+                }
+                .ifBlank { "SC" }
+
+        content.setNonStrokingColor(7, 25, 38)
+
+        writeCenteredText(
+            content = content,
+            text = initials,
+            centerX = x + (size / 2),
+            y = y + 22f,
+            font = PDType1Font.HELVETICA_BOLD,
+            fontSize = 14f
+        )
+
+        content.setNonStrokingColor(15, 23, 42)
+    }
 
     private fun drawStudentAvatar(
         document: PDDocument,
@@ -523,7 +689,7 @@ class StudentReportPdfService {
                 x = currentX + 4f,
                 y = y - 12f,
                 font = if (header) PDType1Font.HELVETICA_BOLD else PDType1Font.HELVETICA,
-                fontSize = if (header) 7.6f else 7.2f
+                fontSize = if (header) 10.6f else 10.2f // fonttt for exam score table
             )
 
             currentX += widths[index]
@@ -598,7 +764,7 @@ class StudentReportPdfService {
             x = x + 8f,
             y = y - 16f,
             font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 7.5f
+            fontSize = 8.5f // fonttt for summary
         )
 
         content.setNonStrokingColor(15, 23, 42)
@@ -675,90 +841,154 @@ class StudentReportPdfService {
         width: Float,
         height: Float
     ) {
+        val paddingX = 10f
+        val headerHeight = 26f
+        val titleFontSize = 10.5f
+        val labelFontSize = 10.5f
+        val valueFontSize = 10.5f
+        val valueLineHeight = 13f
+        val rowGap = 6f
+
+        val panelBottomY = y - height + 4f
+
+        // Panel background
         content.setNonStrokingColor(255, 255, 255)
-        content.addRect(x, y - height + 4f, width, height)
+        content.addRect(
+            x,
+            panelBottomY,
+            width,
+            height
+        )
         content.fill()
 
+        // Panel border
         content.setStrokingColor(226, 232, 240)
         content.setLineWidth(0.8f)
-        content.addRect(x, y - height + 4f, width, height)
+        content.addRect(
+            x,
+            panelBottomY,
+            width,
+            height
+        )
         content.stroke()
 
+        // Header background
         content.setNonStrokingColor(239, 246, 255)
-        content.addRect(x, y - 24f, width, 28f)
+        content.addRect(
+            x,
+            y - headerHeight,
+            width,
+            headerHeight + 4f
+        )
         content.fill()
 
+        // Header title
         content.setNonStrokingColor(30, 64, 175)
 
         writeText(
             content = content,
             text = title,
-            x = x + 10f,
-            y = y - 14f,
+            x = x + paddingX,
+            y = y - 15f,
             font = PDType1Font.HELVETICA_BOLD,
-            fontSize = 9.5f
+            fontSize = titleFontSize
         )
 
-        var currentY = y - 40f
+        var currentY = y - 42f
 
-        val labelWidth = rows.maxOfOrNull { row ->
-            PDType1Font.HELVETICA_BOLD
-                .getStringWidth("${row.first}:") / 1000f * 8.2f
-        } ?: 0f
-
-        val valueX = x + labelWidth + 18f
+        val valueX = x + paddingX
+        val maxTextWidth = width - (paddingX * 2)
 
         rows.forEach { row ->
+
+            val label = "${row.first}:"
+            val value = row.second.ifBlank { "-" }
+
+            // Stop if the panel is full
+            if (currentY <= panelBottomY + 12f) {
+                return@forEach
+            }
+
+            // Label
             content.setNonStrokingColor(71, 85, 105)
 
             writeText(
                 content = content,
-                text = "${row.first}:",
-                x = x + 10f,
+                text = label,
+                x = x + paddingX,
                 y = currentY,
                 font = PDType1Font.HELVETICA_BOLD,
-                fontSize = 8.2f
+                fontSize = labelFontSize
             )
 
+            currentY -= 13f
+
+            // Value uses full panel width
             content.setNonStrokingColor(15, 23, 42)
 
             currentY = writeWrappedLine(
                 content = content,
-                text = row.second,
+                text = value,
                 x = valueX,
                 y = currentY,
-                maxWidth = width - (valueX - x) - 10f,
+                maxWidth = maxTextWidth,
                 font = PDType1Font.HELVETICA,
-                fontSize = 8.2f,
-                lineHeight = 12f
+                fontSize = valueFontSize,
+                lineHeight = valueLineHeight
             )
 
-            currentY -= 8f
+            currentY -= rowGap
         }
 
         content.setNonStrokingColor(15, 23, 42)
-
-
     }
 
     private fun drawFooter(
         content: PDPageContentStream,
         margin: Float,
-        pageWidth: Float
+        pageWidth: Float,
+        schoolMotto: String?
     ) {
+
         content.setStrokingColor(226, 232, 240)
-        content.moveTo(margin, 44f)
-        content.lineTo(pageWidth - margin, 44f)
+        content.moveTo(
+            margin,
+            48f
+        )
+        content.lineTo(
+            pageWidth - margin,
+            48f
+        )
         content.stroke()
+
+        schoolMotto
+            ?.takeIf { it.isNotBlank() }
+            ?.let { motto ->
+
+                content.setNonStrokingColor(15, 23, 42)
+
+                writeCenteredText(
+                    content = content,
+                    text = motto,
+                    centerX = pageWidth / 2,
+                    y = 31f,
+                    font = PDType1Font.HELVETICA_OBLIQUE,
+                    fontSize = 8.5f
+                )
+            }
+
+        content.setNonStrokingColor(100, 116, 139)
 
         writeText(
             content = content,
             text = "Generated by Phena Systems",
             x = margin,
-            y = 29f,
+            y = 18f,
             font = PDType1Font.HELVETICA_OBLIQUE,
-            fontSize = 8f
+            fontSize = 7.5f
         )
+
+        content.setNonStrokingColor(15, 23, 42)
     }
 
     private fun writeText(
