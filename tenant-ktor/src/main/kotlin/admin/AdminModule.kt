@@ -2,6 +2,7 @@ package com.example.admin
 
 
 
+//import account.schoolLogoRoutes
 import com.example.account.accountProfilePictureRoutes
 import com.example.admin.routes.adminRoutes
 
@@ -19,6 +20,11 @@ fun Application.adminModule() {
             route("/profile-picture") {
                 accountProfilePictureRoutes()
             }
+
+//            route("/school-logo") {
+//
+//                schoolLogoRoutes()
+//            }
 
         }
     }

@@ -23,6 +23,8 @@ import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
 
 class TenantProvisioningService {
 
+
+
     fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
 
         val normalizedTenantCode = request.tenantCode

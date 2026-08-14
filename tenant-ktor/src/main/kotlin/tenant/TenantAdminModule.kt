@@ -3,10 +3,12 @@ package com.example.tenant
 
 
 import account.dto.UpdateSchoolBrandingRequest
+import com.cloudinary.utils.ObjectUtils
 import kotlinx.serialization.Serializable
 import com.example.academics.tables.SubjectsTable
 import com.example.admin.dtos.requests.CreateAdminRequest
 import com.example.admin.tables.AdminTable
+import com.example.cloudinary.CloudinaryClient
 import com.example.fees.tables.FeeStructureTable
 import com.example.fees.tables.PaymentTable
 import com.example.fees.tables.ReceiptsTable
@@ -33,16 +35,23 @@ import com.example.tenant.tables.TenantFeaturesTable
 import com.example.tenant.tables.TenantsTable
 
 import io.ktor.http.*
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import tenant.dto.response.SchoolLogoUploadResponse
+import tenant.repository.updateSchoolLogo
+import tenant.repository.updateSchoolLogoByTenantCode
 import tenant.services.UpdateSchoolBrandingService
 import java.time.Instant
 import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
@@ -94,6 +103,287 @@ fun Application.tenantAdminModule() {
                 )
             }
         }
+
+        post("/internal/tenants/upload-school-logo/{tenantCode}") {
+
+            try {
+
+                println("✅ UPLOAD SCHOOL LOGO ROUTE HIT")
+
+                val tenantCode =
+                    call.parameters["tenantCode"]
+                        ?: return@post call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf(
+                                "error" to "Tenant code is required."
+                            )
+                        )
+
+                println("✅ tenantCode = $tenantCode")
+
+                var imageBytes: ByteArray? = null
+                var contentType: String? = null
+                var originalFileName: String? = null
+
+                val multipart =
+                    call.receiveMultipart()
+
+                multipart.forEachPart { part ->
+
+                    when (part) {
+
+                        is PartData.FileItem -> {
+
+                            originalFileName =
+                                part.originalFileName
+
+                            contentType =
+                                part.contentType?.toString()
+
+                            imageBytes =
+                                part.provider()
+                                    .readRemaining()
+                                    .readByteArray()
+
+                            println("✅ File received = $originalFileName")
+                            println("✅ Content type = $contentType")
+                            println("✅ File size = ${imageBytes?.size}")
+                        }
+
+                        is PartData.FormItem -> {
+
+                            println(
+                                "ℹ️ Form item: ${part.name} = ${part.value}"
+                            )
+                        }
+
+                        else -> {
+
+                            println(
+                                "ℹ️ Ignored part: ${part::class.simpleName}"
+                            )
+                        }
+                    }
+
+                    part.dispose()
+                }
+
+                if (
+                    imageBytes == null ||
+                    imageBytes!!.isEmpty()
+                ) {
+
+                    println("❌ No image uploaded")
+
+                    return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "error" to "No image uploaded."
+                        )
+                    )
+                }
+
+                if (
+                    contentType.isNullOrBlank() ||
+                    !contentType!!.startsWith("image/")
+                ) {
+
+                    println("❌ Invalid content type = $contentType")
+
+                    return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "error" to "Only image files are allowed."
+                        )
+                    )
+                }
+
+                val oldPublicId =
+                    getSchoolLogoPublicId(
+                        tenantCode = tenantCode
+                    )
+
+                println("✅ Existing logo public id = $oldPublicId")
+
+                if (!oldPublicId.isNullOrBlank()) {
+
+                    try {
+
+                        val destroyResult =
+                            CloudinaryClient.instance
+                                .uploader()
+                                .destroy(
+                                    oldPublicId,
+                                    ObjectUtils.emptyMap()
+                                )
+
+                        println(
+                            "✅ Old Cloudinary logo deleted. Result = $destroyResult"
+                        )
+
+                    } catch (e: Exception) {
+
+                        println(
+                            "⚠️ Failed to delete old Cloudinary logo: ${e.message}"
+                        )
+
+                        e.printStackTrace()
+                    }
+                }
+
+                println("➡️ Uploading new logo to Cloudinary...")
+
+                val uploadResult =
+                    CloudinaryClient.instance
+                        .uploader()
+                        .upload(
+                            imageBytes,
+                            ObjectUtils.asMap(
+                                "folder",
+                                "school_logos",
+                                "resource_type",
+                                "image",
+                                "public_id",
+                                "school_logo_${tenantCode}_${System.currentTimeMillis()}",
+                                "overwrite",
+                                true
+                            )
+                        )
+
+                println("✅ Cloudinary upload result = $uploadResult")
+
+                val secureUrl =
+                    uploadResult["secure_url"]
+                        ?.toString()
+
+                val publicId =
+                    uploadResult["public_id"]
+                        ?.toString()
+
+                println("✅ secureUrl = $secureUrl")
+                println("✅ publicId = $publicId")
+
+                if (
+                    secureUrl.isNullOrBlank() ||
+                    publicId.isNullOrBlank()
+                ) {
+
+                    println("❌ Cloudinary returned empty secureUrl/publicId")
+
+                    return@post call.respond(
+                        HttpStatusCode.InternalServerError,
+                        mapOf(
+                            "error" to "Cloudinary upload failed."
+                        )
+                    )
+                }
+
+                val updated =
+                    updateSchoolLogoByTenantCode(
+                        tenantCode = tenantCode,
+                        schoolLogoUrl = secureUrl,
+                        schoolLogoPublicId = publicId
+                    )
+
+                println("✅ Tenant DB updated = $updated")
+
+                if (!updated) {
+
+                    return@post call.respond(
+                        HttpStatusCode.NotFound,
+                        mapOf(
+                            "error" to "Tenant not found."
+                        )
+                    )
+                }
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    SchoolLogoUploadResponse(
+                        schoolLogoUrl = secureUrl,
+                        schoolLogoPublicId = publicId,
+                        originalFileName = originalFileName,
+                        contentType = contentType,
+                        sizeBytes = imageBytes.size
+                    )
+                )
+
+            } catch (e: Exception) {
+
+                println("❌ SCHOOL LOGO UPLOAD FAILED")
+                println("❌ Message = ${e.message}")
+
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf(
+                        "error" to (
+                                e.message ?: "Upload failed."
+                                )
+                    )
+                )
+            }
+        }
+
+
+        delete("/internal/tenants/school-logo/{tenantCode}") {
+
+            val tenantCode =
+                call.parameters["tenantCode"]
+                    ?: return@delete call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "message" to "Tenant code is required."
+                        )
+                    )
+
+            val oldPublicId =
+                getSchoolLogoPublicId(
+                    tenantCode
+                )
+
+            var deletedFromCloudinary = false
+
+            if (!oldPublicId.isNullOrBlank()) {
+
+                try {
+
+                    val result =
+                        CloudinaryClient.instance
+                            .uploader()
+                            .destroy(
+                                oldPublicId,
+                                ObjectUtils.emptyMap()
+                            )
+
+                    val cloudinaryResult =
+                        result["result"]?.toString()
+
+                    deletedFromCloudinary =
+                        cloudinaryResult == "ok" ||
+                                cloudinaryResult == "not found"
+
+                } catch (e: Exception) {
+
+                    e.printStackTrace()
+                }
+            }
+
+           clearSchoolLogo(
+                tenantCode
+            )
+
+            call.respond(
+                HttpStatusCode.OK,
+                mapOf(
+                    "deleted" to true,
+                    "deletedFromCloudinary" to deletedFromCloudinary
+                )
+            )
+        }
+
+
 
         put("/internal/tenants/update-school-branding") {
 
@@ -568,6 +858,43 @@ private fun ensureUniqueTenantSlug(baseSlug: String): String {
 }
 
 
+
+fun getSchoolLogoPublicId(
+    tenantCode: String
+): String? {
+
+    return transaction {
+
+        TenantsTable
+            .selectAll()
+            .where {
+                TenantsTable.tenantCode eq tenantCode
+            }
+            .singleOrNull()
+            ?.get(
+                TenantsTable.schoolLogoPublicId
+            )
+    }
+}
+
+
+fun clearSchoolLogo(
+    tenantCode: String
+): Boolean {
+
+    return transaction {
+
+        TenantsTable.update(
+            {
+                TenantsTable.tenantCode eq tenantCode
+            }
+        ) {
+
+            it[schoolLogoUrl] = null
+            it[schoolLogoPublicId] = null
+        } > 0
+    }
+}
 
 
 @Serializable

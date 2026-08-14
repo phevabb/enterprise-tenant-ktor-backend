@@ -12,6 +12,11 @@ object TenantsTable : Table("tenants") {
     val id = integer("id").autoIncrement()
     val schoolName = varchar("school_name", 255)
     val schoolLogoUrl = varchar("school_logo_url", 500).nullable()
+
+    val schoolLogoPublicId = varchar(
+        "school_logo_public_id",
+        500
+    ).nullable()
     val schoolMotto = varchar("school_motto", 255).nullable()
     val location = varchar("location", 255).nullable()
 
