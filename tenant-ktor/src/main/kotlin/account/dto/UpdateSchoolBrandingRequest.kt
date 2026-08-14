@@ -8,6 +8,6 @@ data class UpdateSchoolBrandingRequest(
     val tenantCode: String,
     val schoolName: String,
     val schoolLogoUrl: String? = null,
-    val schoolMotto: String?,
-    val location: String?
+    val schoolMotto: String?= null,
+    val location: String?= null,
 )

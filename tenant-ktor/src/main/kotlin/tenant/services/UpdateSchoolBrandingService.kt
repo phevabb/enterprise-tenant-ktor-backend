@@ -12,9 +12,9 @@ object UpdateSchoolBrandingService {
     fun updateSchoolBranding(
         tenantCode: String,
         schoolName: String,
-        schoolLogoUrl: String?,
-        schoolMotto: String?,
-        location: String?
+        schoolLogoUrl: String? = null,
+        schoolMotto: String?= null,
+        location: String?= null,
     ) {
 
         val normalizedTenantCode = tenantCode

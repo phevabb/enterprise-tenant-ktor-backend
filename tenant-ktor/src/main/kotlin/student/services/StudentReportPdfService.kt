@@ -298,6 +298,9 @@ class StudentReportPdfService {
         )
     }
 
+
+
+
     private fun drawStudentAvatar(
         document: PDDocument,
         content: PDPageContentStream,
