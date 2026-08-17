@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.Table
 
 object TenantsTable : Table("tenants") {
     val id = integer("id").autoIncrement()
+    val tenantCode = varchar("tenant_code", 100).uniqueIndex()
     val schoolName = varchar("school_name", 255)
     val schoolLogoUrl = varchar("school_logo_url", 500).nullable()
 
@@ -21,7 +22,6 @@ object TenantsTable : Table("tenants") {
     val location = varchar("location", 255).nullable()
 
 
-    val tenantCode = varchar("tenant_code", 100).uniqueIndex()
 
     // Internal DB schema name
     val tenantSchema = varchar("schema_name", 150).uniqueIndex()

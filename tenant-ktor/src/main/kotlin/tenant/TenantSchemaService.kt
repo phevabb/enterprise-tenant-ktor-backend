@@ -97,6 +97,9 @@ object TenantSchemaService {
                 StudentBillItemsTable
             )
 
+
+
+
             SchemaUtils.addMissingColumnsStatements(
                 AccountTable,
                 NewGradeClassTable,

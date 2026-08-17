@@ -12,7 +12,9 @@ import com.example.tenant.routes.superAdminTenantRoutes
 import com.example.tenant.routes.tenantRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
-
+import sms.routes.smsWalletInternalRoutes
+import superadmin.routes.smsAdminWalletInternalRoutes
+import superadmin.routes.smsInternalRoutes
 
 
 fun Application.superAdminModule() {
@@ -31,6 +33,14 @@ fun Application.superAdminModule() {
             route("/internal/superadmin") {
                 superRoutes()
             }
+
+            route("/internal/sms") {
+                smsInternalRoutes()
+                smsAdminWalletInternalRoutes()
+
+            }
+
+
 
                 route("/internal/super/transactions") {
                     superAdminTransactionRoutes()

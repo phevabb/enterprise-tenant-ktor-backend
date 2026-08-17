@@ -49,6 +49,10 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import sms.routes.smsInternalRoutes
+import sms.routes.smsWalletClientInternalRoutes
+import sms.routes.smsWalletInternalRoutes
+import sms.routes.smsWalletPurchaseInternalRoutes
 import tenant.dto.response.SchoolLogoUploadResponse
 import tenant.repository.updateSchoolLogo
 import tenant.repository.updateSchoolLogoByTenantCode
@@ -59,6 +63,16 @@ import com.example.admin.dtos.requests.CreateUserPart as CreateAdminUserPart
 // this is the routing for tenants... it mostly uses services instead of repos
 fun Application.tenantAdminModule() {
     routing {
+
+        route("/internal/sms") {
+            smsInternalRoutes()
+            smsWalletInternalRoutes()
+             smsWalletClientInternalRoutes()
+            smsWalletPurchaseInternalRoutes()
+        }
+
+
+
         post("/internal/tenants/create") {
             try {
                 val request = call.receive<CreateTenantRequest>()

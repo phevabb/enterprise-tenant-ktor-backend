@@ -1,3 +1,11 @@
+tenants only table = add to TenantSchemaService in tenant/TenantSchemaService.kt
+general table =  add to Database.kt in config
+
+
+a table that has tenantcode as a field must be added to DATABASE.KT ( THEY ARE GENERAL )
+a table with no tenantcode field must be stored inside TenantSchemaService.kt
+
+
 TO production / environment
 -----------------
 
@@ -35,3 +43,28 @@ how to fix tenant not found
 -----------------
 
 search for: val excludedPaths
+
+
+
+
+might be the cause of the excessice cu on neon db:  found in tenant/TenantSchemaService.kt    fun ensureBillingTablesForTenant(tenantSchema: String) {
+                                                           transaction {
+                                                               setTenantSchema(tenantSchema)
+
+                                                               SchemaUtils.create(
+                                                                   BillTemplatesTable,
+                                                                   BillTemplateItemsTable,
+                                                                   StudentBillsTable,
+                                                                   StudentBillItemsTable
+                                                               )
+
+                                                               SchemaUtils.addMissingColumnsStatements(
+                                                                   BillTemplatesTable,
+                                                                   BillTemplateItemsTable,
+                                                                   StudentBillsTable,
+                                                                   StudentBillItemsTable
+                                                               ).forEach { statement ->
+                                                                   exec(statement)
+                                                               }
+                                                           }
+                                                       }

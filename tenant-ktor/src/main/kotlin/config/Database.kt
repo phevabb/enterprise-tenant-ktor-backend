@@ -7,6 +7,10 @@ import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
+import sms.tables.SmsCampaignsTable
+import sms.tables.SmsSenderIdsTable
+import sms.tables.SmsWalletTransactionsTable
+import sms.tables.SmsWalletsTable
 
 object DatabaseFactory {
 
@@ -33,11 +37,24 @@ object DatabaseFactory {
         transaction {
             SchemaUtils.create(
                 TenantsTable,
-                TenantFeaturesTable
+                SmsSenderIdsTable,
+                SmsCampaignsTable,
+                TenantFeaturesTable,
+                SmsWalletsTable,
+                SmsWalletTransactionsTable
+
+
+
+
             )
 
             SchemaUtils.addMissingColumnsStatements(
                 TenantsTable,
+                SmsCampaignsTable,
+                SmsWalletTransactionsTable,
+                SmsWalletsTable,
+                SmsSenderIdsTable,
+
                 TenantFeaturesTable
             ).forEach { exec(it) }
         }
