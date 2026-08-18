@@ -50,9 +50,9 @@ object SmsWalletPurchaseService {
         }
 
         require(
-            amount >= BigDecimal("1.00")
+            amount >= BigDecimal("10.00")
         ) {
-            "You cannot buy less than GHS 1.00 worth of SMS."
+            "You cannot buy less than GHS 10.00 worth of SMS."
         }
 
         require(
