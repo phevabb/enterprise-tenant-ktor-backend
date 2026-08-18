@@ -58,22 +58,40 @@ fun Route.paymentRoutes() {
         }
 
         post {
-            val tenant = call.currentTenant()
-            val tenantSchema = tenant.tenantSchema
 
-            val req = call.receive<CreatePaymentRequest>()
+            val tenant =
+                call.currentTenant()
 
-            val result = PaymentRepository.createPaymentAndUpdateSfr(
-                tenantSchema = tenantSchema,
-                studentFeeRecordId = req.student_fee_record_id,
-                amount = req.amount,
-                paymentMethod = "cash"
+            val tenantSchema =
+                tenant.tenantSchema
+
+            val tenantCode =
+                tenant.tenantCode
+
+            val req =
+                call.receive<CreatePaymentRequest>()
+
+            val result =
+                PaymentRepository.createPaymentAndUpdateSfr(
+                    tenantSchema = tenantSchema,
+                    studentFeeRecordId = req.student_fee_record_id,
+                    amount = req.amount,
+                    paymentMethod = "cash"
+                )
+
+            result.sms?.let { sms ->
+
+                SmsService.sendAsync(
+                    tenantCode = tenantCode,
+                    phone = sms.phone,
+                    message = sms.message
+                )
+            }
+
+            call.respond(
+                HttpStatusCode.Created,
+                result
             )
-
-            // ✅ send only after transaction succeeded
-            result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
-
-            call.respond(HttpStatusCode.Created, result)
         }
 
         delete("{id}") {

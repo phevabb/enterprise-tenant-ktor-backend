@@ -1,7 +1,6 @@
 package sms.services
 
 import com.example.academics.repos.setTenantSchema
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -51,9 +50,9 @@ object SmsWalletPurchaseService {
         }
 
         require(
-            amount >= BigDecimal("10.00")
+            amount >= BigDecimal("1.00")
         ) {
-            "You cannot buy less than GHS 10.00 worth of SMS."
+            "You cannot buy less than GHS 1.00 worth of SMS."
         }
 
         require(
