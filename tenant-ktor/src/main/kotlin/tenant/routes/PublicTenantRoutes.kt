@@ -15,103 +15,179 @@ import tenant.routes.UpdateSchoolBrandingWithoutLogoRequest
 
 
 
-import kotlinx.serialization.Serializable
-import tenant.routes.updateSchoolBrandingWithoutLogoByTenantCode
+
+import tenant.repository.TenantBrandingRepository.updateSchoolBrandingWithoutLogoByTenantCode
+
+
+import io.ktor.server.routing.get
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
+import tenant.dto.response.SchoolBrandingUpdateResponse
+import tenant.repository.TenantBrandingRepository
 
 
 fun Route.publicTenantRoutes() {
+
     route("/tenants") {
 
         get("/by-slug/{tenantSlug}") {
-            val tenantSlug = call.parameters["tenantSlug"]
+
+            val tenantSlug =
+                call.parameters["tenantSlug"]
 
             if (tenantSlug.isNullOrBlank()) {
+
                 call.respond(
                     HttpStatusCode.BadRequest,
-                    mapOf("message" to "tenantSlug is required")
+                    mapOf(
+                        "message" to "tenantSlug is required"
+                    )
                 )
+
                 return@get
             }
 
-            val tenant = SuperAdminTenantRepository.findPublicTenantBySlug(
-                tenantSlug = tenantSlug
-            )
+            val tenant =
+                SuperAdminTenantRepository.findPublicTenantBySlug(
+                    tenantSlug = tenantSlug
+                )
 
             if (tenant == null) {
+
                 call.respond(
                     HttpStatusCode.NotFound,
-                    mapOf("message" to "Tenant not found")
+                    mapOf(
+                        "message" to "Tenant not found"
+                    )
                 )
+
                 return@get
             }
 
-            call.respond(HttpStatusCode.OK, tenant)
+            call.respond(
+                HttpStatusCode.OK,
+                tenant
+            )
         }
+    }
 
-        put("/internal/tenants/update-school-branding-without-logo") {
+    put(
+        "/internal/tenants/update-school-branding-without-logo"
+    ) {
 
-            try {
+        try {
 
-                val request =
-                    call.receive<UpdateSchoolBrandingWithoutLogoRequest>()
+            println(
+                "[update-school-branding-without-logo] Route hit"
+            )
 
-                if (request.tenantCode.isBlank()) {
+            println(
+                "[update-school-branding-without-logo] Content-Type = ${
+                    call.request.headers["Content-Type"]
+                }"
+            )
 
-                    return@put call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf(
-                            "error" to "Tenant code is required."
-                        )
+            val request =
+                call.receive<UpdateSchoolBrandingWithoutLogoRequest>()
+
+            println(
+                "[update-school-branding-without-logo] Request=$request"
+            )
+
+            if (request.tenantCode.isBlank()) {
+
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    SchoolBrandingUpdateResponse(
+                        success = false,
+                        message = "Tenant code is required."
                     )
-                }
+                )
 
-                if (request.schoolName.isBlank()) {
+                return@put
+            }
 
-                    return@put call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf(
-                            "error" to "School name is required."
-                        )
+            if (request.schoolName.isBlank()) {
+
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    SchoolBrandingUpdateResponse(
+                        success = false,
+                        message = "School name is required."
                     )
-                }
+                )
 
-                val updated =
-                    updateSchoolBrandingWithoutLogoByTenantCode(
+                return@put
+            }
+
+            val updated =
+                TenantBrandingRepository
+                    .updateSchoolBrandingWithoutLogoByTenantCode(
                         tenantCode = request.tenantCode,
                         schoolName = request.schoolName,
                         schoolMotto = request.schoolMotto,
                         location = request.location
                     )
 
-                if (!updated) {
+            println(
+                "[update-school-branding-without-logo] Updated=$updated"
+            )
 
-                    return@put call.respond(
-                        HttpStatusCode.NotFound,
-                        mapOf(
-                            "error" to "Tenant not found."
-                        )
-                    )
-                }
+            if (!updated) {
 
                 call.respond(
-                    HttpStatusCode.OK,
-                    mapOf(
-                        "success" to true,
-                        "message" to "School branding updated successfully."
+                    HttpStatusCode.NotFound,
+                    SchoolBrandingUpdateResponse(
+                        success = false,
+                        message =
+                            "Tenant not found for code: ${request.tenantCode}"
                     )
                 )
 
-            } catch (e: Exception) {
-
-                e.printStackTrace()
-
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    mapOf(
-                        "error" to (e.message ?: "Unable to update school branding.")
-                    )
-                )
+                return@put
             }
+
+            call.respond(
+                HttpStatusCode.OK,
+                SchoolBrandingUpdateResponse(
+                    success = true,
+                    message = "School branding updated successfully."
+                )
+            )
+
+        } catch (e: IllegalArgumentException) {
+
+            println(
+                "[update-school-branding-without-logo] " +
+                        "Validation failed: ${e.message}"
+            )
+
+            call.respond(
+                HttpStatusCode.BadRequest,
+                SchoolBrandingUpdateResponse(
+                    success = false,
+                    message = e.message
+                        ?: "Invalid school branding request."
+                )
+            )
+
+        } catch (e: Exception) {
+
+            println(
+                "[update-school-branding-without-logo] " +
+                        "Failed: ${e.message}"
+            )
+
+            e.printStackTrace()
+
+            call.respond(
+                HttpStatusCode.InternalServerError,
+                SchoolBrandingUpdateResponse(
+                    success = false,
+                    message = e.message
+                        ?: "Unable to update school branding."
+                )
+            )
         }
     }
 }

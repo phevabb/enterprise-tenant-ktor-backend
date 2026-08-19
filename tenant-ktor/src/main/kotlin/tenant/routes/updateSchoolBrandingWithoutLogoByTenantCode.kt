@@ -20,7 +20,7 @@ private fun normalizeTenantCode(
         )
 }
 
-fun updateSchoolBrandingWithoutLogoByTenantCode(
+private fun updateSchoolBrandingWithoutLogoByTenantCode(
     tenantCode: String,
     schoolName: String,
     schoolMotto: String?,
@@ -51,7 +51,9 @@ fun updateSchoolBrandingWithoutLogoByTenantCode(
         if (tenantRow == null) {
 
             println(
-                "❌ Tenant not found while updating branding without logo. tenantCode=$tenantCode normalized=$normalizedTenantCode"
+                "[updateSchoolBrandingWithoutLogo] " +
+                        "Tenant not found. incoming=$tenantCode, " +
+                        "normalized=$normalizedTenantCode"
             )
 
             return@transaction false
@@ -60,25 +62,46 @@ fun updateSchoolBrandingWithoutLogoByTenantCode(
         val tenantId =
             tenantRow[TenantsTable.id]
 
+        val existingLogoUrl =
+            tenantRow[TenantsTable.schoolLogoUrl]
+
+        println(
+            "[updateSchoolBrandingWithoutLogo] " +
+                    "Tenant found. id=$tenantId, " +
+                    "existingLogoUrl=$existingLogoUrl"
+        )
+
         val updatedRows =
             TenantsTable.update(
                 {
                     TenantsTable.id eq tenantId
                 }
             ) {
-
                 it[TenantsTable.schoolName] =
-                    schoolName
+                    schoolName.trim()
 
                 it[TenantsTable.schoolMotto] =
                     schoolMotto
+                        ?.trim()
+                        ?.takeIf { value ->
+                            value.isNotBlank()
+                        }
 
                 it[TenantsTable.location] =
                     location
+                        ?.trim()
+                        ?.takeIf { value ->
+                            value.isNotBlank()
+                        }
+
+                // Do not update schoolLogoUrl.
+                // Do not update schoolLogoPublicId.
             }
 
         println(
-            "✅ Branding without logo update rows=$updatedRows tenantCode=$tenantCode schoolName=$schoolName"
+            "[updateSchoolBrandingWithoutLogo] " +
+                    "Updated rows=$updatedRows, " +
+                    "preservedLogoUrl=$existingLogoUrl"
         )
 
         updatedRows > 0
