@@ -17,6 +17,8 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 
+
+
 fun Route.feeStructureRoutes(){
 
 
@@ -60,25 +62,81 @@ fun Route.feeStructureRoutes(){
             call.respond(HttpStatusCode.OK, response)
         }
 
+
+
         post {
-            val tenant = call.currentTenant()
-            val tenantSchema = tenant.tenantSchema
 
-            val req = call.receive<CreateFeeStructureRequest>()
+            try {
 
-            println("new request is $req")
+                val tenant =
+                    call.currentTenant()
 
-            val c = FeeStructureRepository.create(
-                tenantSchema = tenantSchema,
-                academicYearId = req.academic_year_id,
-                gradeClassId = req.grade_class_id,
-                termId = req.term_id,
-                amount = req.amount,
-                isDiscounted = req.is_discounted
-            )
+                val tenantSchema =
+                    tenant.tenantSchema
 
-            call.respond(HttpStatusCode.Created, c)
+                val req =
+                    call.receive<CreateFeeStructureRequest>()
+
+                println(
+                    "new request is $req"
+                )
+
+                val c =
+                    FeeStructureRepository.create(
+                        tenantSchema = tenantSchema,
+                        academicYearId = req.academic_year_id,
+                        gradeClassId = req.grade_class_id,
+                        termId = req.term_id,
+                        amount = req.amount,
+                        isDiscounted = req.is_discounted
+                    )
+
+                /*
+                 * Important:
+                 * Discounted fee structures are special.
+                 * Do not auto-generate fee records for all students.
+                 */
+                if (!req.is_discounted) {
+
+                    val generated =
+                        FeeStructureRepository.generateStudentFeeRecordsForFeeStructure(
+                            tenantSchema = tenantSchema,
+                            feeStructureId = c.id
+                        )
+
+                    println(
+                        "Student fee records generated: $generated"
+                    )
+
+                } else {
+
+                    println(
+                        "Skipped auto-generating student fee records because fee structure is discounted."
+                    )
+                }
+
+                call.respond(
+                    HttpStatusCode.Created,
+                    c
+                )
+
+            } catch (e: Exception) {
+
+                e.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf(
+                        "message" to (
+                                e.message
+                                    ?: "Unable to create fee structure."
+                                )
+                    )
+                )
+            }
         }
+
+
 
         delete("{id}") {
             val tenant = call.currentTenant()

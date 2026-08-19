@@ -6,6 +6,8 @@ import com.example.fees.mappers.toFeeStructureModel
 
 import com.example.fees.models.FeeStructureModel
 import com.example.fees.tables.FeeStructureTable
+import com.example.fees.tables.StudentFeeRecordTable
+import com.example.student.StudentsTable
 import com.example.student.tables.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.dao.id.EntityID
@@ -20,6 +22,144 @@ object FeeStructureRepository {
         exec("""SET LOCAL search_path TO "$safeSchema"""")
     }
 
+
+
+    data class GeneratedStudentFeeRecordsSummary(
+        val feeStructureId: Int,
+        val gradeClassId: Int,
+        val studentsFound: Int,
+        val recordsCreated: Int,
+        val recordsSkipped: Int
+    )
+
+    fun generateStudentFeeRecordsForFeeStructure(
+        tenantSchema: String,
+        feeStructureId: Int
+    ): GeneratedStudentFeeRecordsSummary {
+
+        require(
+            tenantSchema.isNotBlank()
+        ) {
+            "Tenant schema is required."
+        }
+
+        require(
+            feeStructureId > 0
+        ) {
+            "Fee structure id is required."
+        }
+
+        return transaction {
+
+            setTenantSchema(
+                tenantSchema
+            )
+
+            val feeStructureRow =
+                FeeStructureTable
+                    .selectAll()
+                    .where {
+                        FeeStructureTable.id eq feeStructureId
+                    }
+                    .singleOrNull()
+                    ?: throw IllegalArgumentException(
+                        "Fee structure not found."
+                    )
+
+            val gradeClassId =
+                feeStructureRow[FeeStructureTable.grade_class].value
+
+            val feeAmount =
+                feeStructureRow[FeeStructureTable.amount]
+
+            val gradeClassEntityId =
+                EntityID(
+                    gradeClassId,
+                    NewGradeClassTable
+                )
+
+            val feeStructureEntityId =
+                EntityID(
+                    feeStructureId,
+                    FeeStructureTable
+                )
+
+            val studentsInClass =
+                StudentsTable
+                    .selectAll()
+                    .where {
+                        (StudentsTable.currentNewGradeClass eq gradeClassEntityId) and
+                                (StudentsTable.isGraduated eq false)
+                    }
+                    .map { row ->
+                        row[StudentsTable.id]
+                    }
+
+            val existingStudentIds =
+                StudentFeeRecordTable
+                    .selectAll()
+                    .where {
+                        StudentFeeRecordTable.feeStructure eq feeStructureEntityId
+                    }
+                    .map { row ->
+                        row[StudentFeeRecordTable.student].value
+                    }
+                    .toSet()
+
+            var createdCount =
+                0
+
+            var skippedCount =
+                0
+
+            val now =
+                System.currentTimeMillis()
+
+            studentsInClass.forEach { studentEntityId ->
+
+                val studentId =
+                    studentEntityId.value
+
+                if (existingStudentIds.contains(studentId)) {
+
+                    skippedCount += 1
+
+                } else {
+
+                    StudentFeeRecordTable.insert {
+
+                        it[student] =
+                            studentEntityId
+
+                        it[feeStructure] =
+                            feeStructureEntityId
+
+                        it[amountPaid] =
+                            0
+
+                        it[balance] =
+                            feeAmount
+
+                        it[isFullyPaid] =
+                            false
+
+                        it[dateCreated] =
+                            now
+                    }
+
+                    createdCount += 1
+                }
+            }
+
+            GeneratedStudentFeeRecordsSummary(
+                feeStructureId = feeStructureId,
+                gradeClassId = gradeClassId,
+                studentsFound = studentsInClass.size,
+                recordsCreated = createdCount,
+                recordsSkipped = skippedCount
+            )
+        }
+    }
 
     // ✅ CREATE
     fun create(
