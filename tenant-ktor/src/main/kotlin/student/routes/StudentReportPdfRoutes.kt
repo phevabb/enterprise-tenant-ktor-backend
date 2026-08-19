@@ -110,69 +110,78 @@ fun Route.studentReportPdfRoutes() {
          *
          * GET /api/report/cards/student/{userId}/pdf
          */
-        get("/student/{userId}/pdf") {
-            val userId = call.parameters["userId"]
-
-            if (userId.isNullOrBlank()) {
-                call.respond(
-                    status = HttpStatusCode.BadRequest,
-                    message = "Invalid userId"
-                )
-                return@get
-            }
-
-            val tenantSchema = call.resolveTenantSchemaByCodeOrSlug()
-
-            if (tenantSchema.isNullOrBlank()) {
-                call.respond(
-                    status = HttpStatusCode.BadRequest,
-                    message = "Tenant schema could not be resolved from tenant code or tenant slug."
-                )
-                return@get
-            }
-
-            val reportCards = StudentAcademicRecordRepository.findAllByUserId(
-                tenantSchema = tenantSchema,
-                userId = userId
-            )
-
-            if (reportCards.isEmpty()) {
-                call.respond(
-                    status = HttpStatusCode.NotFound,
-                    message = "No report cards found for this student"
-                )
-                return@get
-            }
-
-            val schoolBranding =
-                call.resolveSchoolBrandingOrDefault(
-                defaultName = "School Name"
-            )
-
-            val pdfBytes = pdfService.generateReportPack(
-                schoolName = schoolBranding.schoolName,
-                schoolLogoUrl = schoolBranding.schoolLogoUrl,
-                schoolMotto = schoolBranding.schoolMotto,
-                records = reportCards
-            )
-
-            call.response.headers.append(
-                HttpHeaders.ContentDisposition,
-                ContentDisposition.Attachment
-                    .withParameter(
-                        ContentDisposition.Parameters.FileName,
-                        "student-report-pack-$userId.pdf"
-                    )
-                    .toString()
-            )
-
-            call.respond(
-                ByteArrayContent(
-                    bytes = pdfBytes,
-                    contentType = ContentType.Application.Pdf
-                )
-            )
-        }
+//        get("/student/{userId}/pdf") {
+//            val userId = call.parameters["userId"]
+//
+//            if (userId.isNullOrBlank()) {
+//                call.respond(
+//                    status = HttpStatusCode.BadRequest,
+//                    message = "Invalid userId"
+//                )
+//                return@get
+//            }
+//
+//            val tenantSchema = call.resolveTenantSchemaByCodeOrSlug()
+//
+//            if (tenantSchema.isNullOrBlank()) {
+//                call.respond(
+//                    status = HttpStatusCode.BadRequest,
+//                    message = "Tenant schema could not be resolved from tenant code or tenant slug."
+//                )
+//                return@get
+//            }
+//
+//            val reportCards = StudentAcademicRecordRepository.findAllByUserId(
+//                tenantSchema = tenantSchema,
+//                userId = userId
+//            )
+//
+//            if (reportCards.isEmpty()) {
+//                call.respond(
+//                    status = HttpStatusCode.NotFound,
+//                    message = "No report cards found for this student"
+//                )
+//                return@get
+//            }
+//
+//            val schoolBranding =
+//                call.resolveSchoolBrandingOrDefault(
+//                    tenantSchema = tenantSchema,
+//                    defaultName = "School Name"
+//                )
+//
+//            println("========== SCHOOL BRANDING DEBUG neww ==========")
+//            println("Tenant schema: $tenantSchema")
+//            println("School name: ${schoolBranding.schoolName}")
+//            println("Cloudinary logo URL: ${schoolBranding.schoolLogoUrl}")
+//            println("School motto: ${schoolBranding.schoolMotto}")
+//            println("========== END SCHOOL BRANDING DEBUG ==========")
+//
+//
+//            val pdfBytes = pdfService.generateReportPack(
+//                schoolName = schoolBranding.schoolName,
+//                schoolLogoUrl = schoolBranding.schoolLogoUrl,
+//                schoolMotto = schoolBranding.schoolMotto,
+//                records = reportCards
+//            )
+//
+//            call.response.headers.append(
+//                HttpHeaders.ContentDisposition,
+//                ContentDisposition.Attachment
+//                    .withParameter(
+//                        ContentDisposition.Parameters.FileName,
+//                        "student-report-pack-$userId.pdf"
+//                    )
+//                    .toString()
+//            )
+//
+//            call.respond(
+//                ByteArrayContent(
+//                    bytes = pdfBytes,
+//                    contentType = ContentType.Application.Pdf
+//                )
+//            )
+//        }
 
         /**
          * Download one term/report card only.
@@ -206,9 +215,13 @@ fun Route.studentReportPdfRoutes() {
                 userId = userId
             )
 
+            println("some data isssss $reportCards")
+
             val selectedReport = reportCards.firstOrNull { record ->
                 record.id == reportCardId
             }
+
+            println("some 2 data iss $selectedReport")
 
             if (selectedReport == null) {
                 call.respond(
@@ -220,15 +233,32 @@ fun Route.studentReportPdfRoutes() {
 
             val schoolBranding =
                 call.resolveSchoolBrandingOrDefault(
-                defaultName = "School Name"
-            )
+                    tenantSchema = tenantSchema,
+                    defaultName = "School Name"
+                )
 
-            val pdfBytes = pdfService.generateReportPack(
-                schoolName = schoolBranding.schoolName,
-                schoolLogoUrl = schoolBranding.schoolLogoUrl,
-                schoolMotto = schoolBranding.schoolMotto,
-                records = listOf(selectedReport)
-            )
+            println("========== SCHOOL BRANDING DEBUG ==========")
+            println("Tenant schema: $tenantSchema")
+            println("School name: ${schoolBranding.schoolName}")
+            println("School logo URL thisssss: ${schoolBranding.schoolLogoUrl}")
+            println("School motto: ${schoolBranding.schoolMotto}")
+            println("========== END SCHOOL BRANDING DEBUG ==========")
+
+            val pdfBytes =
+                pdfService.generateReportPack(
+                    schoolName = schoolBranding.schoolName,
+                    schoolLogoUrl = schoolBranding.schoolLogoUrl,
+                    schoolMotto = schoolBranding.schoolMotto,
+                    records = listOf(selectedReport)
+                )
+
+
+
+            println("School name: ${schoolBranding.schoolName}")
+            println("School logo URL thisssss: ${schoolBranding.schoolLogoUrl}")
+            println("School motto: ${schoolBranding.schoolMotto}")
+
+            println("some school data $pdfBytes")
 
             val safeTermName = selectedReport.term.name
                 .replace(" ", "-")
@@ -305,12 +335,22 @@ private fun ApplicationCall.resolveTenantSchemaByCodeOrSlug(): String? {
     }
 }
 
+
+
+
 private fun ApplicationCall.resolveSchoolBrandingOrDefault(
+    tenantSchema: String?,
     defaultName: String = "School Name"
 ): SchoolBrandingInfo {
 
     val schoolNameHeader =
         request.header("X-School-Name")
+
+    val schoolLogoHeader =
+        request.header("X-School-Logo-Url")
+
+    val schoolMottoHeader =
+        request.header("X-School-Motto")
 
     val tenantSchemaHeader =
         request.header("X-Tenant-Schema")
@@ -325,51 +365,95 @@ private fun ApplicationCall.resolveSchoolBrandingOrDefault(
 
         setTenantSchema("public")
 
-        val normalizedTenantCode =
+        val normalizedTenantCodeHeader =
             tenantCodeHeader
                 ?.takeIf { it.isNotBlank() }
                 ?.let { normalizeTenantCode(it) }
 
-        val tenantRow = TenantsTable
-            .selectAll()
-            .firstOrNull { row ->
+        val tenantRow =
+            TenantsTable
+                .selectAll()
+                .firstOrNull { row ->
 
-                val schemaMatches =
-                    !tenantSchemaHeader.isNullOrBlank() &&
-                            row[TenantsTable.tenantSchema].equals(
-                                tenantSchemaHeader,
-                                ignoreCase = true
-                            )
+                    val dbTenantSchema =
+                        row[TenantsTable.tenantSchema]
 
-                val codeMatches =
-                    !normalizedTenantCode.isNullOrBlank() &&
-                            row[TenantsTable.tenantCode].equals(
-                                normalizedTenantCode,
-                                ignoreCase = true
-                            )
+                    val dbTenantCode =
+                        row[TenantsTable.tenantCode]
 
-                val slugMatches =
-                    !tenantSlugHeader.isNullOrBlank() &&
-                            row[TenantsTable.tenantSlug].equals(
-                                tenantSlugHeader,
-                                ignoreCase = true
-                            )
+                    val dbTenantSlug =
+                        row[TenantsTable.tenantSlug]
 
-                schemaMatches || codeMatches || slugMatches
-            }
+                    val matchesResolvedSchema =
+                        !tenantSchema.isNullOrBlank() &&
+                                dbTenantSchema.equals(
+                                    tenantSchema,
+                                    ignoreCase = true
+                                )
+
+                    val matchesSchemaHeader =
+                        !tenantSchemaHeader.isNullOrBlank() &&
+                                dbTenantSchema.equals(
+                                    tenantSchemaHeader,
+                                    ignoreCase = true
+                                )
+
+                    val matchesTenantCode =
+                        !normalizedTenantCodeHeader.isNullOrBlank() &&
+                                normalizeTenantCode(dbTenantCode) == normalizedTenantCodeHeader
+
+                    val matchesTenantSlug =
+                        !tenantSlugHeader.isNullOrBlank() &&
+                                dbTenantSlug.equals(
+                                    tenantSlugHeader,
+                                    ignoreCase = true
+                                )
+
+                    matchesResolvedSchema ||
+                            matchesSchemaHeader ||
+                            matchesTenantCode ||
+                            matchesTenantSlug
+                }
+
+        val rawSchoolName =
+            tenantRow?.get(TenantsTable.schoolName)
+
+        val rawSchoolLogoUrl =
+            tenantRow?.get(TenantsTable.schoolLogoUrl)
+
+        val rawSchoolMotto =
+            tenantRow?.get(TenantsTable.schoolMotto)
+
+        println("========== SCHOOL BRANDING RESOLVER DEBUG ==========")
+        println("tenantSchema argument: $tenantSchema")
+        println("X-Tenant-Schema: $tenantSchemaHeader")
+        println("X-Tenant-Code: $tenantCodeHeader")
+        println("X-Tenant-Slug: $tenantSlugHeader")
+        println("Tenant row found: ${tenantRow != null}")
+        println("Raw school name from DB: $rawSchoolName")
+        println("Raw Cloudinary logo URL from DB: $rawSchoolLogoUrl")
+        println("Raw school motto from DB: $rawSchoolMotto")
+        println("========== END SCHOOL BRANDING RESOLVER DEBUG ==========")
 
         SchoolBrandingInfo(
             schoolName =
                 schoolNameHeader
                     ?.takeIf { it.isNotBlank() }
-                    ?: tenantRow?.get(TenantsTable.schoolName)
+                    ?: rawSchoolName
+                        ?.takeIf { it.isNotBlank() }
                     ?: defaultName,
 
             schoolLogoUrl =
-                tenantRow?.get(TenantsTable.schoolLogoUrl),
+                schoolLogoHeader
+                    ?.takeIf { it.isNotBlank() }
+                    ?: rawSchoolLogoUrl
+                        ?.takeIf { !it.isNullOrBlank() },
 
             schoolMotto =
-                tenantRow?.get(TenantsTable.schoolMotto)
+                schoolMottoHeader
+                    ?.takeIf { it.isNotBlank() }
+                    ?: rawSchoolMotto
+                        ?.takeIf { !it.isNullOrBlank() }
         )
     }
 }
