@@ -86,18 +86,21 @@ object ParentAnnouncementRecipientRepository {
                                 )
                     }
                 }
-                .flatMap { row ->
 
-                    listOfNotNull(
+
+                .mapNotNull { row ->
+
+                    val fatherContact =
                         row[
                             StudentsTable.contactOfFather
-                        ],
-
-                        row[
-                            StudentsTable.contactOfMother
                         ]
+
+                    normalizeGhanaPhoneNumber(
+                        fatherContact
                     )
                 }
+                .distinct()
+
                 .mapNotNull { phoneNumber ->
 
                     normalizeGhanaPhoneNumber(
