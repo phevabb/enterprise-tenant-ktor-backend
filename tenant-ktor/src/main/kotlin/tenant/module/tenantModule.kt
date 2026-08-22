@@ -8,7 +8,7 @@ import com.example.tenant.routes.publicTenantRoutes
 import com.example.tenant.routes.tenantRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
-
+import tenant.routes.newGradeClassRoutes
 
 
 fun Application.tenantModule() {
@@ -18,12 +18,22 @@ fun Application.tenantModule() {
 
             route("/tenant") {
                 tenantRoutes()
+
             }
+
+            route("/classes") {
+                newGradeClassRoutes()
+
+            }
+
+
 
 
             route("/public") {
                 publicTenantRoutes()
             }
+
+
 
 
 

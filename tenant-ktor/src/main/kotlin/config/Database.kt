@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
+import sms.tables.SmsAnnouncementsTable
 import sms.tables.SmsCampaignsTable
 import sms.tables.SmsSenderIdsTable
 import sms.tables.SmsWalletTransactionsTable
@@ -41,7 +42,8 @@ object DatabaseFactory {
                 SmsCampaignsTable,
                 TenantFeaturesTable,
                 SmsWalletsTable,
-                SmsWalletTransactionsTable
+                SmsWalletTransactionsTable,
+                SmsAnnouncementsTable
 
 
 
@@ -54,6 +56,7 @@ object DatabaseFactory {
                 SmsWalletTransactionsTable,
                 SmsWalletsTable,
                 SmsSenderIdsTable,
+                SmsAnnouncementsTable,
 
                 TenantFeaturesTable
             ).forEach { exec(it) }

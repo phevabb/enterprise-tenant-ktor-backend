@@ -49,6 +49,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import sms.routes.clientSenderIdRoutes
+import sms.routes.clientSmsBalanceRoutes
+import sms.routes.parentAnnouncementRoutes
 import sms.routes.smsInternalRoutes
 import sms.routes.smsWalletClientInternalRoutes
 import sms.routes.smsWalletInternalRoutes
@@ -69,7 +72,12 @@ fun Application.tenantAdminModule() {
             smsWalletInternalRoutes()
              smsWalletClientInternalRoutes()
             smsWalletPurchaseInternalRoutes()
+            clientSenderIdRoutes()
+            clientSmsBalanceRoutes()
+            parentAnnouncementRoutes()
         }
+
+
 
 
 
