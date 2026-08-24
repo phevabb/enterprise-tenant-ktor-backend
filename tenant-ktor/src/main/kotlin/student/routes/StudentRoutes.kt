@@ -1,6 +1,6 @@
 package com.example.student.routes
 
-import com.example.commands.ImportStudentsFromCsv
+
 import com.example.student.dtos.PaginatedResponse
 import com.example.student.dtos.PaginationMeta
 import com.example.student.dtos.requests.CreateStudentRequest
@@ -10,10 +10,15 @@ import com.example.student.repos.StudentRepository
 import com.example.student.services.StudentService
 import com.example.tenant.currentTenant
 import io.ktor.http.*
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
+import student.imports.ImportStudentsFromExcel
 
 fun Route.studentRoutes() {
 
@@ -26,11 +31,54 @@ fun Route.studentRoutes() {
         post("/import-students") {
             val tenant = call.currentTenant()
 
-            ImportStudentsFromCsv.run(tenant.tenantSchema)
+            var fileBytes: ByteArray? = null
+            var originalFileName: String? = null
+            var sendAdmissionSms = false
+            var admissionSmsMessage: String? = null
 
-            call.respondText("Import started")
+            call.receiveMultipart().forEachPart { part ->
+                when (part) {
+                    is PartData.FileItem -> {
+                        if (part.name == "file") {
+                            originalFileName = part.originalFileName
+                            fileBytes = part.provider()
+                                .readRemaining()
+                                .readByteArray()
+                        }
+                    }
+
+                    is PartData.FormItem -> {
+                        when (part.name) {
+                            "sendAdmissionSms" -> {
+                                sendAdmissionSms = part.value.toBoolean()
+                            }
+
+                            "admissionSmsMessage" -> {
+                                admissionSmsMessage = part.value
+                                    .trim()
+                                    .takeIf { it.isNotBlank() }
+                            }
+                        }
+                    }
+
+                    else -> Unit
+                }
+
+                part.dispose()
+            }
+
+            val result = ImportStudentsFromExcel.run(
+                tenantSchema = tenant.tenantSchema,
+                fileBytes = fileBytes
+                    ?: throw IllegalArgumentException("Excel file is required."),
+                originalFileName = originalFileName
+                    ?: throw IllegalArgumentException("Excel filename is required."),
+                sendAdmissionSms = sendAdmissionSms,
+                admissionSmsMessage = admissionSmsMessage
+            )
+
+            call.respond(result)
         }
-
 
             get("/raw") {
             val tenant = call.currentTenant()
@@ -119,6 +167,11 @@ fun Route.studentRoutes() {
 
             call.respond(HttpStatusCode.Created, createdProfile)
         }
+
+
+
+
+
 
     // PUT /student/{id}  (full update)
         put("{id}") {

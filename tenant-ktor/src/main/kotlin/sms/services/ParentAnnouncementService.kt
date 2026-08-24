@@ -29,6 +29,20 @@ object ParentAnnouncementService {
             request.message
                 .trim()
 
+        val normalizedClassIds =
+            request.classIds
+                .filter { classId ->
+                    classId > 0
+                }
+                .distinct()
+
+        val normalizedStudentIds =
+            request.studentIds
+                .filter { studentId ->
+                    studentId > 0
+                }
+                .distinct()
+
         require(
             normalizedTenantCode.isNotBlank()
         ) {
@@ -44,10 +58,11 @@ object ParentAnnouncementService {
         require(
             normalizedAudienceType in setOf(
                 "all_parents",
-                "specific_classes"
+                "specific_classes",
+                "specific_students"
             )
         ) {
-            "Audience type must be all_parents or specific_classes."
+            "Audience type must be all_parents, specific_classes, or specific_students."
         }
 
         require(
@@ -62,30 +77,31 @@ object ParentAnnouncementService {
             "Announcement message cannot exceed 480 characters."
         }
 
-        if (
-            normalizedAudienceType ==
-            "specific_classes"
-        ) {
-            require(
-                request.classIds.isNotEmpty()
-            ) {
-                "Select at least one class."
+        when (normalizedAudienceType) {
+            "specific_classes" -> {
+                require(
+                    normalizedClassIds.isNotEmpty()
+                ) {
+                    "Select at least one class."
+                }
+            }
+
+            "specific_students" -> {
+                require(
+                    normalizedStudentIds.isNotEmpty()
+                ) {
+                    "Select at least one student."
+                }
             }
         }
-
-        val normalizedClassIds =
-            request.classIds
-                .filter { classId ->
-                    classId > 0
-                }
-                .distinct()
 
         val recipients =
             ParentAnnouncementRecipientRepository
                 .findParentPhoneNumbers(
                     tenantSchema = tenantSchema,
                     audienceType = normalizedAudienceType,
-                    classIds = normalizedClassIds
+                    classIds = normalizedClassIds,
+                    studentIds = normalizedStudentIds
                 )
 
         require(
@@ -99,6 +115,7 @@ object ParentAnnouncementService {
                     "tenantCode=$normalizedTenantCode, " +
                     "audienceType=$normalizedAudienceType, " +
                     "classIds=$normalizedClassIds, " +
+                    "studentIds=$normalizedStudentIds, " +
                     "recipients=${recipients.size}"
         )
 
@@ -121,7 +138,6 @@ object ParentAnnouncementService {
             smsBalanceAfter = smsResult.smsBalanceAfter
         )
     }
-
     private fun normalizeTenantCode(
         tenantCode: String
     ): String {

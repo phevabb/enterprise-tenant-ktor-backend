@@ -15,7 +15,7 @@ import com.example.account.accountModule
 import com.example.admin.adminModule
 import com.example.auth.authModule
 import com.example.billing.billingModule
-import com.example.commands.ImportStudentsFromCsv
+
 import com.example.config.DatabaseFactory
 import com.example.config.configureCors
 import com.example.familyfees.familyModule
@@ -36,6 +36,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import com.example.tenant.tenantAdminModule
 import io.ktor.server.auth.jwt.jwt
+import student.imports.ImportStudentsFromExcel
 
 fun main(args: Array<String>) {
     when (args.firstOrNull()) {
@@ -56,7 +57,7 @@ fun main(args: Array<String>) {
             println("tenantCode = $tenantCode")
             println("tenantSchema = $tenantSchema")
 
-            ImportStudentsFromCsv.run(tenantSchema)
+
         }
 
         else -> {

@@ -1,6 +1,7 @@
 package com.example.student.repos
 
 import com.example.account.AccountTable
+import org.jetbrains.exposed.sql.and
 import com.example.minimals.FamilyMinimal
 import com.example.staff.dtos.response.StudentLiteResponse
 import com.example.student.StudentsTable
@@ -29,8 +30,62 @@ import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.count
+import tenant.dto.response.StudentByClassResponse
 
 object StudentRepository {
+
+
+
+    fun findStudentsByClassInCurrentTransaction(
+        tenantSchema: String,
+        classId: Int
+    ): List<StudentByClassResponse> {
+
+        return transaction {
+            setTenantSchema(tenantSchema)
+
+            StudentsTable
+                .innerJoin(AccountTable)
+                .select(
+                    StudentsTable.id,
+                    StudentsTable.currentNewGradeClass,
+                    AccountTable.fullName
+                )
+                .where {
+                    (StudentsTable.currentNewGradeClass eq classId) and
+                            (StudentsTable.isGraduated eq false)
+                }
+                .orderBy(
+                    AccountTable.fullName,
+                    SortOrder.ASC
+                )
+                .map { row ->
+                    StudentByClassResponse(
+                        id = row[StudentsTable.id].value,
+                        fullName = row[AccountTable.fullName],
+                        classId = classId
+                    )
+                }
+        }
+    }
+
+
+
+
+    fun findStudentsByClass(
+        tenantSchema: String,
+        classId: Int
+    ): List<StudentLiteResponse> = transaction {
+
+        setTenantSchema(tenantSchema)
+
+        findStudentsByClassInCurrentTransaction(classId)
+    }
+
+
+
+
+
 
     /**
      * Use this when you are already inside the correct tenant transaction/schema.
@@ -635,15 +690,6 @@ object StudentRepository {
     /**
      * Wrapper version if you want repository to open a transaction itself.
      */
-    fun findStudentsByClass(
-        tenantSchema: String,
-        classId: Int
-    ): List<StudentLiteResponse> = transaction {
-
-        setTenantSchema(tenantSchema)
-
-        findStudentsByClassInCurrentTransaction(classId)
-    }
 
     /**
      * Use this when you are already inside the correct tenant transaction/schema.
@@ -770,3 +816,16 @@ object StudentRepository {
         countPerClassInCurrentTransaction()
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

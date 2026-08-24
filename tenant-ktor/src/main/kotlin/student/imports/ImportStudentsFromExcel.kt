@@ -1,26 +1,18 @@
-package com.example.commands
+package student.imports
 
 
 import com.example.academics.repos.setTenantSchema
-import com.example.config.DatabaseFactory
-import com.example.student.dtos.requests.CreateUserPart
-import com.example.student.services.StudentService
-import java.io.File
 import com.example.student.dtos.requests.CreateStudentRequest
+import com.example.student.dtos.requests.CreateUserPart
+
+import com.example.student.services.StudentService
 import com.example.student.tables.NewGradeClassTable
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-
-
-
-
+import org.apache.poi.ss.usermodel.Cell
+import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.DataFormatter
-import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import student.imports.StudentImportError
-import student.imports.StudentImportResult
 import java.io.ByteArrayInputStream
 
 object ImportStudentsFromExcel {
@@ -50,10 +42,10 @@ object ImportStudentsFromExcel {
 
         println()
         println("======================================================")
-        println("[EXCEL IMPORT] IMPORT STARTED")
+        println("[EXCEL IMPORT] Import started")
         println("[EXCEL IMPORT] tenantSchema=$tenantSchema")
         println("[EXCEL IMPORT] originalFileName=$originalFileName")
-        println("[EXCEL IMPORT] uploadedFileSize=${fileBytes.size}")
+        println("[EXCEL IMPORT] uploadedFileSize=${fileBytes.size} bytes")
         println("[EXCEL IMPORT] sendAdmissionSms=$sendAdmissionSms")
         println(
             "[EXCEL IMPORT] admissionSmsMessagePresent=${
@@ -76,7 +68,6 @@ object ImportStudentsFromExcel {
 
         require(
             originalFileName
-                .trim()
                 .lowercase()
                 .endsWith(".xlsx")
         ) {
@@ -109,9 +100,6 @@ object ImportStudentsFromExcel {
         var failedCount =
             0
 
-        val formatter =
-            DataFormatter()
-
         ByteArrayInputStream(
             fileBytes
         ).use { inputStream ->
@@ -123,22 +111,22 @@ object ImportStudentsFromExcel {
                 require(
                     workbook.numberOfSheets > 0
                 ) {
-                    "The uploaded Excel workbook contains no worksheets."
+                    "The uploaded Excel workbook has no worksheets."
                 }
 
                 val sheet =
                     workbook.getSheetAt(0)
 
                 println(
-                    "[EXCEL IMPORT] Worksheet=${sheet.sheetName}"
+                    "[EXCEL IMPORT] Sheet name=${sheet.sheetName}"
                 )
 
                 println(
-                    "[EXCEL IMPORT] First row index=${sheet.firstRowNum}"
+                    "[EXCEL IMPORT] First row=${sheet.firstRowNum}"
                 )
 
                 println(
-                    "[EXCEL IMPORT] Last row index=${sheet.lastRowNum}"
+                    "[EXCEL IMPORT] Last row=${sheet.lastRowNum}"
                 )
 
                 val headerRow =
@@ -146,22 +134,24 @@ object ImportStudentsFromExcel {
                         sheet.firstRowNum
                     )
                         ?: throw IllegalArgumentException(
-                            "The uploaded Excel file has no header row."
+                            "The Excel file does not contain a header row."
                         )
 
                 val headerIndexes =
-                    buildHeaderIndexes(
-                        headerRow = headerRow,
-                        formatter = formatter
+                    buildHeaderIndex(
+                        headerRow = headerRow
                     )
 
                 println(
-                    "[EXCEL IMPORT] Headers=$headerIndexes"
+                    "[EXCEL IMPORT] Resolved headers=$headerIndexes"
                 )
 
-                validateHeaders(
+                validateRequiredHeaders(
                     headerIndexes = headerIndexes
                 )
+
+                val formatter =
+                    DataFormatter()
 
                 for (
                 rowIndex in
@@ -183,7 +173,7 @@ object ImportStudentsFromExcel {
                         )
                     ) {
                         println(
-                            "[EXCEL IMPORT] Skipped empty row=$excelRowNumber"
+                            "[EXCEL IMPORT] Skipping empty row=$excelRowNumber"
                         )
 
                         continue
@@ -205,7 +195,7 @@ object ImportStudentsFromExcel {
                                 formatter = formatter
                             )
 
-                        val className =
+                        val currentClass =
                             readCell(
                                 row = row,
                                 columnIndex =
@@ -230,7 +220,6 @@ object ImportStudentsFromExcel {
                                 MOTHER_CONTACT_HEADER
                             ]
                                 ?.let { columnIndex ->
-
                                     readCell(
                                         row = row,
                                         columnIndex = columnIndex,
@@ -246,7 +235,6 @@ object ImportStudentsFromExcel {
                                 DISCOUNTED_HEADER
                             ]
                                 ?.let { columnIndex ->
-
                                     readCell(
                                         row = row,
                                         columnIndex = columnIndex,
@@ -255,13 +243,23 @@ object ImportStudentsFromExcel {
                                 }
                                 .orEmpty()
 
+                        val normalizedClassName =
+                            normalizeClassName(
+                                currentClass
+                            )
+
+                        val isDiscounted =
+                            parseBoolean(
+                                discountedText
+                            )
+
                         println(
                             "[EXCEL IMPORT] Parsed row=$excelRowNumber, " +
                                     "fullName=$fullName, " +
-                                    "className=$className, " +
-                                    "contactOfFather=$contactOfFather, " +
-                                    "contactOfMother=$contactOfMother, " +
-                                    "discountedText=$discountedText"
+                                    "currentClass=$currentClass, " +
+                                    "fatherContact=$contactOfFather, " +
+                                    "motherContact=$contactOfMother, " +
+                                    "isDiscounted=$isDiscounted"
                         )
 
                         require(
@@ -271,7 +269,7 @@ object ImportStudentsFromExcel {
                         }
 
                         require(
-                            className.isNotBlank()
+                            currentClass.isNotBlank()
                         ) {
                             "Current class is required for $fullName."
                         }
@@ -282,28 +280,18 @@ object ImportStudentsFromExcel {
                             "Father's contact is required for $fullName."
                         }
 
-                        val normalizedClassName =
-                            normalizeClassName(
-                                className
-                            )
-
                         val classId =
                             classMap[
                                 normalizedClassName
                             ]
                                 ?: throw IllegalArgumentException(
-                                    "Class '$className' was not found. " +
+                                    "Class '$currentClass' was not found. " +
                                             "Available classes: ${
                                                 classMap.keys.joinToString(", ")
                                             }"
                                 )
 
-                        val isDiscounted =
-                            parseBoolean(
-                                discountedText
-                            )
-
-                        val studentRequest =
+                        val request =
                             CreateStudentRequest(
                                 user =
                                     CreateUserPart(
@@ -331,27 +319,21 @@ object ImportStudentsFromExcel {
 
                                 admissionSmsMessage =
                                     if (sendAdmissionSms) {
-
                                         admissionSmsMessage
                                             ?.trim()
-
                                     } else {
-
                                         null
                                     }
                             )
 
                         println(
-                            "[EXCEL IMPORT] Student request=$studentRequest"
+                            "[EXCEL IMPORT] Calling StudentService.createStudent for row=$excelRowNumber"
                         )
 
                         val createdStudent =
                             StudentService.createStudent(
-                                tenantSchema =
-                                    tenantSchema,
-
-                                request =
-                                    studentRequest
+                                tenantSchema = tenantSchema,
+                                request = request
                             )
 
                         importedCount += 1
@@ -404,31 +386,24 @@ object ImportStudentsFromExcel {
 
         println()
         println("======================================================")
-        println("[EXCEL IMPORT] IMPORT COMPLETED")
-        println("[EXCEL IMPORT] Source=FRONTEND UPLOAD")
+        println("[EXCEL IMPORT] Import completed")
         println("[EXCEL IMPORT] originalFileName=$originalFileName")
-        println("[EXCEL IMPORT] fileBytes=${fileBytes.size}")
+        println("[EXCEL IMPORT] uploadedFileSize=${fileBytes.size}")
         println("[EXCEL IMPORT] importedCount=$importedCount")
         println("[EXCEL IMPORT] failedCount=$failedCount")
         println("[EXCEL IMPORT] sendAdmissionSms=$sendAdmissionSms")
         println("======================================================")
 
         return StudentImportResult(
-            importedCount =
-                importedCount,
-
-            failedCount =
-                failedCount,
-
+            importedCount = importedCount,
+            failedCount = failedCount,
             message =
                 if (failedCount == 0) {
                     "All students were imported successfully."
                 } else {
                     "Import completed with some failed rows."
                 },
-
-            errors =
-                errors
+            errors = errors
         )
     }
 
@@ -446,7 +421,7 @@ object ImportStudentsFromExcel {
                 .selectAll()
                 .associate { row ->
 
-                    val className =
+                    val normalizedClassName =
                         normalizeClassName(
                             row[
                                 NewGradeClassTable.name
@@ -458,38 +433,35 @@ object ImportStudentsFromExcel {
                             NewGradeClassTable.id
                         ].value
 
-                    className to classId
+                    normalizedClassName to classId
                 }
         }
     }
 
-    private fun buildHeaderIndexes(
-        headerRow: Row,
-        formatter: DataFormatter
+    private fun buildHeaderIndex(
+        headerRow: org.apache.poi.ss.usermodel.Row
     ): Map<String, Int> {
 
-        val headerIndexes =
+        val headers =
             mutableMapOf<String, Int>()
 
         for (cell in headerRow) {
-            val headerName =
+            val normalizedHeader =
                 normalizeHeader(
-                    formatter.formatCellValue(
-                        cell
-                    )
+                    cell.toString()
                 )
 
-            if (headerName.isNotBlank()) {
-                headerIndexes[
-                    headerName
+            if (normalizedHeader.isNotBlank()) {
+                headers[
+                    normalizedHeader
                 ] = cell.columnIndex
             }
         }
 
-        return headerIndexes
+        return headers
     }
 
-    private fun validateHeaders(
+    private fun validateRequiredHeaders(
         headerIndexes: Map<String, Int>
     ) {
 
@@ -502,7 +474,6 @@ object ImportStudentsFromExcel {
 
         val missingHeaders =
             requiredHeaders.filter { header ->
-
                 !headerIndexes.containsKey(
                     header
                 )
@@ -513,12 +484,12 @@ object ImportStudentsFromExcel {
         ) {
             "Missing required Excel headers: ${
                 missingHeaders.joinToString(", ")
-            }. Required headers are fullName, currentClass and contactOfFather."
+            }. Required headers are: fullName, currentClass, contactOfFather."
         }
     }
 
     private fun readCell(
-        row: Row,
+        row: org.apache.poi.ss.usermodel.Row,
         columnIndex: Int,
         formatter: DataFormatter
     ): String {
@@ -526,19 +497,27 @@ object ImportStudentsFromExcel {
         val cell =
             row.getCell(
                 columnIndex,
-                Row.MissingCellPolicy.RETURN_BLANK_AS_NULL
+                org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL
             )
                 ?: return ""
 
-        return formatter
-            .formatCellValue(
-                cell
-            )
-            .trim()
+        return when (cell.cellType) {
+            CellType.FORMULA -> {
+                formatter
+                    .formatCellValue(cell)
+                    .trim()
+            }
+
+            else -> {
+                formatter
+                    .formatCellValue(cell)
+                    .trim()
+            }
+        }
     }
 
     private fun isRowEmpty(
-        row: Row,
+        row: org.apache.poi.ss.usermodel.Row,
         formatter: DataFormatter
     ): Boolean {
 
@@ -556,7 +535,7 @@ object ImportStudentsFromExcel {
             val cell =
                 row.getCell(
                     columnIndex,
-                    Row.MissingCellPolicy.RETURN_BLANK_AS_NULL
+                    org.apache.poi.ss.usermodel.Row.MissingCellPolicy.RETURN_BLANK_AS_NULL
                 )
 
             if (

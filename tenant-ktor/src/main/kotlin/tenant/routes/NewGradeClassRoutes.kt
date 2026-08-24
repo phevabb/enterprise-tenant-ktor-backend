@@ -1,6 +1,7 @@
 package tenant.routes
 
 import com.example.student.repos.NewGradeClassRepository
+import com.example.student.repos.StudentRepository
 import com.example.tenant.currentTenant
 import tenant.dto.response.GradeClassWithStudentCountResponse
 import tenant.repository.GradeClassStudentCountRepository
@@ -94,6 +95,61 @@ fun Route.newGradeClassRoutes() {
                         "message" to (
                                 e.message
                                     ?: "Unable to retrieve classes and student counts."
+                                )
+                    )
+                )
+            }
+        }
+
+
+        get("/{classId}/students") {
+            try {
+                val tenant =
+                    call.currentTenant()
+
+                val classId =
+                    call.parameters["classId"]
+                        ?.toIntOrNull()
+                        ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf(
+                                "message" to "A valid class ID is required."
+                            )
+                        )
+
+                if (classId <= 0) {
+                    return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "message" to "The class ID must be greater than zero."
+                        )
+                    )
+                }
+
+                val students =
+                    StudentRepository.findStudentsByClassInCurrentTransaction(
+                        tenantSchema = tenant.tenantSchema,
+                        classId = classId
+                    )
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    students
+                )
+
+            } catch (exception: Exception) {
+                println(
+                    "[students-by-class] Failed: ${exception.message}"
+                )
+
+                exception.printStackTrace()
+
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf(
+                        "message" to (
+                                exception.message
+                                    ?: "Unable to retrieve students in this class."
                                 )
                     )
                 )

@@ -33,7 +33,11 @@ data class CreateStudentRequest(
     val contactOfMother: String? = null,
 
     val houseNumber: String? = null,
-    val deactivationReason: String? = null
+    val deactivationReason: String? = null,
+
+
+    val sendAdmissionSms: Boolean = false,
+    val admissionSmsMessage: String? = null
 )
 
 /**

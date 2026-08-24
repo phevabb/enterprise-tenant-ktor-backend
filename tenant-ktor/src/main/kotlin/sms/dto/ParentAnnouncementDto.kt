@@ -7,6 +7,7 @@ data class SendParentAnnouncementRequest(
     val tenantCode: String,
     val audienceType: String,
     val classIds: List<Int> = emptyList(),
+    val studentIds: List<Int> = emptyList(),
     val message: String,
     val description: String? = null
 )

@@ -5,6 +5,7 @@ package sms.repo
 import com.example.academics.repos.setTenantSchema
 import com.example.student.StudentsTable
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -13,12 +14,11 @@ object ParentAnnouncementRecipientRepository {
     fun findParentPhoneNumbers(
         tenantSchema: String,
         audienceType: String,
-        classIds: List<Int>
+        classIds: List<Int>,
+        studentIds: List<Int>
     ): List<String> {
 
-        require(
-            tenantSchema.isNotBlank()
-        ) {
+        require(tenantSchema.isNotBlank()) {
             "Tenant schema is required."
         }
 
@@ -30,21 +30,11 @@ object ParentAnnouncementRecipientRepository {
         require(
             normalizedAudienceType in setOf(
                 "all_parents",
-                "specific_classes"
+                "specific_classes",
+                "specific_students"
             )
         ) {
-            "Invalid audience type."
-        }
-
-        if (
-            normalizedAudienceType ==
-            "specific_classes"
-        ) {
-            require(
-                classIds.isNotEmpty()
-            ) {
-                "Select at least one class."
-            }
+            "Audience type must be all_parents, specific_classes, or specific_students."
         }
 
         val selectedClassIds =
@@ -53,7 +43,27 @@ object ParentAnnouncementRecipientRepository {
                     classId > 0
                 }
                 .distinct()
-                .toSet()
+
+        val selectedStudentIds =
+            studentIds
+                .filter { studentId ->
+                    studentId > 0
+                }
+                .distinct()
+
+        when (normalizedAudienceType) {
+            "specific_classes" -> {
+                require(selectedClassIds.isNotEmpty()) {
+                    "Select at least one class."
+                }
+            }
+
+            "specific_students" -> {
+                require(selectedStudentIds.isNotEmpty()) {
+                    "Select at least one student."
+                }
+            }
+        }
 
         return transaction {
 
@@ -62,32 +72,39 @@ object ParentAnnouncementRecipientRepository {
             )
 
             StudentsTable
-                .selectAll()
+                .select(
+                    StudentsTable.id,
+                    StudentsTable.contactOfFather
+                )
                 .where {
-                    StudentsTable.isGraduated eq false
-                }
-                .filter { row ->
+                    when (normalizedAudienceType) {
+                        "all_parents" -> {
+                            StudentsTable.isGraduated eq false
+                        }
 
-                    if (
-                        normalizedAudienceType ==
-                        "all_parents"
-                    ) {
-                        true
-                    } else {
+                        "specific_classes" -> {
+                            (StudentsTable.isGraduated eq false) and
+                                    (
+                                            StudentsTable.currentNewGradeClass inList
+                                                    selectedClassIds
+                                            )
+                        }
 
-                        val studentClassId =
-                            row[
-                                StudentsTable.currentNewGradeClass
-                            ]?.value
+                        "specific_students" -> {
+                            (StudentsTable.isGraduated eq false) and
+                                    (
+                                            StudentsTable.id inList
+                                                    selectedStudentIds
+                                            )
+                        }
 
-                        studentClassId != null &&
-                                selectedClassIds.contains(
-                                    studentClassId
-                                )
+                        else -> {
+                            error(
+                                "Unsupported audience type: $normalizedAudienceType"
+                            )
+                        }
                     }
                 }
-
-
                 .mapNotNull { row ->
 
                     val fatherContact =
@@ -97,14 +114,6 @@ object ParentAnnouncementRecipientRepository {
 
                     normalizeGhanaPhoneNumber(
                         fatherContact
-                    )
-                }
-                .distinct()
-
-                .mapNotNull { phoneNumber ->
-
-                    normalizeGhanaPhoneNumber(
-                        phoneNumber
                     )
                 }
                 .distinct()
