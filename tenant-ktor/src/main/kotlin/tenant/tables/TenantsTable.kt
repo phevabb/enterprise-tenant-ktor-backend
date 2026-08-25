@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.Table
 
 object TenantsTable : Table("tenants") {
     val id = integer("id").autoIncrement()
+    val defaultDomain = varchar("default_domain", 255).uniqueIndex()
     val tenantCode = varchar("tenant_code", 100).uniqueIndex()
     val schoolName = varchar("school_name", 255)
     val schoolLogoUrl = varchar("school_logo_url", 500).nullable()
@@ -30,7 +31,7 @@ object TenantsTable : Table("tenants") {
     val tenantSlug = varchar("tenant_slug", 120).uniqueIndex()
 
 
-    val defaultDomain = varchar("default_domain", 255).uniqueIndex()
+
 
     val schoolType = varchar("school_type", 120).nullable()
     val contactEmail = varchar("contact_email", 255).nullable()

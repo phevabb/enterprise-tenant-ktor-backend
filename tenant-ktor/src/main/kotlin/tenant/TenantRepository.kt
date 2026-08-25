@@ -19,3 +19,34 @@ fun getSchoolLogoPublicId(
             ?.get(TenantsTable.schoolLogoPublicId)
     }
 }
+
+
+
+//fun findDefaultDomainBySchema(
+//    tenantSchema: String
+//): String {
+//
+//    val normalizedTenantCode =
+//        tenantSchema
+//            .removePrefix("tenant_")
+//            .trim()
+//
+//    return transaction {
+//        TenantsTable
+//            .select(
+//                TenantsTable.defaultDomain
+//            )
+//            .where {
+//                TenantsTable.tenantCode eq
+//                        normalizedTenantCode
+//            }
+//            .limit(1)
+//            .singleOrNull()
+//            ?.get(
+//                TenantsTable.defaultDomain
+//            )
+//            ?: throw IllegalArgumentException(
+//                "The school's default domain was not found."
+//            )
+//    }
+//}
