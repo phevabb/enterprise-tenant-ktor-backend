@@ -1,5 +1,7 @@
 package com.example.tenant
 
+import chat.tables.ChatConversationsTable
+import chat.tables.ChatMessagesTable
 import com.example.academics.repos.setTenantSchema
 import com.example.academics.tables.AcademicRecordsTable
 import com.example.academics.tables.CategoriesTable
@@ -42,14 +44,19 @@ object TenantSchemaService {
                 BillTemplatesTable,
                 BillTemplateItemsTable,
                 StudentBillsTable,
-                StudentBillItemsTable
+                StudentBillItemsTable,
+                ChatConversationsTable,
+                ChatMessagesTable,
             )
 
             SchemaUtils.addMissingColumnsStatements(
                 BillTemplatesTable,
                 BillTemplateItemsTable,
                 StudentBillsTable,
-                StudentBillItemsTable
+                StudentBillItemsTable,
+                ChatConversationsTable,
+                ChatMessagesTable,
+
             ).forEach { statement ->
                 exec(statement)
             }
@@ -68,6 +75,7 @@ object TenantSchemaService {
                 AcademicYearTable,
                 TermTable,
 
+
                 FeeStructureTable,
                 StudentFeeRecordTable,
                 PaymentTable,
@@ -94,7 +102,10 @@ object TenantSchemaService {
                 BillTemplatesTable,
                 BillTemplateItemsTable,
                 StudentBillsTable,
-                StudentBillItemsTable
+                StudentBillItemsTable,
+
+                ChatConversationsTable,
+                ChatMessagesTable,
             )
 
 
@@ -133,10 +144,44 @@ object TenantSchemaService {
                 BillTemplatesTable,
                 BillTemplateItemsTable,
                 StudentBillsTable,
-                StudentBillItemsTable
+                StudentBillItemsTable,
+
+                ChatConversationsTable,
+                ChatMessagesTable,
             ).forEach { statement ->
                 exec(statement)
             }
         }
+    }
+
+
+
+    fun ensureChatTablesForTenant(
+        tenantSchema: String
+    ) {
+        require(tenantSchema.isNotBlank()) {
+            "Tenant schema is required."
+        }
+
+        transaction {
+            setTenantSchema(tenantSchema)
+
+            SchemaUtils.create(
+                ChatConversationsTable,
+                ChatMessagesTable
+            )
+
+            SchemaUtils.addMissingColumnsStatements(
+                ChatConversationsTable,
+                ChatMessagesTable
+            ).forEach { statement ->
+                exec(statement)
+            }
+        }
+
+        println(
+            "[TenantSchemaService] Chat tables ready: " +
+                    "tenantSchema=$tenantSchema"
+        )
     }
 }

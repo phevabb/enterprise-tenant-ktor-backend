@@ -1,5 +1,7 @@
 package com.example.config
 
+import chat.tables.ChatConversationsTable
+import chat.tables.ChatMessagesTable
 import com.example.tenant.tables.TenantFeaturesTable
 import com.example.tenant.tables.TenantsTable
 import com.zaxxer.hikari.HikariConfig
@@ -43,7 +45,8 @@ object DatabaseFactory {
                 TenantFeaturesTable,
                 SmsWalletsTable,
                 SmsWalletTransactionsTable,
-                SmsAnnouncementsTable
+                SmsAnnouncementsTable,
+
 
 
 

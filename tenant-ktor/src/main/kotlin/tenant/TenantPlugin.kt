@@ -57,57 +57,164 @@ val TenantPlugin = createApplicationPlugin(
         }
 
         val tenantSlugHeader =
-            call.request.headers["X-Tenant-Slug"]
+            call.request.headers[
+                "X-Tenant-Slug"
+            ]
+                ?.trim()
+                ?.takeIf {
+                    it.isNotBlank()
+                }
 
         val tenantCodeHeader =
-            call.request.headers["X-Tenant-Code"]
+            call.request.headers[
+                "X-Tenant-Code"
+            ]
+                ?.trim()
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+
+        val tenantSlugQuery =
+            call.request
+                .queryParameters[
+                "tenantSlug"
+            ]
+                ?.trim()
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+
+        val tenantCodeQuery =
+            call.request
+                .queryParameters[
+                "tenantCode"
+            ]
+                ?.trim()
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+
+        val tenantSlug =
+            tenantSlugHeader
+                ?: tenantSlugQuery
+
+        val tenantCode =
+            tenantCodeHeader
+                ?: tenantCodeQuery
+
+
+
 
         val host =
             call.request.local.serverHost
 
         println("[TENANT PLUGIN] HOST = $host")
-        println("[TENANT PLUGIN] X-Tenant-Slug = $tenantSlugHeader")
-        println("[TENANT PLUGIN] X-Tenant-Code = $tenantCodeHeader")
+        println(
+            "[TENANT PLUGIN] X-Tenant-Slug = $tenantSlugHeader"
+        )
+
+        println(
+            "[TENANT PLUGIN] X-Tenant-Code = $tenantCodeHeader"
+        )
+
+        println(
+            "[TENANT PLUGIN] Query tenantSlug = $tenantSlugQuery"
+        )
+
+        println(
+            "[TENANT PLUGIN] Query tenantCode = $tenantCodeQuery"
+        )
+
+        println(
+            "[TENANT PLUGIN] Resolved tenantSlug = $tenantSlug"
+        )
+
+        println(
+            "[TENANT PLUGIN] Resolved tenantCode = $tenantCode"
+        )
 
         val resolutionStart = System.currentTimeMillis()
 
-        val tenant = tenantSlugHeader?.let {
 
-            println(
-                "[TENANT PLUGIN] RESOLVING BY TENANT SLUG = $it"
-            )
 
-            val start = System.currentTimeMillis()
 
-            val result = resolver.resolveByTenantSlug(it)
 
-            println(
-                "[TENANT PLUGIN] RESOLVE BY SLUG TOOK ${
-                    System.currentTimeMillis() - start
-                } ms"
-            )
 
-            result
 
-        } ?: tenantCodeHeader?.let {
 
-            println(
-                "[TENANT PLUGIN] RESOLVING BY TENANT CODE = $it"
-            )
 
-            val start = System.currentTimeMillis()
+        val tenant =
+            tenantSlug?.let { resolvedSlug ->
 
-            val result = resolver.resolveByTenantCode(it)
+                println(
+                    "[TENANT PLUGIN] " +
+                            "RESOLVING BY TENANT SLUG = $resolvedSlug"
+                )
 
-            println(
-                "[TENANT PLUGIN] RESOLVE BY CODE TOOK ${
-                    System.currentTimeMillis() - start
-                } ms"
-            )
+                val start =
+                    System.currentTimeMillis()
 
-            result
+                val result =
+                    resolver.resolveByTenantSlug(
+                        resolvedSlug
+                    )
 
-        } ?: run {
+                println(
+                    "[TENANT PLUGIN] " +
+                            "RESOLVE BY SLUG TOOK ${
+                                System.currentTimeMillis() - start
+                            } ms"
+                )
+
+                result
+
+            } ?: tenantCode?.let { resolvedCode ->
+
+                println(
+                    "[TENANT PLUGIN] " +
+                            "RESOLVING BY TENANT CODE = $resolvedCode"
+                )
+
+                val start =
+                    System.currentTimeMillis()
+
+                val result =
+                    resolver.resolveByTenantCode(
+                        resolvedCode
+                    )
+
+                println(
+                    "[TENANT PLUGIN] " +
+                            "RESOLVE BY CODE TOOK ${
+                                System.currentTimeMillis() - start
+                            } ms"
+                )
+
+                result
+
+            } ?: run {
+
+                println(
+                    "[TENANT PLUGIN] RESOLVING BY HOST = $host"
+                )
+
+                val start =
+                    System.currentTimeMillis()
+
+                val result =
+                    resolver.resolveByHost(
+                        host
+                    )
+
+                println(
+                    "[TENANT PLUGIN] " +
+                            "RESOLVE BY HOST TOOK ${
+                                System.currentTimeMillis() - start
+                            } ms"
+                )
+
+                result
+            } ?: run {
 
             println(
                 "[TENANT PLUGIN] RESOLVING BY HOST = $host"

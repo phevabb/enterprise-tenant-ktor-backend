@@ -34,6 +34,17 @@
         <!-- ========================= -->
         <!-- Ktor Auth -->
 
+
+
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-server-websockets-jvm</artifactId>
+                <version>${ktor_version}</version>
+            </dependency>
+
+
+
+
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
@@ -210,8 +221,12 @@
             <artifactId>cloudinary-http44</artifactId>
             <version>1.38.0</version>
         </dependency>
-
-
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-websockets</artifactId>
+            <version>3.4.2</version>
+            <scope>implementation</scope>
+        </dependency>
 
 
     </dependencies>
