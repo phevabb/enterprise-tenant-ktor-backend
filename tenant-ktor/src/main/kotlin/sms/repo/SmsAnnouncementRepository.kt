@@ -20,12 +20,87 @@ import org.jetbrains.exposed.sql.insert
 object SmsAnnouncementRepository {
 
 
+    private fun buildAudienceLabel(
+        audienceType: String,
+        request: SendParentAnnouncementRequest,
+        recipientCount: Int
+    ): String {
+        return when (audienceType) {
+            "all_parents" -> {
+                "All Parents"
+            }
+
+            "specific_classes" -> {
+                val classCount =
+                    request.classIds
+                        .filter { classId ->
+                            classId > 0
+                        }
+                        .distinct()
+                        .size
+
+                if (classCount == 1) {
+                    "1 Selected Class"
+                } else {
+                    "$classCount Selected Classes"
+                }
+            }
+
+            "specific_students" -> {
+                val studentCount =
+                    request.studentIds
+                        .filter { studentId ->
+                            studentId > 0
+                        }
+                        .distinct()
+                        .size
+
+                if (studentCount == 1) {
+                    "1 Selected Student"
+                } else {
+                    "$studentCount Selected Students"
+                }
+            }
+
+            "all_staff" -> {
+                "All Staff"
+            }
+
+            "specific_staff" -> {
+                val staffCount =
+                    request.staffIds
+                        .filter { staffId ->
+                            staffId > 0
+                        }
+                        .distinct()
+                        .size
+
+                if (staffCount == 1) {
+                    "1 Selected Staff Member"
+                } else {
+                    "$staffCount Selected Staff Members"
+                }
+            }
+
+            "custom_numbers" -> {
+                if (recipientCount == 1) {
+                    "1 Custom Number"
+                } else {
+                    "$recipientCount Custom Numbers"
+                }
+            }
+
+            else -> {
+                "SMS Recipients"
+            }
+        }
+    }
+
     fun saveAnnouncement(
         schoolName: String,
         request: SendParentAnnouncementRequest,
         response: SendParentAnnouncementResponse
     ): Int {
-
         val now =
             Instant.now().toString()
 
@@ -40,14 +115,14 @@ object SmsAnnouncementRepository {
                 .lowercase()
 
         val audienceLabel =
-            if (
-                normalizedAudienceType ==
-                "all_parents"
-            ) {
-                "All Parents"
-            } else {
-                "Selected Classes"
-            }
+            buildAudienceLabel(
+                audienceType =
+                    normalizedAudienceType,
+                request =
+                    request,
+                recipientCount =
+                    response.recipientCount
+            )
 
         val selectedClassIds =
             request.classIds
@@ -56,19 +131,21 @@ object SmsAnnouncementRepository {
                 }
                 .distinct()
                 .takeIf { classIds ->
-                    classIds.isNotEmpty()
+                    normalizedAudienceType ==
+                            "specific_classes" &&
+                            classIds.isNotEmpty()
                 }
-                ?.joinToString(",")
+                ?.joinToString(
+                    separator = ","
+                )
 
         return transaction {
-
             setTenantSchema(
                 "public"
             )
 
             val insertedId =
                 SmsAnnouncementsTable.insert {
-
                     it[tenantCode] =
                         normalizedTenantCode
 
@@ -83,7 +160,7 @@ object SmsAnnouncementRepository {
                             }
                             ?: "Unknown"
 
-                    it[audienceType] =
+                    it[SmsAnnouncementsTable.audienceType] =
                         normalizedAudienceType
 
                     it[SmsAnnouncementsTable.audienceLabel] =
@@ -134,7 +211,9 @@ object SmsAnnouncementRepository {
                         if (response.success) {
                             null
                         } else {
-                            response.message.take(500)
+                            response.message.take(
+                                500
+                            )
                         }
 
                     it[createdAt] =
@@ -151,12 +230,16 @@ object SmsAnnouncementRepository {
                         now
                 } get SmsAnnouncementsTable.id
 
+            println(
+                "[SmsAnnouncementRepository] " +
+                        "announcementId=${insertedId.value}, " +
+                        "audienceType=$normalizedAudienceType, " +
+                        "audienceLabel=$audienceLabel"
+            )
+
             insertedId.value
         }
     }
-
-
-
 
     fun findByTenantCode(
         tenantCode: String,

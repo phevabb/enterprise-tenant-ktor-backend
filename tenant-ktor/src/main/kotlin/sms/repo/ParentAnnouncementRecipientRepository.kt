@@ -1,24 +1,32 @@
 package sms.repo
 
-
-
-import com.example.academics.repos.setTenantSchema
+import com.example.student.repos.setTenantSchema
 import com.example.student.StudentsTable
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import sms.util.normalizeGhanaPhoneNumber
 
-object ParentAnnouncementRecipientRepository {
+class ParentAnnouncementRecipientRepository {
+
+    private val allowedParentAudienceTypes =
+        setOf(
+            "all_parents",
+            "specific_classes",
+            "specific_students"
+        )
 
     fun findParentPhoneNumbers(
         tenantSchema: String,
         audienceType: String,
-        classIds: List<Int>,
-        studentIds: List<Int>
+        classIds: List<Int> = emptyList(),
+        studentIds: List<Int> = emptyList()
     ): List<String> {
-
-        require(tenantSchema.isNotBlank()) {
+        require(
+            tenantSchema.isNotBlank()
+        ) {
             "Tenant schema is required."
         }
 
@@ -28,145 +36,162 @@ object ParentAnnouncementRecipientRepository {
                 .lowercase()
 
         require(
-            normalizedAudienceType in setOf(
-                "all_parents",
-                "specific_classes",
-                "specific_students"
-            )
+            normalizedAudienceType in
+                    allowedParentAudienceTypes
         ) {
-            "Audience type must be all_parents, specific_classes, or specific_students."
+            "Parent audience type must be all_parents, " +
+                    "specific_classes, or specific_students."
         }
 
-        val selectedClassIds =
+        val normalizedClassIds =
             classIds
                 .filter { classId ->
                     classId > 0
                 }
                 .distinct()
 
-        val selectedStudentIds =
+        val normalizedStudentIds =
             studentIds
                 .filter { studentId ->
                     studentId > 0
                 }
                 .distinct()
 
-        when (normalizedAudienceType) {
+        validateAudienceSelection(
+            audienceType =
+                normalizedAudienceType,
+            classIds =
+                normalizedClassIds,
+            studentIds =
+                normalizedStudentIds
+        )
+
+        println(
+            "[ParentAnnouncementRecipientRepository] " +
+                    "Resolving parent recipients, " +
+                    "tenantSchema=$tenantSchema, " +
+                    "audienceType=$normalizedAudienceType, " +
+                    "classIds=$normalizedClassIds, " +
+                    "studentIds=$normalizedStudentIds"
+        )
+
+        val recipientPhoneNumbers =
+            transaction {
+                setTenantSchema(
+                    tenantSchema
+                )
+
+                val query =
+                    StudentsTable
+                        .select(
+                            StudentsTable.id,
+                            StudentsTable.contactOfFather
+                        )
+
+                val filteredQuery =
+                    when (
+                        normalizedAudienceType
+                    ) {
+                        "all_parents" -> {
+                            query.where {
+                                StudentsTable.isGraduated eq
+                                        false
+                            }
+                        }
+
+                        "specific_classes" -> {
+                            query.where {
+                                (
+                                        StudentsTable.isGraduated eq
+                                                false
+                                        ) and
+                                        (
+                                                StudentsTable
+                                                    .currentNewGradeClass inList
+                                                        normalizedClassIds
+                                                )
+                            }
+                        }
+
+                        "specific_students" -> {
+                            query.where {
+                                (
+                                        StudentsTable.isGraduated eq
+                                                false
+                                        ) and
+                                        (
+                                                StudentsTable.id inList
+                                                        normalizedStudentIds
+                                                )
+                            }
+                        }
+
+                        else -> {
+                            error(
+                                "Unsupported parent audience type: " +
+                                        normalizedAudienceType
+                            )
+                        }
+                    }
+
+                filteredQuery
+                    .mapNotNull { row ->
+                        val parentPhoneNumber =
+                            row[
+                                StudentsTable.contactOfFather
+                            ]
+
+                        normalizeGhanaPhoneNumber(
+                            parentPhoneNumber
+                        )
+                    }
+                    .distinct()
+            }
+
+        println(
+            "[ParentAnnouncementRecipientRepository] " +
+                    "Parent recipients resolved, " +
+                    "audienceType=$normalizedAudienceType, " +
+                    "recipientCount=${recipientPhoneNumbers.size}"
+        )
+
+        return recipientPhoneNumbers
+    }
+
+    private fun validateAudienceSelection(
+        audienceType: String,
+        classIds: List<Int>,
+        studentIds: List<Int>
+    ) {
+        when (
+            audienceType
+        ) {
             "specific_classes" -> {
-                require(selectedClassIds.isNotEmpty()) {
+                require(
+                    classIds.isNotEmpty()
+                ) {
                     "Select at least one class."
                 }
             }
 
             "specific_students" -> {
-                require(selectedStudentIds.isNotEmpty()) {
+                require(
+                    studentIds.isNotEmpty()
+                ) {
                     "Select at least one student."
                 }
             }
-        }
 
-        return transaction {
-
-            setTenantSchema(
-                tenantSchema
-            )
-
-            StudentsTable
-                .select(
-                    StudentsTable.id,
-                    StudentsTable.contactOfFather
-                )
-                .where {
-                    when (normalizedAudienceType) {
-                        "all_parents" -> {
-                            StudentsTable.isGraduated eq false
-                        }
-
-                        "specific_classes" -> {
-                            (StudentsTable.isGraduated eq false) and
-                                    (
-                                            StudentsTable.currentNewGradeClass inList
-                                                    selectedClassIds
-                                            )
-                        }
-
-                        "specific_students" -> {
-                            (StudentsTable.isGraduated eq false) and
-                                    (
-                                            StudentsTable.id inList
-                                                    selectedStudentIds
-                                            )
-                        }
-
-                        else -> {
-                            error(
-                                "Unsupported audience type: $normalizedAudienceType"
-                            )
-                        }
-                    }
-                }
-                .mapNotNull { row ->
-
-                    val fatherContact =
-                        row[
-                            StudentsTable.contactOfFather
-                        ]
-
-                    normalizeGhanaPhoneNumber(
-                        fatherContact
-                    )
-                }
-                .distinct()
-        }
-    }
-
-    private fun normalizeGhanaPhoneNumber(
-        phoneNumber: String?
-    ): String? {
-
-        if (phoneNumber.isNullOrBlank()) {
-            return null
-        }
-
-        val cleaned =
-            phoneNumber
-                .trim()
-                .replace(
-                    Regex("[^0-9+]"),
-                    ""
-                )
-
-        val normalized =
-            when {
-
-                cleaned.startsWith("+233") &&
-                        cleaned.length == 13 -> {
-
-                    cleaned
-                }
-
-                cleaned.startsWith("233") &&
-                        cleaned.length == 12 -> {
-
-                    "+$cleaned"
-                }
-
-                cleaned.startsWith("0") &&
-                        cleaned.length == 10 -> {
-
-                    "+233${cleaned.drop(1)}"
-                }
-
-                cleaned.length == 9 -> {
-
-                    "+233$cleaned"
-                }
-
-                else -> {
-                    return null
-                }
+            "all_parents" -> {
+                Unit
             }
 
-        return normalized
+            else -> {
+                error(
+                    "Unsupported parent audience type: " +
+                            audienceType
+                )
+            }
+        }
     }
 }
