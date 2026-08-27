@@ -38,6 +38,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import com.example.tenant.tenantAdminModule
+import complaints.complaintModule
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.server.auth.parseAuthorizationHeader
 import io.ktor.server.websocket.WebSockets
@@ -249,6 +250,7 @@ fun Application.module() {
     categoryModule()
     subjectCategoryModule()
     principalModule()
+    complaintModule()
 
 
 }

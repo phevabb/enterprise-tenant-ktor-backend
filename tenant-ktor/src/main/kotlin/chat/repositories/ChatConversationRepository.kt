@@ -316,6 +316,11 @@ object ChatConversationRepository {
                                 teacherAccountId
                             ),
 
+                        parentOnline =
+                            ChatConnectionManager.isConnected(
+                                parentAccountId
+                            ),
+
                         lastMessage =
                             lastMessage,
 
@@ -811,6 +816,11 @@ object ChatConversationRepository {
                 teacherOnline =
                     ChatConnectionManager.isConnected(
                         teacherAccountId
+                    ),
+
+                parentOnline =
+                    ChatConnectionManager.isConnected(
+                        parentAccountId
                     ),
 
                 lastMessage =

@@ -16,6 +16,7 @@ data class ChatConversationResponse(
     val teacherAccountId: Int,
     val teacherName: String,
     val teacherOnline: Boolean = false,
+    val parentOnline: Boolean = false,
     val lastMessage: String? = null,
     val lastMessageAt: String? = null,
     val unreadCount: Int = 0,

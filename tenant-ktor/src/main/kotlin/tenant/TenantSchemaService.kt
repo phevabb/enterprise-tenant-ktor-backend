@@ -31,6 +31,8 @@ import com.example.student.tables.AcademicYearTable
 import com.example.student.tables.NewClassPromotionTable
 import com.example.student.tables.NewGradeClassTable
 import com.example.student.tables.TermTable
+import complaints.tables.ComplaintRepliesTable
+import complaints.tables.ParentComplaintsTable
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -47,6 +49,8 @@ object TenantSchemaService {
                 StudentBillItemsTable,
                 ChatConversationsTable,
                 ChatMessagesTable,
+                ParentComplaintsTable,
+                ComplaintRepliesTable,
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -56,6 +60,9 @@ object TenantSchemaService {
                 StudentBillItemsTable,
                 ChatConversationsTable,
                 ChatMessagesTable,
+
+                ParentComplaintsTable,
+                ComplaintRepliesTable,
 
             ).forEach { statement ->
                 exec(statement)
@@ -106,6 +113,9 @@ object TenantSchemaService {
 
                 ChatConversationsTable,
                 ChatMessagesTable,
+
+                ParentComplaintsTable,
+                ComplaintRepliesTable,
             )
 
 
@@ -148,6 +158,9 @@ object TenantSchemaService {
 
                 ChatConversationsTable,
                 ChatMessagesTable,
+
+                ParentComplaintsTable,
+                ComplaintRepliesTable,
             ).forEach { statement ->
                 exec(statement)
             }
