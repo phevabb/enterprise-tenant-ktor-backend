@@ -57,6 +57,9 @@ fun Route.paymentRoutes() {
             call.respond(HttpStatusCode.OK, response)
         }
 
+
+
+
         post {
 
             val tenant =
@@ -93,6 +96,10 @@ fun Route.paymentRoutes() {
                 result
             )
         }
+
+
+
+
 
         delete("{id}") {
             val tenant = call.currentTenant()

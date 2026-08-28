@@ -26,24 +26,65 @@ fun Route.familyPaymentRoutes() {
         call.respond(HttpStatusCode.OK, allPayments)
     }
 
+
+
     post {
-        val tenant = call.currentTenant()
-        val tenantSchema = tenant.tenantSchema
+        val tenant =
+            call.currentTenant()
 
-        val req = call.receive<CreateFamilyPaymentRequest>()
+        val tenantSchema =
+            tenant.tenantSchema
 
-        val result = FamilyPaymentRepository.createPaymentAndUpdateFfr(
-            tenantSchema = tenantSchema,
-            familyFeeRecordId = req.family_fee_record,
-            amount = req.amount,
-            paymentMethod = "cash",
-            schoolName = req.schoolName ?: "School"
+        val tenantCode =
+            tenant.tenantCode
+
+        val request =
+            call.receive<CreateFamilyPaymentRequest>()
+
+        val result =
+            FamilyPaymentRepository
+                .createPaymentAndUpdateFfr(
+                    tenantSchema =
+                        tenantSchema,
+
+                    familyFeeRecordId =
+                        request.family_fee_record,
+
+                    amount =
+                        request.amount,
+
+                    paymentMethod =
+                        "cash",
+
+                    schoolName =
+                        request.schoolName
+                            ?.trim()
+                            ?.takeIf { schoolName ->
+                                schoolName.isNotBlank()
+                            }
+                            ?: tenant.schoolName
+                            ?: "School"
+                )
+
+        result.sms?.let { sms ->
+            SmsService.sendAsync(
+                tenantCode =
+                    tenantCode,
+
+                phone =
+                    sms.phone,
+
+                message =
+                    sms.message
+            )
+        }
+
+        call.respond(
+            HttpStatusCode.Created,
+            result.response
         )
-
-//    result.sms?.let { SmsService.sendAsync(it.phone, it.message) }
-
-        call.respond(HttpStatusCode.Created, result.response)
     }
+
 
     delete("{id}") {
         val tenant = call.currentTenant()
