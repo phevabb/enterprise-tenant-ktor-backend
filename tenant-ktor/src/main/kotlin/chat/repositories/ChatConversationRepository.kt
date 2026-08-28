@@ -7,7 +7,7 @@ import chat.server.ChatConnectionManager
 import chat.tables.ChatConversationsTable
 import chat.tables.ChatMessagesTable
 import com.example.account.AccountTable
-import com.example.academics.repos.setTenantSchema
+
 import com.example.staff.tables.StaffTable
 import com.example.student.StudentsTable
 import com.example.student.tables.NewGradeClassTable
@@ -15,7 +15,7 @@ import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.transactions.transaction
+
 import java.time.LocalDateTime
 
 object ChatConversationRepository {
@@ -33,11 +33,9 @@ object ChatConversationRepository {
             "A valid authenticated account ID is required."
         }
 
-        return transaction {
-            setTenantSchema(
-                tenantSchema
-            )
-
+        return chatTenantTransaction(
+            tenantSchema
+        ) {
             ChatConversationsTable
                 .select(
                     ChatConversationsTable.id,
@@ -355,11 +353,9 @@ object ChatConversationRepository {
             "A valid student ID is required."
         }
 
-        return transaction {
-            setTenantSchema(
-                tenantSchema
-            )
-
+        return chatTenantTransaction(
+            tenantSchema
+        ) {
             println(
                 "[ChatConversationRepository] Opening conversation: " +
                         "authenticatedAccountId=$authenticatedAccountId, " +
