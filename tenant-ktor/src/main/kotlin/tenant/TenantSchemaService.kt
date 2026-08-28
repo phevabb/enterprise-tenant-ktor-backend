@@ -47,10 +47,7 @@ object TenantSchemaService {
                 BillTemplateItemsTable,
                 StudentBillsTable,
                 StudentBillItemsTable,
-                ChatConversationsTable,
-                ChatMessagesTable,
-                ParentComplaintsTable,
-                ComplaintRepliesTable,
+
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -58,11 +55,7 @@ object TenantSchemaService {
                 BillTemplateItemsTable,
                 StudentBillsTable,
                 StudentBillItemsTable,
-                ChatConversationsTable,
-                ChatMessagesTable,
 
-                ParentComplaintsTable,
-                ComplaintRepliesTable,
 
             ).forEach { statement ->
                 exec(statement)
@@ -71,113 +64,153 @@ object TenantSchemaService {
     }
 
 
-    fun createTenantSchema(tenantSchema: String) {
-        transaction {
-            setTenantSchema(tenantSchema)
-
-            SchemaUtils.create(
-                AccountTable,
-                NewGradeClassTable,
-                StudentsTable,
-                AcademicYearTable,
-                TermTable,
-
-
-                FeeStructureTable,
-                StudentFeeRecordTable,
-                PaymentTable,
-                ReceiptsTable,
-
-                FamilyTable,
-                FamilyFeeRecordTable,
-                FamilyPaymentTable,
-                FamilyReceiptsTable,
-
-                NewClassPromotionTable,
-                StaffTable,
-                AdminTable,
-                PrincipalTable,
-
-                SubjectsTable,
-                AcademicRecordsTable,
-                GradesTable,
-                SubjectScoresTable,
-                CategoriesTable,
-                SubjectCategorySubjectsTable,
-                SubjectCategoriesTable,
-
-                BillTemplatesTable,
-                BillTemplateItemsTable,
-                StudentBillsTable,
-                StudentBillItemsTable,
-
-                ChatConversationsTable,
-                ChatMessagesTable,
-
-                ParentComplaintsTable,
-                ComplaintRepliesTable,
-            )
-
-
-
-
-            SchemaUtils.addMissingColumnsStatements(
-                AccountTable,
-                NewGradeClassTable,
-                StudentsTable,
-                AcademicYearTable,
-                TermTable,
-
-                FeeStructureTable,
-                StudentFeeRecordTable,
-                PaymentTable,
-                ReceiptsTable,
-
-                FamilyTable,
-                FamilyFeeRecordTable,
-                FamilyPaymentTable,
-                FamilyReceiptsTable,
-
-                NewClassPromotionTable,
-                StaffTable,
-                AdminTable,
-                PrincipalTable,
-
-                SubjectsTable,
-                AcademicRecordsTable,
-                GradesTable,
-                SubjectScoresTable,
-                CategoriesTable,
-                SubjectCategorySubjectsTable,
-                SubjectCategoriesTable,
-
-                BillTemplatesTable,
-                BillTemplateItemsTable,
-                StudentBillsTable,
-                StudentBillItemsTable,
-
-                ChatConversationsTable,
-                ChatMessagesTable,
-
-                ParentComplaintsTable,
-                ComplaintRepliesTable,
-            ).forEach { statement ->
-                exec(statement)
-            }
-        }
-    }
-
-
-
-    fun ensureChatTablesForTenant(
+    fun createTenantSchema(
         tenantSchema: String
     ) {
-        require(tenantSchema.isNotBlank()) {
+        require(
+            tenantSchema.isNotBlank()
+        ) {
             "Tenant schema is required."
         }
 
         transaction {
-            setTenantSchema(tenantSchema)
+            setTenantSchema(
+                tenantSchema
+            )
+
+            println(
+                "[TenantSchemaService] " +
+                        "Creating tenant tables: " +
+                        "tenantSchema=$tenantSchema"
+            )
+
+            SchemaUtils.create(
+                AccountTable,
+
+                AcademicYearTable,
+                TermTable,
+                CategoriesTable,
+                NewGradeClassTable,
+
+                FamilyTable,
+
+                StudentsTable,
+                StaffTable,
+                AdminTable,
+                PrincipalTable,
+
+                FeeStructureTable,
+                StudentFeeRecordTable,
+                PaymentTable,
+                ReceiptsTable,
+
+                FamilyFeeRecordTable,
+                FamilyPaymentTable,
+                FamilyReceiptsTable,
+
+                NewClassPromotionTable,
+
+                SubjectsTable,
+                SubjectCategoriesTable,
+                SubjectCategorySubjectsTable,
+                AcademicRecordsTable,
+                GradesTable,
+                SubjectScoresTable,
+
+                BillTemplatesTable,
+                BillTemplateItemsTable,
+                StudentBillsTable,
+                StudentBillItemsTable,
+
+                ChatConversationsTable,
+                ChatMessagesTable,
+
+                ParentComplaintsTable,
+                ComplaintRepliesTable
+            )
+
+            SchemaUtils.addMissingColumnsStatements(
+                AccountTable,
+
+                AcademicYearTable,
+                TermTable,
+                CategoriesTable,
+                NewGradeClassTable,
+
+                FamilyTable,
+
+                StudentsTable,
+                StaffTable,
+                AdminTable,
+                PrincipalTable,
+
+                FeeStructureTable,
+                StudentFeeRecordTable,
+                PaymentTable,
+                ReceiptsTable,
+
+                FamilyFeeRecordTable,
+                FamilyPaymentTable,
+                FamilyReceiptsTable,
+
+                NewClassPromotionTable,
+
+                SubjectsTable,
+                SubjectCategoriesTable,
+                SubjectCategorySubjectsTable,
+                AcademicRecordsTable,
+                GradesTable,
+                SubjectScoresTable,
+
+                BillTemplatesTable,
+                BillTemplateItemsTable,
+                StudentBillsTable,
+                StudentBillItemsTable,
+
+                ChatConversationsTable,
+                ChatMessagesTable,
+
+                ParentComplaintsTable,
+                ComplaintRepliesTable
+            ).forEach { statement ->
+                println(
+                    "[TenantSchemaService] " +
+                            "Executing tenant migration: " +
+                            statement
+                )
+
+                exec(
+                    statement
+                )
+            }
+        }
+
+        println(
+            "[TenantSchemaService] " +
+                    "Tenant tables ready: " +
+                    "tenantSchema=$tenantSchema"
+        )
+    }
+
+    fun ensureChatTablesForTenant(
+        tenantSchema: String
+    ) {
+        require(
+            tenantSchema.isNotBlank()
+        ) {
+            "Tenant schema is required."
+        }
+
+        transaction {
+            setTenantSchema(
+                tenantSchema
+            )
+
+            println(
+                "[TenantSchemaService] " +
+                        "Checking chat tables: " +
+                        "tenantSchema=$tenantSchema"
+            )
 
             SchemaUtils.create(
                 ChatConversationsTable,
@@ -188,13 +221,74 @@ object TenantSchemaService {
                 ChatConversationsTable,
                 ChatMessagesTable
             ).forEach { statement ->
-                exec(statement)
+                println(
+                    "[TenantSchemaService] " +
+                            "Executing chat migration: " +
+                            statement
+                )
+
+                exec(
+                    statement
+                )
             }
         }
 
         println(
-            "[TenantSchemaService] Chat tables ready: " +
+            "[TenantSchemaService] " +
+                    "Chat tables ready: " +
                     "tenantSchema=$tenantSchema"
         )
     }
+
+
+    fun ensureComplaintTablesForTenant(
+        tenantSchema: String
+    ) {
+        require(
+            tenantSchema.isNotBlank()
+        ) {
+            "Tenant schema is required."
+        }
+
+        transaction {
+            setTenantSchema(
+                tenantSchema
+            )
+
+            println(
+                "[TenantSchemaService] " +
+                        "Checking complaint tables: " +
+                        "tenantSchema=$tenantSchema"
+            )
+
+            SchemaUtils.create(
+                ParentComplaintsTable,
+                ComplaintRepliesTable
+            )
+
+            SchemaUtils.addMissingColumnsStatements(
+                ParentComplaintsTable,
+                ComplaintRepliesTable
+            ).forEach { statement ->
+                println(
+                    "[TenantSchemaService] " +
+                            "Executing complaint migration: " +
+                            statement
+                )
+
+                exec(
+                    statement
+                )
+            }
+        }
+
+        println(
+            "[TenantSchemaService] " +
+                    "Complaint tables ready: " +
+                    "tenantSchema=$tenantSchema"
+        )
+    }
+
+
+
 }
