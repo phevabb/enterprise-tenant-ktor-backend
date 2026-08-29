@@ -6,6 +6,7 @@ package chat.tables
 import com.example.account.AccountTable
 import com.example.student.StudentsTable
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.javatime.datetime
 
 object ChatConversationsTable : IntIdTable(
@@ -15,7 +16,8 @@ object ChatConversationsTable : IntIdTable(
     val student =
         reference(
             "student_id",
-            StudentsTable
+            StudentsTable,
+            onDelete = ReferenceOption.CASCADE
         )
 
     val parentAccount =
