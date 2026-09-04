@@ -2,6 +2,7 @@ package com.example
 
 
 
+import attendance.route.configureAttendanceRoutes
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.auth.HttpAuthHeader
@@ -224,6 +225,7 @@ fun Application.module() {
     configureCors()
     tenantModule()
     superAdminModule()
+    configureAttendanceRoutes()
 
 
     install(TenantPlugin) {
