@@ -38,7 +38,9 @@ val TenantPlugin = createApplicationPlugin(
             "/internal/",
             "/api/met/",
             "/health",
-            "/metrics"
+            "/metrics",
+            "/api/birthday/system/run"
+
         )
 
         if (excludedPaths.any { path.startsWith(it) }) {
