@@ -1,5 +1,6 @@
 package tenant.repository
 
+import com.example.tenant.TenantContext
 import com.example.tenant.tables.TenantsTable
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -20,6 +21,45 @@ fun getSchoolLogoPublicId(
             ?.get(TenantsTable.schoolLogoPublicId)
     }
 }
+
+
+fun getAllTenants(): List<TenantContext> {
+
+    return transaction {
+
+        TenantsTable
+            .selectAll()
+            .map { row ->
+
+                TenantContext(
+                    tenantId =
+                        row[TenantsTable.id],
+
+                    schoolName =
+                        row[TenantsTable.schoolName],
+
+                    tenantCode =
+                        row[TenantsTable.tenantCode],
+
+                    tenantSlug =
+                        row[TenantsTable.tenantSlug],
+
+                    tenantSchema =
+                        row[TenantsTable.tenantSchema],
+
+                    defaultDomain =
+                        row[TenantsTable.defaultDomain],
+
+                    status =
+                        row[TenantsTable.status],
+
+                    features =
+                        emptySet()
+                )
+            }
+    }
+}
+
 
 
 fun updateSchoolLogoByTenantCode(
@@ -69,7 +109,9 @@ fun updateSchoolLogo(
 
 fun clearSchoolLogo(
     tenantSchema: String
-): Boolean {
+): Boolean
+
+{
 
     return transaction {
 
@@ -82,3 +124,22 @@ fun clearSchoolLogo(
         } > 0
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2,7 +2,9 @@ package com.example
 
 
 
+import assistant.assistantModule
 import attendance.route.configureAttendanceRoutes
+import birthday.birthdayModule
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.auth.HttpAuthHeader
@@ -237,11 +239,13 @@ fun Application.module() {
 
     accountModule()
     studentModule()
+    birthdayModule()
     feeModule()
     familyModule()
     staffModule()
     adminModule()
     billingModule()
+    assistantModule()
 
 
     authModule()

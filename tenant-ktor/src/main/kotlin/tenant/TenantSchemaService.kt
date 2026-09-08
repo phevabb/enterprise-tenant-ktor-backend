@@ -1,6 +1,10 @@
 package com.example.tenant
 
+import assistant.tables.AssistantNotesTable
+import assistant.tables.AssistantTodoTable
 import attendance.table.StudentAttendanceTable
+import birthday.tables.BirthdayMessageLogTable
+import birthday.tables.BirthdaySettingsTable
 import chat.tables.ChatConversationsTable
 import chat.tables.ChatMessagesTable
 import com.example.academics.repos.setTenantSchema
@@ -130,6 +134,12 @@ object TenantSchemaService {
                 ComplaintRepliesTable,
 
                 StudentAttendanceTable,
+
+                BirthdayMessageLogTable,
+                BirthdaySettingsTable,
+
+                AssistantNotesTable,
+                AssistantTodoTable,
             )
 
             SchemaUtils.addMissingColumnsStatements(
@@ -177,6 +187,13 @@ object TenantSchemaService {
                 ComplaintRepliesTable,
 
                 StudentAttendanceTable,
+
+                BirthdayMessageLogTable,
+                BirthdaySettingsTable,
+
+                AssistantNotesTable,
+                AssistantTodoTable,
+
             ).forEach { statement ->
                 println(
                     "[TenantSchemaService] " +
