@@ -1,6 +1,9 @@
 package com.example.student.dtos.requests
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
+import java.time.LocalDate
 
 @Serializable
 data class PatchStudentRequest(
@@ -39,7 +42,8 @@ data class PatchUserPart(
     val fullName: String? = null,
     val gender: String? = null,
     val nationality: String? = null,
-    val dateOfBirth: String? = null,
+    @Serializable(with = LocalDateSerializer::class)
+    val dateOfBirth: LocalDate? = null,
     val isActive: Boolean? = null,
     val role: String? = null,
     val isStaff: Boolean? = null

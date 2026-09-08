@@ -47,7 +47,7 @@ fun ResultRow.toAccount(): Account = Account(
 
     gender = this[AccountTable.gender]?.let { genderFromDb(it) },
 
-    dateOfBirth = parseDateOfBirth(this[AccountTable.dateOfBirth]),
+    dateOfBirth = this[AccountTable.dateOfBirth],
 
     createdAt = null,
 

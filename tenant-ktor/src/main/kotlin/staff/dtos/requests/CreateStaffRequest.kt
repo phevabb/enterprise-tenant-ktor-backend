@@ -2,7 +2,10 @@ package com.example.staff.dtos.requests
 
 
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
+import java.time.LocalDate
 
 /**
  * Top‑level request for creating a staff profile.
@@ -30,7 +33,8 @@ data class CreateUserPart(
     val fullName: String,
 
     val gender: String? = null,
-    val dateOfBirth: String? = null,   // ISO‑8601 (YYYY‑MM‑DD)
+    @Serializable(with = LocalDateSerializer::class)
+    val dateOfBirth: LocalDate? = null, // ISO‑8601 (YYYY‑MM‑DD)
     val nationality: String? = null,
 
     val role: String = "staff",

@@ -15,6 +15,8 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.ByteArrayInputStream
 
+
+
 object ImportStudentsFromExcel {
 
     private const val FULL_NAME_HEADER =
@@ -296,7 +298,8 @@ object ImportStudentsFromExcel {
                                 user =
                                     CreateUserPart(
                                         fullName = fullName,
-                                        role = "student"
+                                        role = "student",
+                                        dateOfBirth = null,
                                     ),
 
                                 currentNewGradeClassId =
@@ -596,3 +599,5 @@ object ImportStudentsFromExcel {
         }
     }
 }
+
+

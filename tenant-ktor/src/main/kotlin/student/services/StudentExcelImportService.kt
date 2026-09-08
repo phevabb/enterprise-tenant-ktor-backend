@@ -141,7 +141,8 @@ object StudentExcelImportService {
                                 fullName = fullName,
                                 role = "student",
                                 isActive = true,
-                                isStaff = false
+                                isStaff = false,
+                                dateOfBirth = null,
                             ),
                             currentNewGradeClassId = classId,
                             family = null,

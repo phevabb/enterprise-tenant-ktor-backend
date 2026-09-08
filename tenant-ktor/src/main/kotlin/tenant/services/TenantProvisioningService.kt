@@ -144,7 +144,8 @@ class TenantProvisioningService {
                             fullName = bootstrapPrincipalName,
                             role = "principal",
                             isActive = true,
-                            isStaff = true
+                            isStaff = true,
+                            dateOfBirth = null,
                         )
                     )
                 )
@@ -169,7 +170,8 @@ class TenantProvisioningService {
                             fullName = "defaultadmin",
                             role = "administrator",
                             isActive = true,
-                            isStaff = true
+                            isStaff = true,
+                            dateOfBirth = null,
                         )
                     )
                 )

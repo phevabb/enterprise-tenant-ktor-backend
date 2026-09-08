@@ -2,7 +2,10 @@ package com.example.principal.dtos.requests
 
 
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
+import java.time.LocalDate
 
 @Serializable
 data class CreatePrincipalRequest(
@@ -13,7 +16,8 @@ data class CreatePrincipalRequest(
 data class CreateUserPart(
     val fullName: String,
     val gender: String? = null,
-    val dateOfBirth: String? = null,
+    @Serializable(with = LocalDateSerializer::class)
+    val dateOfBirth: LocalDate? = null,
     val nationality: String? = null,
     val role: String = "principal",
     val isActive: Boolean = true,

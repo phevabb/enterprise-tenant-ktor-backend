@@ -728,7 +728,8 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
                         fullName = bootstrapPrincipalName,
                         role = "principal",
                         isActive = true,
-                        isStaff = true
+                        isStaff = true,
+                        dateOfBirth = null,
                     )
                 )
             )
@@ -754,7 +755,8 @@ fun createTenant(request: CreateTenantRequest): CreateTenantResponse {
                         fullName = bootstrapAdminName,
                         role = "admin",
                         isActive = true,
-                        isStaff = true
+                        isStaff = true,
+                        dateOfBirth = null,
                     )
                 )
             )

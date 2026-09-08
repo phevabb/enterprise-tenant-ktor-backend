@@ -1,6 +1,9 @@
 package com.example.minimals
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
+import java.time.LocalDate
 
 
 @Serializable
@@ -12,5 +15,6 @@ data class StaffUserMinimal(
     val gender: String?,
     val role: String,
     val isActive: Boolean,
-    val dateOfBirth: String?
+    @Serializable(with = LocalDateSerializer::class)
+    val dateOfBirth: LocalDate? = null,
 )

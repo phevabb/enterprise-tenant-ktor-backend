@@ -2,7 +2,10 @@ package com.example.student.dtos.response
 
 
 import com.example.minimals.FamilyMinimal
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
+import java.time.LocalDate
 
 @Serializable
 data class StudentProfileResponse(
@@ -41,7 +44,8 @@ data class StudentUserResponse(
     val gender: String?,
     val role: String,
     val isActive: Boolean,
-    val dateOfBirth: String?,
+    @Serializable(with = LocalDateSerializer::class)
+    val dateOfBirth: LocalDate? = null,
 
     val profilePictureUrl: String? = null,
     val profilePicturePublicId: String? = null

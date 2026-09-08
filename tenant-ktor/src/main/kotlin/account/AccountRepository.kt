@@ -11,6 +11,7 @@ import org.jetbrains.exposed.sql.insertAndGetId
 
 
 import org.jetbrains.exposed.sql.update
+import java.time.LocalDate
 
 object AccountRepository {
 
@@ -23,7 +24,7 @@ object AccountRepository {
         pin: String,
         fullName: String,
         gender: String?,
-        dateOfBirth: String?,
+        dateOfBirth: LocalDate?,
         nationality: String?,
         role: String,
         isActive: Boolean,
@@ -50,18 +51,23 @@ object AccountRepository {
         pin: String,
         fullName: String,
         gender: String?,
-        dateOfBirth: String?,
+        dateOfBirth: LocalDate?,
         nationality: String?,
         role: String,
         isActive: Boolean,
         isStaff: Boolean
     ): Account {
+
+        println("Saving DOB = $dateOfBirth")
+        println("DOB class = ${dateOfBirth?.javaClass?.name}")
+
         val id = AccountTable.insertAndGetId {
+            it[AccountTable.dateOfBirth] = dateOfBirth
             it[AccountTable.userId] = userId
             it[AccountTable.pin] = pin
             it[AccountTable.fullName] = fullName
             it[AccountTable.gender] = gender
-            it[AccountTable.dateOfBirth] = dateOfBirth
+
             it[AccountTable.nationality] = nationality
             it[AccountTable.role] = role
             it[AccountTable.isActive] = isActive

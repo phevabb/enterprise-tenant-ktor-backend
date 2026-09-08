@@ -16,6 +16,9 @@ import com.example.student.dtos.requests.UpdateStudentRequest
 import com.example.student.dtos.response.StudentProfileResponse
 import com.example.student.models.StudentProfile
 import com.example.student.tables.NewGradeClassTable
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
+import others.LocalDateSerializer
 import student.services.AdmissionSmsNotifier
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -61,10 +64,7 @@ object StudentService {
 
         val formattedDateOfBirth =
             details.dateOfBirth
-                ?.trim()
-                ?.takeIf { dateOfBirth ->
-                    dateOfBirth.isNotBlank()
-                }
+                ?.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
                 ?: "Not provided"
 
         val fatherContact =
@@ -136,17 +136,18 @@ object StudentService {
             .trim()
     }
 
-
-            private data class CreatedStudentAdmissionDetails(
-        val profile: StudentProfileResponse,
-        val studentName: String,
-        val userId: String,
-        val pin: String,
-        val dateOfAdmission: String,
-        val dateOfBirth: String?,
-        val className: String,
-        val contactOfFather: String,
-        val contactOfMother: String?
+         @Serializable
+        private data class CreatedStudentAdmissionDetails(
+             val profile: StudentProfileResponse,
+             val studentName: String,
+             val userId: String,
+             val pin: String,
+             val dateOfAdmission: String,
+             @Serializable(with = LocalDateSerializer::class)
+             val dateOfBirth: LocalDate? = null,
+             val className: String,
+             val contactOfFather: String,
+             val contactOfMother: String?
     )
 
 
@@ -186,6 +187,10 @@ object StudentService {
 
                 println(
                     "sendAdmissionSms = ${request.sendAdmissionSms}"
+                )
+
+                println(
+                    "dateOfBirth=${request.user.dateOfBirth}"
                 )
 
                 val generatedUserId =
@@ -307,8 +312,7 @@ object StudentService {
                             )
                         ),
                     dateOfBirth =
-                        request.user.dateOfBirth
-                            ?.toString(),
+                        request.user.dateOfBirth,
                     className = className,
                     contactOfFather =
                         request.contactOfFather,
